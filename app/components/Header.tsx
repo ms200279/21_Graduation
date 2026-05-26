@@ -13,6 +13,7 @@ const navItems = [
 
 const transitionDuration = 720;
 const transitionSettleDelay = 180;
+const headerShadowClassName = "shadow-[0_12px_40px_rgba(0,0,0,0.18)]";
 const movingLabelClassName =
   "pointer-events-none absolute left-1/2 top-1/2 z-10 text-[20px] leading-none text-white transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]";
 const headerStyle = {
@@ -136,6 +137,7 @@ export default function Header() {
         aria-hidden="true"
         className={[
           "pointer-events-none absolute left-1/2 top-1/2 h-[50px] w-[50px] rounded-full bg-black",
+          headerShadowClassName,
           "transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
           shouldShowLandingOrbOutside
             ? "translate-x-[var(--landing-orb-offset)] -translate-y-1/2"
@@ -147,7 +149,8 @@ export default function Header() {
         aria-label="Primary navigation"
         className={[
           "dynamic-header flex h-[50px] items-center justify-center rounded-[25px] bg-black",
-          "overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.18)]",
+          "overflow-hidden",
+          headerShadowClassName,
           "transition-[width,padding] duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
           navSizeClassName,
         ].join(" ")}
