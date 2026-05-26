@@ -1,5 +1,5 @@
 ---
-description: Production workflow and commit rules for this project
+description: Production workflow and project standards for this repo
 alwaysApply: true
 ---
 
@@ -21,20 +21,17 @@ alwaysApply: true
 - Do not commit changes without explicit user approval.
 - Do not merge changes without explicit user approval.
 - If a commit or merge is needed, stop and ask for approval first.
+- Commit message format and types: see **pm-agent** rule (`pm-agent.mdc`).
 
-# Commit Convention
+# Agent roles
 
-- Before committing, summarize the changed files and suggest the commit message.
-- Use this exact format: `type:short description`.
-- Allowed commit types: `chore`, `deploy`, `docs`, `feat`, `hotfix`, `design`, `fix`, `style`, `refactor`, `rename`, `remove`.
-- Use `chore` for development setup, build fixes, package additions, and environment variables.
-- Use `deploy` for deployment changes.
-- Use `docs` for documentation or README updates.
-- Use `feat` for new features or feature updates.
-- Use `hotfix` for critical bug fixes.
-- Use `design` for UI, CSS, or publishing changes.
-- Use `fix` for bug or error fixes.
-- Use `style` for formatting, typos, and naming changes.
-- Use `refactor` for code refactoring.
-- Use `rename` for file or folder renames or moves.
-- Use `remove` for file deletion.
+When starting a specialized agent session, follow that agent’s **세션 첫 프롬프트** in its `.mdc` rule (no separate paste needed unless PM provides task-specific instructions).
+
+- **pm-agent** — planning, handoffs, commit convention (no implementation).
+- **frontend-agent** — UI and client code.
+- **backend-agent** — API, server, DB.
+- **docs-agent** — markdown and guides.
+- **reviewer-agent** — read-only review and merge readiness.
+- **security-agent** — security review and recommendations.
+- **tester-agent** — tests and QA strategy.
+- **devops-agent** — CI/CD and deployment config.
