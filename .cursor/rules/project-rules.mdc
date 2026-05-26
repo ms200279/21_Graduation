@@ -1,0 +1,40 @@
+---
+description: Production workflow and commit rules for this project
+alwaysApply: true
+---
+
+# Project Rules
+
+- This is a graduation exhibition archive website built with Next.js App Router, TypeScript, Tailwind CSS, and Supabase.
+- Treat the project as production publishing work, not experimentation.
+- Do not break existing features, authentication flow, Supabase integration, or upload flow.
+- Prioritize visual polish, responsive stability, and production-ready UI implementation.
+- Before starting implementation, review the relevant file structure.
+- Modify only the minimum number of files necessary.
+- Do not perform unnecessary refactoring or add new libraries.
+- After completing a task, summarize which files changed and why.
+
+# Git Workflow
+
+- Before making file changes for a task, create a new Git branch.
+- Do not work directly on `main` or any protected branch.
+- Do not commit changes without explicit user approval.
+- Do not merge changes without explicit user approval.
+- If a commit or merge is needed, stop and ask for approval first.
+
+# Commit Convention
+
+- Before committing, summarize the changed files and suggest the commit message.
+- Use this exact format: `type:short description`.
+- Allowed commit types: `chore`, `deploy`, `docs`, `feat`, `hotfix`, `design`, `fix`, `style`, `refactor`, `rename`, `remove`.
+- Use `chore` for development setup, build fixes, package additions, and environment variables.
+- Use `deploy` for deployment changes.
+- Use `docs` for documentation or README updates.
+- Use `feat` for new features or feature updates.
+- Use `hotfix` for critical bug fixes.
+- Use `design` for UI, CSS, or publishing changes.
+- Use `fix` for bug or error fixes.
+- Use `style` for formatting, typos, and naming changes.
+- Use `refactor` for code refactoring.
+- Use `rename` for file or folder renames or moves.
+- Use `remove` for file deletion.
