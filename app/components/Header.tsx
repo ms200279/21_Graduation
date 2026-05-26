@@ -18,13 +18,20 @@ export default function Header() {
   const navRef = useRef<HTMLElement>(null);
   const routeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const [activeTransition, setActiveTransition] = useState<{
     href: string;
-    shiftX: number;
+    label: string;
+    startOffset: number;
+    isCentered: boolean;
   } | null>(null);
+  const [isHoverExpansionLocked, setIsHoverExpansionLocked] = useState(false);
   const isLandingPage = pathname === "/";
   const currentItem = navItems.find((item) => item.href === pathname);
   const isShrinking = activeTransition !== null;
+  const shouldShowCollapsedLabel =
+    !isLandingPage && currentItem && !isShrinking;
+  const canExpandOnHover = !isShrinking && !isHoverExpansionLocked;
 
   useEffect(() => {
     return () => {
@@ -34,6 +41,10 @@ export default function Header() {
 
       if (resetTimerRef.current) {
         clearTimeout(resetTimerRef.current);
+      }
+
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
       }
     };
   }, []);
@@ -54,6 +65,10 @@ export default function Header() {
       clearTimeout(resetTimerRef.current);
     }
 
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+
     const navRect = navRef.current?.getBoundingClientRect();
     const buttonRect = button.getBoundingClientRect();
     const navCenter = navRect
@@ -63,7 +78,18 @@ export default function Header() {
 
     setActiveTransition({
       href: item.href,
-      shiftX: navCenter - buttonCenter,
+      label: item.label,
+      startOffset: buttonCenter - navCenter,
+      isCentered: false,
+    });
+    setIsHoverExpansionLocked(true);
+
+    animationFrameRef.current = requestAnimationFrame(() => {
+      setActiveTransition((transition) =>
+        transition?.href === item.href
+          ? { ...transition, isCentered: true }
+          : transition,
+      );
     });
 
     routeTimerRef.current = setTimeout(() => {
@@ -80,6 +106,7 @@ export default function Header() {
       <nav
         ref={navRef}
         aria-label="Primary navigation"
+        onMouseLeave={() => setIsHoverExpansionLocked(false)}
         className={[
           "dynamic-header group flex h-[50px] items-center justify-center rounded-[25px] bg-black",
           "overflow-hidden px-[26px] shadow-[0_12px_40px_rgba(0,0,0,0.18)]",
@@ -88,14 +115,33 @@ export default function Header() {
             ? "w-[min(379px,calc(100vw-32px))]"
             : [
                 "w-[120px] px-0",
-                !isShrinking
+                canExpandOnHover
                   ? "hover:w-[min(379px,calc(100vw-32px))] hover:px-[26px]"
                   : "",
               ].join(" "),
         ].join(" ")}
       >
-        {!isLandingPage && !isShrinking && currentItem ? (
-          <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[20px] leading-none text-white transition-opacity duration-200 group-hover:opacity-0">
+        {activeTransition ? (
+          <span
+            className="pointer-events-none absolute left-1/2 top-1/2 z-10 text-[20px] leading-none text-white transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+            style={{
+              transform: `translate(calc(-50% + ${
+                activeTransition.isCentered
+                  ? "0px"
+                  : `${activeTransition.startOffset}px`
+              }), -50%)`,
+            }}
+          >
+            {activeTransition.label}
+          </span>
+        ) : null}
+        {shouldShowCollapsedLabel ? (
+          <span
+            className={[
+              "pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[20px] leading-none text-white transition-opacity duration-200",
+              canExpandOnHover ? "group-hover:opacity-0" : "",
+            ].join(" ")}
+          >
             {currentItem.label}
           </span>
         ) : null}
@@ -103,9 +149,14 @@ export default function Header() {
           className={[
             "flex items-center justify-center gap-[30px] whitespace-nowrap",
             "transition-opacity duration-300",
-            isLandingPage || isShrinking
+            isLandingPage && !isShrinking
               ? "opacity-100 delay-500"
-              : "opacity-0 delay-0 group-hover:opacity-100 group-hover:delay-500",
+              : [
+                  "opacity-0 delay-0",
+                  canExpandOnHover
+                    ? "group-hover:opacity-100 group-hover:delay-500"
+                    : "duration-0 pointer-events-none",
+                ].join(" "),
           ].join(" ")}
         >
           {navItems.map((item) => (
@@ -113,18 +164,10 @@ export default function Header() {
               key={item.href}
               type="button"
               onClick={(event) => handleNavClick(item, event.currentTarget)}
-              style={
-                activeTransition?.href === item.href
-                  ? { transform: `translateX(${activeTransition.shiftX}px)` }
-                  : undefined
-              }
               className={[
                 "text-[20px] leading-none text-white",
-                "transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+                "transition-opacity duration-300",
                 "hover:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
-                isShrinking && activeTransition.href !== item.href
-                  ? "pointer-events-none opacity-0"
-                  : "",
               ].join(" ")}
             >
               {item.label}
