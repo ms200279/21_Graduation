@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -11,6 +12,24 @@ const navItems = [
 ];
 
 const transitionDuration = 720;
+const transitionSettleDelay = 180;
+const movingLabelClassName =
+  "pointer-events-none absolute left-1/2 top-1/2 z-10 text-[20px] leading-none text-white transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]";
+const headerStyle = {
+  "--header-width": "min(399px, calc(100vw - 32px))",
+  "--header-inner-width": "calc(var(--header-width) - 52px)",
+  "--collapsed-header-width": "120px",
+} as CSSProperties;
+
+const expandedTextLayoutClassName =
+  "flex w-full items-center justify-between gap-[20px] whitespace-nowrap";
+
+const currentLabelOffsets = [
+  "calc(var(--header-inner-width) * -0.385)",
+  "calc(var(--header-inner-width) * -0.135)",
+  "calc(var(--header-inner-width) * 0.135)",
+  "calc(var(--header-inner-width) * 0.385)",
+];
 
 export default function Header() {
   const pathname = usePathname();
@@ -22,29 +41,21 @@ export default function Header() {
   const [activeTransition, setActiveTransition] = useState<{
     href: string;
     label: string;
-    startOffset: number;
-    isCentered: boolean;
+    fromOffset: number;
+    toOffset: number;
+    isAtRest: boolean;
   } | null>(null);
-  const [isHoverExpansionLocked, setIsHoverExpansionLocked] = useState(false);
   const isLandingPage = pathname === "/";
-  const currentItem = navItems.find((item) => item.href === pathname);
+  const currentItemIndex = navItems.findIndex((item) => item.href === pathname);
+  const currentItem = currentItemIndex >= 0 ? navItems[currentItemIndex] : null;
   const isShrinking = activeTransition !== null;
-  const shouldShowCollapsedLabel =
-    !isLandingPage && currentItem && !isShrinking;
-  const canExpandOnHover = !isShrinking && !isHoverExpansionLocked;
-  const navListClassName = isShrinking
-    ? "flex items-center justify-center gap-[30px] whitespace-nowrap opacity-0 pointer-events-none"
-    : [
-        "flex items-center justify-center gap-[30px] whitespace-nowrap transition-opacity",
-        isLandingPage
-          ? "opacity-100 delay-500 duration-300"
-          : [
-              "opacity-0 delay-0",
-              canExpandOnHover
-                ? "duration-300 group-hover:opacity-100 group-hover:delay-500"
-                : "duration-0 pointer-events-none",
-            ].join(" "),
-      ].join(" ");
+  const navSizeClassName = isLandingPage
+    ? isShrinking
+      ? "w-[var(--collapsed-header-width)] px-0"
+      : "w-[var(--header-width)] px-[26px]"
+    : isShrinking
+      ? "w-[var(--collapsed-header-width)] px-0"
+      : "w-[var(--collapsed-header-width)] px-0 group-hover:w-[var(--header-width)] group-hover:px-[26px]";
 
   useEffect(() => {
     return () => {
@@ -92,15 +103,15 @@ export default function Header() {
     setActiveTransition({
       href: item.href,
       label: item.label,
-      startOffset: buttonCenter - navCenter,
-      isCentered: false,
+      fromOffset: buttonCenter - navCenter,
+      toOffset: 0,
+      isAtRest: false,
     });
-    setIsHoverExpansionLocked(true);
 
     animationFrameRef.current = requestAnimationFrame(() => {
       setActiveTransition((transition) =>
         transition?.href === item.href
-          ? { ...transition, isCentered: true }
+          ? { ...transition, isAtRest: true }
           : transition,
       );
     });
@@ -111,63 +122,72 @@ export default function Header() {
 
     resetTimerRef.current = setTimeout(() => {
       setActiveTransition(null);
-    }, transitionDuration + 180);
+    }, transitionDuration + transitionSettleDelay);
   };
 
   return (
-    <header className="fixed left-1/2 top-10 z-50 -translate-x-1/2">
+    <header
+      className="group fixed left-1/2 top-10 z-50 flex h-[50px] w-[var(--header-width)] -translate-x-1/2 items-center justify-center"
+      style={headerStyle}
+    >
       <nav
         ref={navRef}
         aria-label="Primary navigation"
-        onMouseLeave={() => setIsHoverExpansionLocked(false)}
         className={[
-          "dynamic-header group flex h-[50px] items-center justify-center rounded-[25px] bg-black",
-          "overflow-hidden px-[26px] shadow-[0_12px_40px_rgba(0,0,0,0.18)]",
+          "dynamic-header flex h-[50px] items-center justify-center rounded-[25px] bg-black",
+          "overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.18)]",
           "transition-[width,padding] duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
-          isLandingPage && !isShrinking
-            ? "w-[min(379px,calc(100vw-32px))]"
-            : [
-                "w-[120px] px-0",
-                canExpandOnHover
-                  ? "hover:w-[min(379px,calc(100vw-32px))] hover:px-[26px]"
-                  : "",
-              ].join(" "),
+          navSizeClassName,
         ].join(" ")}
       >
         {activeTransition ? (
           <span
-            className="pointer-events-none absolute left-1/2 top-1/2 z-10 text-[20px] leading-none text-white transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+            className={movingLabelClassName}
             style={{
               transform: `translate(calc(-50% + ${
-                activeTransition.isCentered
-                  ? "0px"
-                  : `${activeTransition.startOffset}px`
+                activeTransition.isAtRest
+                  ? `${activeTransition.toOffset}px`
+                  : `${activeTransition.fromOffset}px`
               }), -50%)`,
             }}
           >
             {activeTransition.label}
           </span>
         ) : null}
-        {shouldShowCollapsedLabel ? (
+        {!isLandingPage && !isShrinking && currentItem ? (
           <span
-            className={[
-              "pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[20px] leading-none text-white transition-opacity duration-200",
-              canExpandOnHover ? "group-hover:opacity-0" : "",
-            ].join(" ")}
+            className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-[20px] leading-none text-white transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:translate-x-[calc(-50%+var(--current-label-offset))]"
+            style={
+              {
+                "--current-label-offset": currentLabelOffsets[currentItemIndex],
+              } as CSSProperties
+            }
           >
             {currentItem.label}
           </span>
         ) : null}
-        <div className={navListClassName}>
+        <div
+          className={[
+            expandedTextLayoutClassName,
+            isShrinking ? "pointer-events-none opacity-0" : "",
+          ].join(" ")}
+        >
           {navItems.map((item) => (
             <button
               key={item.href}
               type="button"
               onClick={(event) => handleNavClick(item, event.currentTarget)}
               className={[
-                "text-[20px] leading-none text-white",
-                "transition-opacity duration-300",
-                "hover:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
+                "text-center text-[20px] leading-none text-white",
+                "transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
+                isLandingPage ? "opacity-100" : "",
+                !isLandingPage && currentItem?.href === item.href
+                  ? "opacity-0"
+                  : "",
+                !isLandingPage && currentItem?.href !== item.href
+                  ? "scale-x-95 opacity-0 group-hover:scale-x-100 group-hover:opacity-100"
+                  : "",
               ].join(" ")}
             >
               {item.label}
