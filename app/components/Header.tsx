@@ -19,6 +19,7 @@ const headerStyle = {
   "--header-width": "min(399px, calc(100vw - 32px))",
   "--header-inner-width": "calc(var(--header-width) - 52px)",
   "--collapsed-header-width": "120px",
+  "--landing-orb-offset": "calc((var(--header-width) / -2) - 60px)",
 } as CSSProperties;
 
 const expandedTextLayoutClassName =
@@ -56,6 +57,7 @@ export default function Header() {
     : isShrinking
       ? "w-[var(--collapsed-header-width)] px-0"
       : "w-[var(--collapsed-header-width)] px-0 group-hover:w-[var(--header-width)] group-hover:px-[26px]";
+  const shouldShowLandingOrbOutside = isLandingPage && !isShrinking;
 
   useEffect(() => {
     return () => {
@@ -130,6 +132,16 @@ export default function Header() {
       className="group fixed left-1/2 top-10 z-50 flex h-[50px] w-[var(--header-width)] -translate-x-1/2 items-center justify-center"
       style={headerStyle}
     >
+      <span
+        aria-hidden="true"
+        className={[
+          "pointer-events-none absolute left-1/2 top-1/2 h-[50px] w-[50px] rounded-full bg-black",
+          "transition-transform duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+          shouldShowLandingOrbOutside
+            ? "translate-x-[var(--landing-orb-offset)] -translate-y-1/2"
+            : "-translate-x-[calc(var(--collapsed-header-width)/2-25px)] -translate-y-1/2",
+        ].join(" ")}
+      />
       <nav
         ref={navRef}
         aria-label="Primary navigation"
