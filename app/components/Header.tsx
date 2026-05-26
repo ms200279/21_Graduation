@@ -32,6 +32,19 @@ export default function Header() {
   const shouldShowCollapsedLabel =
     !isLandingPage && currentItem && !isShrinking;
   const canExpandOnHover = !isShrinking && !isHoverExpansionLocked;
+  const navListClassName = isShrinking
+    ? "flex items-center justify-center gap-[30px] whitespace-nowrap opacity-0 pointer-events-none"
+    : [
+        "flex items-center justify-center gap-[30px] whitespace-nowrap transition-opacity",
+        isLandingPage
+          ? "opacity-100 delay-500 duration-300"
+          : [
+              "opacity-0 delay-0",
+              canExpandOnHover
+                ? "duration-300 group-hover:opacity-100 group-hover:delay-500"
+                : "duration-0 pointer-events-none",
+            ].join(" "),
+      ].join(" ");
 
   useEffect(() => {
     return () => {
@@ -145,20 +158,7 @@ export default function Header() {
             {currentItem.label}
           </span>
         ) : null}
-        <div
-          className={[
-            "flex items-center justify-center gap-[30px] whitespace-nowrap",
-            "transition-opacity duration-300",
-            isLandingPage && !isShrinking
-              ? "opacity-100 delay-500"
-              : [
-                  "opacity-0 delay-0",
-                  canExpandOnHover
-                    ? "group-hover:opacity-100 group-hover:delay-500"
-                    : "duration-0 pointer-events-none",
-                ].join(" "),
-          ].join(" ")}
-        >
+        <div className={navListClassName}>
           {navItems.map((item) => (
             <button
               key={item.href}
