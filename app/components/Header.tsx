@@ -425,11 +425,14 @@ export default function Header() {
               type="button"
               onClick={(event) => handleNavClick(item, event.currentTarget)}
               className={[
-                "max-lg:w-full lg:w-auto text-center leading-none text-white touch-manipulation",
-                "transition-[opacity,transform]",
+                "max-lg:w-full lg:w-auto text-center leading-none touch-manipulation",
+                "transition-[color,opacity,transform]",
                 transitionEaseClassName,
                 "text-[14px] md:text-[18px] lg:text-[20px]",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
+                item.href === pathname
+                  ? "text-white"
+                  : "text-[#999999] md:hover:text-white",
                 isLandingPage || isMobileExpanded ? "opacity-100" : "",
                 !isLandingPage &&
                 !isMobile &&
