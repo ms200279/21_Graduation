@@ -508,7 +508,7 @@ export default function Header() {
         "desktop-header group fixed z-50 flex",
         isMobile
           ? "right-4 top-4 max-w-[calc(100vw-32px)] justify-end"
-          : "left-1/2 top-10 h-[var(--header-height)] w-[var(--header-width)] -translate-x-1/2 items-center justify-center",
+          : "left-1/2 top-[10px] h-[var(--header-height)] w-[var(--header-width)] -translate-x-1/2 items-center justify-center",
       ].join(" ")}
       style={
         isMobile
