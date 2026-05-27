@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -15,8 +15,14 @@ const navItems = [
 const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
 const MOBILE_PAGE_PILL_HORIZONTAL_PADDING = 28;
 
-const transitionDuration = 720;
+const orbMotionDuration = 700;
+const orbReturnHoldDelay = 140;
+const transitionDuration = orbMotionDuration;
 const transitionSettleDelay = 180;
+const orbEase = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+const orbOutsideTransform = "translate(var(--landing-orb-offset), -50%)";
+const orbInsideTransform =
+  "translate(calc((var(--orb-size) / 2) - (var(--collapsed-header-width) / 2)), -50%)";
 const transitionEaseClassName =
   "duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]";
 const headerShadowClassName = "shadow-[0_12px_40px_rgba(0,0,0,0.18)]";
@@ -88,44 +94,65 @@ export default function Header() {
   const router = useRouter();
   const navRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLElement>(null);
+  const orbRef = useRef<HTMLSpanElement>(null);
   const mobilePillMeasureRef = useRef<HTMLSpanElement>(null);
   const routeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const previousPathnameRef = useRef(pathname);
   const isMobile = useIsMobile();
   const [mobileMenuPath, setMobileMenuPath] = useState<string | null>(null);
   const [mobilePagePillWidth, setMobilePagePillWidth] = useState(112);
+  const [orbTransitionEnabled, setOrbTransitionEnabled] = useState(true);
   const [activeTransition, setActiveTransition] = useState<{
     href: string;
     label: string;
     fromOffset: number;
     toOffset: number;
     isAtRest: boolean;
+    phase: "forward" | "return";
   } | null>(null);
+  const pathnameRef = useRef(pathname);
+  const activeTransitionRef = useRef(activeTransition);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
+  useEffect(() => {
+    activeTransitionRef.current = activeTransition;
+  }, [activeTransition]);
 
   const isLandingPage = pathname === "/";
   const currentItemIndex = navItems.findIndex((item) => item.href === pathname);
   const currentItem = currentItemIndex >= 0 ? navItems[currentItemIndex] : null;
-  const isShrinking = activeTransition !== null;
+  const isForwardShrinking = activeTransition?.phase === "forward";
+  const isReturnAbsorbed = activeTransition?.phase === "return";
+  const isTransitionActive = activeTransition !== null;
   const isMobileMenuOpen =
-    isMobile && mobileMenuPath === pathname && !isShrinking;
+    isMobile && mobileMenuPath === pathname && !isTransitionActive;
   const isMobileExpanded = isMobileMenuOpen;
 
   const shouldShowDesktopLandingOrbOutside =
-    !isMobile && isLandingPage && !isShrinking;
+    !isMobile &&
+    isLandingPage &&
+    !isReturnAbsorbed &&
+    (!isForwardShrinking || !activeTransition?.isAtRest);
 
   const mobilePillMeasureLabel =
-    activeTransition?.label ?? currentItem?.label ?? navItems[0].label;
+    activeTransition?.phase === "forward"
+      ? activeTransition.label
+      : (currentItem?.label ?? navItems[0].label);
 
   const desktopNavSizeClassName = isLandingPage
-    ? isShrinking
+    ? isForwardShrinking || isReturnAbsorbed
       ? "w-[var(--collapsed-header-width)] px-0"
       : "w-[var(--header-width)] px-[var(--header-padding-x)]"
-    : isShrinking
+    : isForwardShrinking
       ? "w-[var(--collapsed-header-width)] px-0"
       : "w-[var(--collapsed-header-width)] px-0 md:group-hover:w-[var(--header-width)] md:group-hover:px-[var(--header-padding-x)]";
 
-  const mobileNavSizeClassName = isShrinking
+  const mobileNavSizeClassName = isTransitionActive
     ? "w-[var(--mobile-page-pill-width)] px-3"
     : isMobileExpanded
       ? "w-[var(--header-width)] px-4"
@@ -138,7 +165,7 @@ export default function Header() {
     : desktopNavSizeClassName;
 
   const navShapeClassName = isMobile
-    ? isLandingPage && !isMobileExpanded && !isShrinking
+    ? isLandingPage && !isMobileExpanded && !isTransitionActive
       ? "rounded-full"
       : "rounded-[22px]"
     : "rounded-[var(--header-radius)]";
@@ -160,7 +187,11 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    if (!activeTransition || pathname !== activeTransition.href) {
+    if (
+      !activeTransition ||
+      activeTransition.phase === "return" ||
+      pathname !== activeTransition.href
+    ) {
       return;
     }
 
@@ -227,8 +258,154 @@ export default function Header() {
     }
   };
 
+  const beginOrbReturnAnimation = useCallback((fromHref: string) => {
+    if (fromHref === "/") {
+      return;
+    }
+
+    if (activeTransitionRef.current?.phase === "return") {
+      return;
+    }
+
+    if (activeTransitionRef.current?.phase === "forward") {
+      return;
+    }
+
+    if (routeTimerRef.current) {
+      clearTimeout(routeTimerRef.current);
+      routeTimerRef.current = null;
+    }
+
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+
+    setOrbTransitionEnabled(false);
+
+    setActiveTransition({
+      href: "/",
+      label: "",
+      fromOffset: 0,
+      toOffset: 0,
+      isAtRest: true,
+      phase: "return",
+    });
+  }, []);
+
+  const forwardOrbHoldKey =
+    activeTransition?.phase === "forward" && !activeTransition.isAtRest
+      ? activeTransition.href
+      : null;
+  const returnOrbHoldKey =
+    activeTransition?.phase === "return" ? "returning" : null;
+
+  useLayoutEffect(() => {
+    if (!forwardOrbHoldKey) {
+      return;
+    }
+
+    const startFrame = requestAnimationFrame(() => {
+      const orbNode = orbRef.current;
+      const navNode = navRef.current;
+
+      if (orbNode) {
+        void orbNode.offsetWidth;
+      }
+
+      if (navNode) {
+        void navNode.offsetWidth;
+      }
+
+      setOrbTransitionEnabled(true);
+
+      setActiveTransition((transition) =>
+        transition?.phase === "forward" && !transition.isAtRest
+          ? { ...transition, isAtRest: true }
+          : transition,
+      );
+    });
+
+    return () => {
+      cancelAnimationFrame(startFrame);
+    };
+  }, [forwardOrbHoldKey]);
+
+  useLayoutEffect(() => {
+    if (!returnOrbHoldKey) {
+      return;
+    }
+
+    let delayTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const startFrame = requestAnimationFrame(() => {
+      const orbNode = orbRef.current;
+      const navNode = navRef.current;
+
+      if (orbNode) {
+        void orbNode.offsetWidth;
+      }
+
+      if (navNode) {
+        void navNode.offsetWidth;
+      }
+
+      setOrbTransitionEnabled(true);
+
+      delayTimer = setTimeout(() => {
+        setActiveTransition(null);
+      }, orbReturnHoldDelay);
+    });
+
+    return () => {
+      cancelAnimationFrame(startFrame);
+
+      if (delayTimer) {
+        clearTimeout(delayTimer);
+      }
+    };
+  }, [returnOrbHoldKey]);
+
+  useLayoutEffect(() => {
+    const previousPathname = previousPathnameRef.current;
+
+    if (
+      !isMobile &&
+      pathname === "/" &&
+      previousPathname !== "/" &&
+      activeTransition?.phase !== "return" &&
+      activeTransition?.phase !== "forward"
+    ) {
+      beginOrbReturnAnimation(previousPathname);
+    }
+
+    previousPathnameRef.current = pathname;
+  }, [pathname, isMobile, beginOrbReturnAnimation, activeTransition?.phase]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (isMobile || window.location.pathname !== "/") {
+        return;
+      }
+
+      const fromHref = pathnameRef.current;
+
+      if (fromHref === "/") {
+        return;
+      }
+
+      beginOrbReturnAnimation(fromHref);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [isMobile, beginOrbReturnAnimation]);
+
   const handleMobileHeaderTap = () => {
-    if (!isMobile || isShrinking || isMobileMenuOpen) {
+    if (!isMobile || isTransitionActive || isMobileMenuOpen) {
       return;
     }
 
@@ -242,7 +419,7 @@ export default function Header() {
   };
 
   const handleOrbClick = () => {
-    if (isShrinking) {
+    if (isTransitionActive) {
       return;
     }
 
@@ -254,15 +431,19 @@ export default function Header() {
     router.push("/");
   };
 
-  const orbIconClassName = shouldShowDesktopLandingOrbOutside
-    ? ""
-    : "opacity-0 md:group-hover:opacity-100";
+  const isDesktopOrbExpanded = shouldShowDesktopLandingOrbOutside;
+  const isDesktopOrbVisible =
+    !isMobile &&
+    (isDesktopOrbExpanded ||
+      (isLandingPage && isForwardShrinking) ||
+      isReturnAbsorbed);
+  const isDesktopOrbInteractive = isDesktopOrbExpanded && !isTransitionActive;
 
   const handleNavClick = (
     item: (typeof navItems)[number],
     button: HTMLButtonElement,
   ) => {
-    if (item.href === pathname || isShrinking) {
+    if (item.href === pathname || isTransitionActive) {
       return;
     }
 
@@ -279,20 +460,25 @@ export default function Header() {
       : window.innerWidth / 2;
     const buttonCenter = buttonRect.left + buttonRect.width / 2;
 
+    const nav = navRef.current;
+
+    if (nav) {
+      void nav.offsetWidth;
+    }
+
+    if (orbRef.current) {
+      void orbRef.current.offsetWidth;
+    }
+
+    setOrbTransitionEnabled(false);
+
     setActiveTransition({
       href: item.href,
       label: item.label,
       fromOffset: buttonCenter - navCenter,
       toOffset: 0,
       isAtRest: false,
-    });
-
-    animationFrameRef.current = requestAnimationFrame(() => {
-      setActiveTransition((transition) =>
-        transition?.href === item.href
-          ? { ...transition, isAtRest: true }
-          : transition,
-      );
+      phase: "forward",
     });
 
     routeTimerRef.current = setTimeout(() => {
@@ -303,15 +489,15 @@ export default function Header() {
   const showMobileCurrentLabel =
     isMobile &&
     !isLandingPage &&
-    !isShrinking &&
+    !isTransitionActive &&
     !isMobileMenuOpen &&
     currentItem;
 
   const showDesktopCurrentLabel =
-    !isMobile && !isLandingPage && !isShrinking && currentItem;
+    !isMobile && !isLandingPage && !isTransitionActive && currentItem;
 
   const navButtonsHidden =
-    isShrinking ||
+    isTransitionActive ||
     (isMobile && isLandingPage && !isMobileExpanded) ||
     (isMobile && !isLandingPage && !isMobileExpanded);
 
@@ -345,30 +531,43 @@ export default function Header() {
 
       {!isMobile ? (
         <span
+          ref={orbRef}
           className={[
             "pointer-events-none absolute left-1/2 top-1/2 z-10",
             "h-[var(--orb-size)] w-[var(--orb-size)]",
-            "transition-transform",
-            transitionEaseClassName,
-            shouldShowDesktopLandingOrbOutside
-              ? "translate-x-[var(--landing-orb-offset)] -translate-y-1/2"
-              : "-translate-x-[calc(var(--collapsed-header-width)/2-var(--orb-size)/2)] -translate-y-1/2",
           ].join(" ")}
+          style={{
+            transform: isDesktopOrbExpanded
+              ? orbOutsideTransform
+              : orbInsideTransform,
+            opacity: isDesktopOrbVisible ? 1 : 0,
+            transition: orbTransitionEnabled
+              ? `transform ${orbMotionDuration}ms ${orbEase}, opacity ${orbMotionDuration}ms ${orbEase}`
+              : "none",
+          }}
         >
           <button
             type="button"
             aria-label={isLandingPage ? "페이지 최상단으로 이동" : "홈으로 이동"}
             onClick={handleOrbClick}
-            tabIndex={isShrinking ? -1 : 0}
+            tabIndex={isDesktopOrbInteractive ? 0 : -1}
             className={[
-              "pointer-events-auto flex h-full w-full items-center justify-center rounded-full bg-black",
+              "flex h-full w-full items-center justify-center rounded-full bg-black",
               headerShadowClassName,
               "touch-manipulation",
-              isShrinking ? "pointer-events-none" : "",
+              isDesktopOrbInteractive
+                ? "pointer-events-auto"
+                : "pointer-events-none",
               "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
             ].join(" ")}
           >
-            <SiteLogoIcon className={orbIconClassName} />
+            {shouldShowDesktopLandingOrbOutside || isReturnAbsorbed ? (
+              <SiteLogoIcon
+                className={
+                  shouldShowDesktopLandingOrbOutside ? "" : "opacity-0"
+                }
+              />
+            ) : null}
           </button>
         </span>
       ) : null}
@@ -378,12 +577,12 @@ export default function Header() {
         aria-label="Primary navigation"
         aria-expanded={isMobile ? isMobileExpanded : undefined}
         onClick={
-          isMobile && !isLandingPage && !isMobileMenuOpen && !isShrinking
+          isMobile && !isLandingPage && !isMobileMenuOpen && !isTransitionActive
             ? handleMobileHeaderTap
             : undefined
         }
         onKeyDown={
-          isMobile && !isLandingPage && !isMobileMenuOpen && !isShrinking
+          isMobile && !isLandingPage && !isMobileMenuOpen && !isTransitionActive
             ? (event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
@@ -393,12 +592,12 @@ export default function Header() {
             : undefined
         }
         role={
-          isMobile && !isLandingPage && !isMobileMenuOpen && !isShrinking
+          isMobile && !isLandingPage && !isMobileMenuOpen && !isTransitionActive
             ? "button"
             : undefined
         }
         tabIndex={
-          isMobile && !isLandingPage && !isMobileMenuOpen && !isShrinking
+          isMobile && !isLandingPage && !isMobileMenuOpen && !isTransitionActive
             ? 0
             : undefined
         }
@@ -414,7 +613,7 @@ export default function Header() {
           isMobile ? "ml-auto origin-right touch-manipulation" : "",
         ].join(" ")}
       >
-        {isMobile && isLandingPage && !isMobileExpanded && !isShrinking ? (
+        {isMobile && isLandingPage && !isMobileExpanded && !isTransitionActive ? (
           <button
             type="button"
             aria-label="Open navigation menu"
@@ -430,7 +629,7 @@ export default function Header() {
           </button>
         ) : null}
 
-        {activeTransition ? (
+        {activeTransition?.phase === "forward" ? (
           <span
             className={movingLabelClassName}
             style={{
