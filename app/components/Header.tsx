@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 
 const navItems = [
@@ -26,10 +27,13 @@ const movingLabelClassName = [
   "text-[14px] md:text-[18px] lg:text-[20px]",
 ].join(" ");
 
+const siteLogoIconPath = "/icons/favicon.svg";
+
 const mobileHeaderStyle = {
   "--header-width": "min(300px, calc(100vw - 32px))",
   "--header-inner-width": "calc(var(--header-width) - 40px)",
   "--collapsed-header-width": "44px",
+  "--orb-size": "44px",
   "--landing-orb-offset": "0px",
 } as CSSProperties;
 
@@ -60,13 +64,22 @@ function useIsMobile() {
   return isMobile;
 }
 
-function MenuIcon() {
+function SiteLogoIcon({ className = "" }: { className?: string }) {
   return (
-    <span className="flex flex-col items-center justify-center gap-[4px]" aria-hidden>
-      <span className="block h-[2px] w-[14px] rounded-full bg-white" />
-      <span className="block h-[2px] w-[14px] rounded-full bg-white" />
-      <span className="block h-[2px] w-[14px] rounded-full bg-white" />
-    </span>
+    <Image
+      src={siteLogoIconPath}
+      alt=""
+      aria-hidden="true"
+      width={24}
+      height={24}
+      unoptimized
+      className={[
+        "h-[calc(var(--orb-size)*0.416)] w-[calc(var(--orb-size)*0.416)] object-contain",
+        "brightness-0 invert transition-opacity",
+        transitionEaseClassName,
+        className,
+      ].join(" ")}
+    />
   );
 }
 
@@ -146,6 +159,22 @@ export default function Header() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!activeTransition || pathname !== activeTransition.href) {
+      return;
+    }
+
+    resetTimerRef.current = setTimeout(() => {
+      setActiveTransition(null);
+    }, transitionSettleDelay);
+
+    return () => {
+      if (resetTimerRef.current) {
+        clearTimeout(resetTimerRef.current);
+      }
+    };
+  }, [activeTransition, pathname]);
+
   useLayoutEffect(() => {
     if (!isMobile) {
       return;
@@ -212,6 +241,23 @@ export default function Header() {
     setMobileMenuPath(pathname);
   };
 
+  const handleOrbClick = () => {
+    if (isShrinking) {
+      return;
+    }
+
+    if (pathname === "/") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    router.push("/");
+  };
+
+  const orbIconClassName = shouldShowDesktopLandingOrbOutside
+    ? ""
+    : "opacity-0 md:group-hover:opacity-100";
+
   const handleNavClick = (
     item: (typeof navItems)[number],
     button: HTMLButtonElement,
@@ -252,10 +298,6 @@ export default function Header() {
     routeTimerRef.current = setTimeout(() => {
       router.push(item.href);
     }, transitionDuration);
-
-    resetTimerRef.current = setTimeout(() => {
-      setActiveTransition(null);
-    }, transitionDuration + transitionSettleDelay);
   };
 
   const showMobileCurrentLabel =
@@ -303,18 +345,32 @@ export default function Header() {
 
       {!isMobile ? (
         <span
-          aria-hidden="true"
           className={[
-            "pointer-events-none absolute left-1/2 top-1/2 rounded-full bg-black",
+            "pointer-events-none absolute left-1/2 top-1/2 z-10",
             "h-[var(--orb-size)] w-[var(--orb-size)]",
-            headerShadowClassName,
             "transition-transform",
             transitionEaseClassName,
             shouldShowDesktopLandingOrbOutside
               ? "translate-x-[var(--landing-orb-offset)] -translate-y-1/2"
               : "-translate-x-[calc(var(--collapsed-header-width)/2-var(--orb-size)/2)] -translate-y-1/2",
           ].join(" ")}
-        />
+        >
+          <button
+            type="button"
+            aria-label={isLandingPage ? "페이지 최상단으로 이동" : "홈으로 이동"}
+            onClick={handleOrbClick}
+            tabIndex={isShrinking ? -1 : 0}
+            className={[
+              "pointer-events-auto flex h-full w-full items-center justify-center rounded-full bg-black",
+              headerShadowClassName,
+              "touch-manipulation",
+              isShrinking ? "pointer-events-none" : "",
+              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
+            ].join(" ")}
+          >
+            <SiteLogoIcon className={orbIconClassName} />
+          </button>
+        </span>
       ) : null}
 
       <nav
@@ -370,7 +426,7 @@ export default function Header() {
               "focus-visible:outline-offset-2 focus-visible:outline-white",
             ].join(" ")}
           >
-            <MenuIcon />
+            <SiteLogoIcon />
           </button>
         ) : null}
 
