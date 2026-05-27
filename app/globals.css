@@ -8,3 +8,65 @@ html,
 body {
   min-height: 100%;
 }
+
+@media (min-width: 768px) {
+  .desktop-header {
+    --header-width: min(384px, calc(100vw - 32px));
+    --header-padding-x: 22px;
+    --header-inner-width: calc(
+      var(--header-width) - var(--header-padding-x) - var(--header-padding-x)
+    );
+    --collapsed-header-width: 110px;
+    --header-height: 46px;
+    --header-radius: calc(var(--header-height) / 2);
+    --orb-size: var(--header-height);
+    --orb-header-gap: 54px;
+    --nav-label-offset-0: calc(var(--header-inner-width) * -0.375);
+    --nav-label-offset-1: calc(var(--header-inner-width) * -0.125);
+    --nav-label-offset-2: calc(var(--header-inner-width) * 0.125);
+    --nav-label-offset-3: calc(var(--header-inner-width) * 0.375);
+    --landing-orb-offset: calc(
+      (var(--header-width) / -2) - var(--orb-header-gap)
+    );
+  }
+}
+
+@media (min-width: 1024px) {
+  .desktop-header {
+    --header-width: min(399px, calc(100vw - 32px));
+    --header-padding-x: 26px;
+    --header-inner-width: calc(
+      var(--header-width) - var(--header-padding-x) - var(--header-padding-x)
+    );
+    --collapsed-header-width: 120px;
+    --header-height: 50px;
+    --header-radius: calc(var(--header-height) / 2);
+    --orb-size: var(--header-height);
+    --orb-header-gap: 60px;
+    --nav-label-offset-0: calc(var(--header-inner-width) * -0.385);
+    --nav-label-offset-1: calc(var(--header-inner-width) * -0.135);
+    --nav-label-offset-2: calc(var(--header-inner-width) * 0.135);
+    --nav-label-offset-3: calc(var(--header-inner-width) * 0.385);
+    --landing-orb-offset: calc(
+      (var(--header-width) / -2) - var(--orb-header-gap)
+    );
+  }
+}
+
+@media (min-width: 1280px) {
+  .desktop-header {
+    --header-width: min(430px, calc(100vw - 32px));
+    --header-padding-x: 28px;
+    --header-inner-width: calc(
+      var(--header-width) - var(--header-padding-x) - var(--header-padding-x)
+    );
+    --collapsed-header-width: 128px;
+    --header-height: 52px;
+    --header-radius: calc(var(--header-height) / 2);
+    --orb-size: var(--header-height);
+    --orb-header-gap: 64px;
+    --landing-orb-offset: calc(
+      (var(--header-width) / -2) - var(--orb-header-gap)
+    );
+  }
+}

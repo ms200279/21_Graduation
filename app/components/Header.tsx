@@ -23,15 +23,8 @@ const movingLabelClassName = [
   "pointer-events-none absolute left-1/2 top-1/2 z-10 leading-none text-white",
   "transition-transform",
   transitionEaseClassName,
-  "text-[14px] md:text-[20px]",
+  "text-[14px] md:text-[18px] lg:text-[20px]",
 ].join(" ");
-
-const desktopHeaderStyle = {
-  "--header-width": "min(399px, calc(100vw - 32px))",
-  "--header-inner-width": "calc(var(--header-width) - 52px)",
-  "--collapsed-header-width": "120px",
-  "--landing-orb-offset": "calc((var(--header-width) / -2) - 60px)",
-} as CSSProperties;
 
 const mobileHeaderStyle = {
   "--header-width": "min(300px, calc(100vw - 32px))",
@@ -40,15 +33,11 @@ const mobileHeaderStyle = {
   "--landing-orb-offset": "0px",
 } as CSSProperties;
 
-const expandedTextLayoutClassName =
-  "flex w-full items-center justify-between gap-[12px] whitespace-nowrap md:gap-[20px]";
+const mobileExpandedNavListClassName =
+  "flex w-full items-center justify-between gap-[12px] whitespace-nowrap";
 
-const currentLabelOffsets = [
-  "calc(var(--header-inner-width) * -0.385)",
-  "calc(var(--header-inner-width) * -0.135)",
-  "calc(var(--header-inner-width) * 0.135)",
-  "calc(var(--header-inner-width) * 0.385)",
-];
+const desktopExpandedNavListClassName =
+  "w-full whitespace-nowrap max-lg:grid max-lg:grid-cols-4 max-lg:items-center lg:flex lg:items-center lg:justify-between lg:gap-[20px]";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -118,10 +107,10 @@ export default function Header() {
   const desktopNavSizeClassName = isLandingPage
     ? isShrinking
       ? "w-[var(--collapsed-header-width)] px-0"
-      : "w-[var(--header-width)] px-[26px]"
+      : "w-[var(--header-width)] px-[var(--header-padding-x)]"
     : isShrinking
       ? "w-[var(--collapsed-header-width)] px-0"
-      : "w-[var(--collapsed-header-width)] px-0 md:group-hover:w-[var(--header-width)] md:group-hover:px-[26px]";
+      : "w-[var(--collapsed-header-width)] px-0 md:group-hover:w-[var(--header-width)] md:group-hover:px-[var(--header-padding-x)]";
 
   const mobileNavSizeClassName = isShrinking
     ? "w-[var(--mobile-page-pill-width)] px-3"
@@ -139,7 +128,7 @@ export default function Header() {
     ? isLandingPage && !isMobileExpanded && !isShrinking
       ? "rounded-full"
       : "rounded-[22px]"
-    : "rounded-[25px]";
+    : "rounded-[var(--header-radius)]";
 
   useEffect(() => {
     return () => {
@@ -288,10 +277,10 @@ export default function Header() {
     <header
       ref={headerRef}
       className={[
-        "group fixed z-50 flex",
+        "desktop-header group fixed z-50 flex",
         isMobile
           ? "right-4 top-4 max-w-[calc(100vw-32px)] justify-end"
-          : "left-1/2 top-10 h-[50px] w-[var(--header-width)] -translate-x-1/2 items-center justify-center",
+          : "left-1/2 top-10 h-[var(--header-height)] w-[var(--header-width)] -translate-x-1/2 items-center justify-center",
       ].join(" ")}
       style={
         isMobile
@@ -299,7 +288,7 @@ export default function Header() {
               ...mobileHeaderStyle,
               "--mobile-page-pill-width": `${mobilePagePillWidth}px`,
             } as CSSProperties)
-          : desktopHeaderStyle
+          : undefined
       }
     >
       {isMobile ? (
@@ -316,13 +305,14 @@ export default function Header() {
         <span
           aria-hidden="true"
           className={[
-            "pointer-events-none absolute left-1/2 top-1/2 h-[50px] w-[50px] rounded-full bg-black",
+            "pointer-events-none absolute left-1/2 top-1/2 rounded-full bg-black",
+            "h-[var(--orb-size)] w-[var(--orb-size)]",
             headerShadowClassName,
             "transition-transform",
             transitionEaseClassName,
             shouldShowDesktopLandingOrbOutside
               ? "translate-x-[var(--landing-orb-offset)] -translate-y-1/2"
-              : "-translate-x-[calc(var(--collapsed-header-width)/2-25px)] -translate-y-1/2",
+              : "-translate-x-[calc(var(--collapsed-header-width)/2-var(--orb-size)/2)] -translate-y-1/2",
           ].join(" ")}
         />
       ) : null}
@@ -357,7 +347,8 @@ export default function Header() {
             : undefined
         }
         className={[
-          "dynamic-header relative flex h-[44px] items-center justify-center bg-black md:h-[50px]",
+          "dynamic-header relative flex items-center justify-center bg-black",
+          isMobile ? "h-[44px]" : "h-[var(--header-height)]",
           "overflow-hidden",
           headerShadowClassName,
           "transition-[width,padding]",
@@ -408,13 +399,13 @@ export default function Header() {
           <span
             className={[
               "pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2",
-              "text-[20px] leading-none text-white transition-transform",
+              "text-[18px] leading-none text-white transition-transform lg:text-[20px]",
               transitionEaseClassName,
               "md:group-hover:translate-x-[calc(-50%+var(--current-label-offset))]",
             ].join(" ")}
             style={
               {
-                "--current-label-offset": currentLabelOffsets[currentItemIndex],
+                "--current-label-offset": `var(--nav-label-offset-${currentItemIndex})`,
               } as CSSProperties
             }
           >
@@ -424,7 +415,7 @@ export default function Header() {
 
         <div
           className={[
-            expandedTextLayoutClassName,
+            isMobile ? mobileExpandedNavListClassName : desktopExpandedNavListClassName,
             navButtonsHidden ? "pointer-events-none opacity-0" : "",
           ].join(" ")}
         >
@@ -434,10 +425,10 @@ export default function Header() {
               type="button"
               onClick={(event) => handleNavClick(item, event.currentTarget)}
               className={[
-                "text-center leading-none text-white touch-manipulation",
+                "max-lg:w-full lg:w-auto text-center leading-none text-white touch-manipulation",
                 "transition-[opacity,transform]",
                 transitionEaseClassName,
-                "text-[14px] md:text-[20px]",
+                "text-[14px] md:text-[18px] lg:text-[20px]",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
                 isLandingPage || isMobileExpanded ? "opacity-100" : "",
                 !isLandingPage &&
