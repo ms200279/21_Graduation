@@ -35,3 +35,8 @@ When starting a specialized agent session, follow that agent’s **세션 첫 �
 - **security-agent** — security review and recommendations.
 - **tester-agent** — tests and QA strategy.
 - **devops-agent** — CI/CD and deployment config.
+
+# Cursor rules
+
+- Edit only `*.mdc` originals in `.cursor/rules/` (do not duplicate in Finder — macOS creates `name 2.mdc` copies).
+- `* 2.mdc` duplicates are in `.gitignore`; delete them if they reappear locally.

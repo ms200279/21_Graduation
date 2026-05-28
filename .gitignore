@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# macOS duplicate copies in Cursor rules (Finder "file 2.mdc")
+.cursor/rules/* 2.mdc
