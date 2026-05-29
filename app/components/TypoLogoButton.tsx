@@ -4,6 +4,8 @@ import { useSyncExternalStore } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 
+import { scrollLandingFullpageTo } from "./LandingScrollExperience";
+
 const typoLogoPath = "/icons/typologo.svg";
 const MOBILE_HEADER_EXPANDED_EVENT = "mobile-header-expanded-change";
 
@@ -30,7 +32,7 @@ export default function TypoLogoButton() {
 
   const handleClick = () => {
     if (pathname === "/") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      scrollLandingFullpageTo(0);
       return;
     }
 

@@ -10,6 +10,38 @@ body {
   min-height: 100%;
 }
 
+html {
+  --landing-scroll-progress: 0;
+}
+
+body.landing-fullpage-active {
+  overflow: hidden;
+}
+
+.landing-fullpage {
+  height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+
+.landing-fullpage__section {
+  position: relative;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  background: #fff;
+}
+
+.landing-fullpage__section--hero {
+  z-index: 0;
+}
+
+.landing-fullpage__section--content {
+  z-index: 1;
+}
+
 @media (min-width: 768px) {
   .desktop-header {
     --header-width: min(384px, calc(100vw - 32px));

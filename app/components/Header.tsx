@@ -4,6 +4,12 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import useLandingScrollProgress from "../hooks/useLandingScrollProgress";
+import {
+  LANDING_SCROLL_INTENT_EVENT,
+  LANDING_SCROLL_PROGRESS_EVENT,
+  scrollLandingFullpageTo,
+} from "./LandingScrollExperience";
 
 const navItems = [
   { label: "Projects", href: "/projectspage" },
@@ -16,13 +22,17 @@ const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
 const MOBILE_PAGE_PILL_HORIZONTAL_PADDING = 28;
 
 const orbMotionDuration = 700;
+const labelMotionDuration = Math.round(orbMotionDuration * 0.38);
 const orbReturnHoldDelay = 140;
 const transitionDuration = orbMotionDuration;
 const transitionSettleDelay = 180;
+const landingScrollCollapseThreshold = 0.02;
 const orbEase = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+const labelEase = orbEase;
 const orbOutsideTransform = "translate(var(--landing-orb-offset), -50%)";
 const orbInsideTransform =
   "translate(calc((var(--orb-size) / 2) - (var(--collapsed-header-width) / 2)), -50%)";
+const orbScrollCollapsedTransform = "translate(-50%, -50%)";
 const transitionEaseClassName =
   "duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]";
 const headerShadowClassName = "shadow-[0_12px_40px_rgba(0,0,0,0.18)]";
@@ -34,6 +44,29 @@ const movingLabelClassName = [
 ].join(" ");
 
 const siteLogoIconPath = "/icons/favicon.svg";
+
+function measureOrbCenterDeltaPx(
+  orbElement: HTMLSpanElement,
+  headerElement: HTMLElement,
+  transform: string,
+) {
+  const previousTransform = orbElement.style.transform;
+  const previousTransition = orbElement.style.transition;
+
+  orbElement.style.transition = "none";
+  orbElement.style.transform = transform;
+  void orbElement.offsetWidth;
+
+  const headerRect = headerElement.getBoundingClientRect();
+  const headerCenterX = headerRect.left + headerRect.width / 2;
+  const orbRect = orbElement.getBoundingClientRect();
+  const orbCenterX = orbRect.left + orbRect.width / 2;
+
+  orbElement.style.transform = previousTransform;
+  orbElement.style.transition = previousTransition;
+
+  return orbCenterX - headerCenterX;
+}
 
 const mobileHeaderStyle = {
   "--header-width": "min(300px, calc(100vw - 32px))",
@@ -70,7 +103,15 @@ function useIsMobile() {
   return isMobile;
 }
 
-function SiteLogoIcon({ className = "" }: { className?: string }) {
+function SiteLogoIcon({
+  className = "",
+  style,
+  disableTransition = false,
+}: {
+  className?: string;
+  style?: CSSProperties;
+  disableTransition?: boolean;
+}) {
   return (
     <Image
       src={siteLogoIconPath}
@@ -79,10 +120,12 @@ function SiteLogoIcon({ className = "" }: { className?: string }) {
       width={24}
       height={24}
       unoptimized
+      style={style}
       className={[
         "h-[calc(var(--orb-size)*0.416)] w-[calc(var(--orb-size)*0.416)] object-contain",
-        "brightness-0 invert transition-opacity",
-        transitionEaseClassName,
+        "brightness-0 invert",
+        disableTransition ? "" : "transition-opacity",
+        disableTransition ? "" : transitionEaseClassName,
         className,
       ].join(" ")}
     />
@@ -114,6 +157,36 @@ export default function Header() {
   } | null>(null);
   const pathnameRef = useRef(pathname);
   const activeTransitionRef = useRef(activeTransition);
+  const landingScrollCollapsedRef = useRef(false);
+  const landingCollapseStartedAtRef = useRef<number | null>(null);
+  const landingScrollAnimationRef = useRef<{
+    startFrame: number;
+    enableFrame: number;
+    settleFrame: number;
+    hideTimer: ReturnType<typeof setTimeout> | null;
+  }>({
+    startFrame: 0,
+    enableFrame: 0,
+    settleFrame: 0,
+    hideTimer: null,
+  });
+  const isTransitionActiveRef = useRef(false);
+  const isMobileRef = useRef(false);
+  const landingScrollDirectionRef = useRef<"up" | "down">("down");
+  const previousLandingScrollProgressRef = useRef(0);
+  const [landingScrollCollapsed, setLandingScrollCollapsed] = useState(false);
+  const [landingLabelsCollapsed, setLandingLabelsCollapsed] = useState(false);
+  const [landingOrbOutsideDeltaPx, setLandingOrbOutsideDeltaPx] = useState(0);
+  const [returnNavElevated, setReturnNavElevated] = useState(false);
+  const [navLabelViewportOffsets, setNavLabelViewportOffsets] = useState<number[]>(
+    [],
+  );
+  const landingScrollProgress = useLandingScrollProgress();
+  const landingScrollProgressRef = useRef(landingScrollProgress);
+
+  useEffect(() => {
+    landingScrollProgressRef.current = landingScrollProgress;
+  }, [landingScrollProgress]);
 
   useEffect(() => {
     pathnameRef.current = pathname;
@@ -121,7 +194,12 @@ export default function Header() {
 
   useEffect(() => {
     activeTransitionRef.current = activeTransition;
+    isTransitionActiveRef.current = activeTransition !== null;
   }, [activeTransition]);
+
+  useEffect(() => {
+    isMobileRef.current = isMobile;
+  }, [isMobile]);
 
   const isLandingPage = pathname === "/";
   const currentItemIndex = navItems.findIndex((item) => item.href === pathname);
@@ -129,6 +207,8 @@ export default function Header() {
   const isForwardShrinking = activeTransition?.phase === "forward";
   const isReturnAbsorbed = activeTransition?.phase === "return";
   const isTransitionActive = activeTransition !== null;
+  const isLandingScrollCollapsed =
+    isLandingPage && landingScrollCollapsed && !isTransitionActive;
   const isMobileMenuOpen =
     isMobile && mobileMenuPath === pathname && !isTransitionActive;
   const isMobileExpanded = isMobileMenuOpen;
@@ -147,7 +227,9 @@ export default function Header() {
   const desktopNavSizeClassName = isLandingPage
     ? isForwardShrinking || isReturnAbsorbed
       ? "w-[var(--collapsed-header-width)] px-0"
-      : "w-[var(--header-width)] px-[var(--header-padding-x)]"
+      : isLandingScrollCollapsed
+        ? "w-[var(--orb-size)] px-0"
+        : "w-[var(--header-width)] px-[var(--header-padding-x)]"
     : isForwardShrinking
       ? "w-[var(--collapsed-header-width)] px-0"
       : "w-[var(--collapsed-header-width)] px-0 md:group-hover:w-[var(--header-width)] md:group-hover:px-[var(--header-padding-x)]";
@@ -157,7 +239,9 @@ export default function Header() {
     : isMobileExpanded
       ? "w-[var(--header-width)] px-4"
       : isLandingPage
-        ? "w-[var(--collapsed-header-width)] px-0"
+        ? isLandingScrollCollapsed
+          ? "w-[var(--collapsed-header-width)] px-0"
+          : "w-[var(--collapsed-header-width)] px-0"
         : "w-[var(--mobile-page-pill-width)] px-3";
 
   const navSizeClassName = isMobile
@@ -221,6 +305,290 @@ export default function Header() {
       measureNode.offsetWidth + MOBILE_PAGE_PILL_HORIZONTAL_PADDING,
     );
   }, [isMobile, mobilePillMeasureLabel]);
+
+  useLayoutEffect(() => {
+    if (!isLandingPage || isMobile || !orbRef.current || !headerRef.current) {
+      return;
+    }
+
+    const outsideDelta = measureOrbCenterDeltaPx(
+      orbRef.current,
+      headerRef.current,
+      orbOutsideTransform,
+    );
+
+    setLandingOrbOutsideDeltaPx(outsideDelta);
+  }, [isLandingPage, isMobile]);
+
+  useEffect(() => {
+    if (!isLandingPage || isMobile) {
+      return;
+    }
+
+    const handleResize = () => {
+      const orb = orbRef.current;
+      const header = headerRef.current;
+
+      if (!orb || !header) {
+        return;
+      }
+
+      setLandingOrbOutsideDeltaPx(
+        measureOrbCenterDeltaPx(orb, header, orbOutsideTransform),
+      );
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [isLandingPage, isMobile]);
+
+  const cancelLandingScrollHeaderAnimation = useCallback(() => {
+    const animation = landingScrollAnimationRef.current;
+
+    if (animation.startFrame) {
+      cancelAnimationFrame(animation.startFrame);
+    }
+
+    if (animation.enableFrame) {
+      cancelAnimationFrame(animation.enableFrame);
+    }
+
+    if (animation.settleFrame) {
+      cancelAnimationFrame(animation.settleFrame);
+    }
+
+    if (animation.hideTimer) {
+      clearTimeout(animation.hideTimer);
+    }
+
+    landingScrollAnimationRef.current = {
+      startFrame: 0,
+      enableFrame: 0,
+      settleFrame: 0,
+      hideTimer: null,
+    };
+  }, []);
+
+  const runLandingScrollHeaderTransition = useCallback(
+    (shouldCollapse: boolean) => {
+      if (shouldCollapse === landingScrollCollapsedRef.current) {
+        return;
+      }
+
+      cancelLandingScrollHeaderAnimation();
+      landingScrollCollapsedRef.current = shouldCollapse;
+
+      if (shouldCollapse) {
+        landingCollapseStartedAtRef.current = performance.now();
+      } else {
+        landingCollapseStartedAtRef.current = null;
+      }
+
+      const startFrame = requestAnimationFrame(() => {
+        setOrbTransitionEnabled(false);
+
+        if (orbRef.current) {
+          void orbRef.current.offsetWidth;
+        }
+
+        if (navRef.current) {
+          void navRef.current.offsetWidth;
+        }
+
+        const settleFrame = requestAnimationFrame(() => {
+          setOrbTransitionEnabled(true);
+          setLandingScrollCollapsed(shouldCollapse);
+          setLandingLabelsCollapsed(shouldCollapse);
+        });
+
+        landingScrollAnimationRef.current.settleFrame = settleFrame;
+      });
+
+      landingScrollAnimationRef.current.startFrame = startFrame;
+    },
+    [cancelLandingScrollHeaderAnimation],
+  );
+
+  const syncLandingScrollHeaderFromProgress = useCallback(
+    (progress: number) => {
+      if (
+        pathnameRef.current !== "/" ||
+        isMobileRef.current ||
+        isTransitionActiveRef.current
+      ) {
+        return;
+      }
+
+      const previous = previousLandingScrollProgressRef.current;
+      let direction = landingScrollDirectionRef.current;
+
+      if (progress > previous + 0.0001) {
+        direction = "down";
+      } else if (progress < previous - 0.0001) {
+        direction = "up";
+      }
+
+      landingScrollDirectionRef.current = direction;
+      previousLandingScrollProgressRef.current = progress;
+      landingScrollProgressRef.current = progress;
+
+      const shouldCollapse =
+        direction === "up" && landingScrollCollapsedRef.current
+          ? false
+          : progress > landingScrollCollapseThreshold;
+
+      runLandingScrollHeaderTransition(shouldCollapse);
+    },
+    [runLandingScrollHeaderTransition],
+  );
+
+  const expandLandingScrollHeader = useCallback(() => {
+    landingScrollDirectionRef.current = "up";
+    runLandingScrollHeaderTransition(false);
+  }, [runLandingScrollHeaderTransition]);
+
+  useEffect(() => {
+    if (!isLandingPage || isMobile) {
+      return;
+    }
+
+    const handleLandingScrollIntent = (event: Event) => {
+      const customEvent = event as CustomEvent<{ direction: "up" | "down" }>;
+
+      if (customEvent.detail.direction === "up") {
+        expandLandingScrollHeader();
+      }
+    };
+
+    const handleLandingScrollProgress = (event: Event) => {
+      const customEvent = event as CustomEvent<{ progress: number }>;
+      syncLandingScrollHeaderFromProgress(customEvent.detail.progress);
+    };
+
+    syncLandingScrollHeaderFromProgress(landingScrollProgressRef.current);
+    window.addEventListener(LANDING_SCROLL_INTENT_EVENT, handleLandingScrollIntent);
+    window.addEventListener(LANDING_SCROLL_PROGRESS_EVENT, handleLandingScrollProgress);
+
+    return () => {
+      window.removeEventListener(
+        LANDING_SCROLL_INTENT_EVENT,
+        handleLandingScrollIntent,
+      );
+      window.removeEventListener(
+        LANDING_SCROLL_PROGRESS_EVENT,
+        handleLandingScrollProgress,
+      );
+      cancelLandingScrollHeaderAnimation();
+    };
+  }, [
+    isLandingPage,
+    isMobile,
+    syncLandingScrollHeaderFromProgress,
+    expandLandingScrollHeader,
+    cancelLandingScrollHeaderAnimation,
+  ]);
+
+  useEffect(() => {
+    if (isLandingPage) {
+      return;
+    }
+
+    landingScrollCollapsedRef.current = false;
+    landingCollapseStartedAtRef.current = null;
+    landingScrollDirectionRef.current = "down";
+    previousLandingScrollProgressRef.current = 0;
+    cancelLandingScrollHeaderAnimation();
+
+    const resetFrame = requestAnimationFrame(() => {
+      setLandingScrollCollapsed(false);
+      setLandingLabelsCollapsed(false);
+      setReturnNavElevated(false);
+    });
+
+    return () => {
+      cancelAnimationFrame(resetFrame);
+    };
+  }, [isLandingPage, cancelLandingScrollHeaderAnimation]);
+
+  const measureNavLabelViewportOffsets = useCallback(() => {
+    const nav = navRef.current;
+
+    if (!nav || isMobile) {
+      return;
+    }
+
+    const buttons = nav.querySelectorAll<HTMLButtonElement>(
+      "[data-landing-nav-item]",
+    );
+    const viewportCenter = window.innerWidth / 2;
+    const offsets = Array.from(buttons).map((button) => {
+      const rect = button.getBoundingClientRect();
+
+      return rect.left + rect.width / 2 - viewportCenter;
+    });
+
+    setNavLabelViewportOffsets(offsets);
+  }, [isMobile]);
+
+  useLayoutEffect(() => {
+    if (!isLandingPage || isMobile) {
+      return;
+    }
+
+    if (landingScrollCollapsed && navLabelViewportOffsets.length > 0) {
+      return;
+    }
+
+    measureNavLabelViewportOffsets();
+  }, [
+    isLandingPage,
+    isMobile,
+    landingScrollCollapsed,
+    measureNavLabelViewportOffsets,
+    navLabelViewportOffsets.length,
+  ]);
+
+  useEffect(() => {
+    if (!isLandingPage || isMobile) {
+      return;
+    }
+
+    const handleResize = () => {
+      if (landingScrollCollapsed) {
+        return;
+      }
+
+      measureNavLabelViewportOffsets();
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [isLandingPage, isMobile, landingScrollCollapsed, measureNavLabelViewportOffsets]);
+
+  useEffect(() => {
+    const handleLandingScrollProgress = (event: Event) => {
+      const customEvent = event as CustomEvent<{ progress: number }>;
+
+      if (customEvent.detail.progress > 0) {
+        setMobileMenuPath(null);
+      }
+    };
+
+    window.addEventListener(LANDING_SCROLL_PROGRESS_EVENT, handleLandingScrollProgress);
+
+    return () => {
+      window.removeEventListener(
+        LANDING_SCROLL_PROGRESS_EVENT,
+        handleLandingScrollProgress,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     if (!isMobile || !isMobileMenuOpen) {
@@ -304,6 +672,14 @@ export default function Header() {
 
     setOrbTransitionEnabled(false);
 
+    cancelLandingScrollHeaderAnimation();
+
+    landingScrollCollapsedRef.current = false;
+    landingCollapseStartedAtRef.current = null;
+    setLandingScrollCollapsed(false);
+    setLandingLabelsCollapsed(false);
+    setReturnNavElevated(true);
+
     setActiveTransition({
       href: "/",
       label: "",
@@ -312,7 +688,7 @@ export default function Header() {
       isAtRest: true,
       phase: "return",
     });
-  }, []);
+  }, [cancelLandingScrollHeaderAnimation]);
 
   const forwardOrbHoldKey =
     activeTransition?.phase === "forward" && !activeTransition.isAtRest
@@ -387,6 +763,25 @@ export default function Header() {
     };
   }, [returnOrbHoldKey]);
 
+  useEffect(() => {
+    if (
+      !isLandingPage ||
+      isMobile ||
+      !returnNavElevated ||
+      isTransitionActive
+    ) {
+      return;
+    }
+
+    const lowerTimer = setTimeout(() => {
+      setReturnNavElevated(false);
+    }, orbMotionDuration);
+
+    return () => {
+      clearTimeout(lowerTimer);
+    };
+  }, [isLandingPage, isMobile, returnNavElevated, isTransitionActive]);
+
   useLayoutEffect(() => {
     const previousPathname = previousPathnameRef.current;
 
@@ -445,20 +840,63 @@ export default function Header() {
     }
 
     if (pathname === "/") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      scrollLandingFullpageTo(0);
       return;
     }
 
     router.push("/");
   };
 
-  const isDesktopOrbExpanded = shouldShowDesktopLandingOrbOutside;
+  const isDesktopOrbExpanded =
+    shouldShowDesktopLandingOrbOutside && !isLandingScrollCollapsed;
   const isDesktopOrbVisible =
     !isMobile &&
     (isDesktopOrbExpanded ||
+      isLandingScrollCollapsed ||
       (isLandingPage && isForwardShrinking) ||
       isReturnAbsorbed);
-  const isDesktopOrbInteractive = isDesktopOrbExpanded && !isTransitionActive;
+  const isDesktopOrbInteractive =
+    (isDesktopOrbExpanded || isLandingScrollCollapsed) && !isTransitionActive;
+
+  const shouldShowLandingOrbIcon =
+    shouldShowDesktopLandingOrbOutside ||
+    isReturnAbsorbed ||
+    isLandingScrollCollapsed;
+
+  const landingOrbHeroTransform = `translate(calc(-50% + ${landingOrbOutsideDeltaPx}px), -50%)`;
+
+  const desktopOrbTransform = (() => {
+    if (isLandingPage && !isMobile && isReturnAbsorbed) {
+      return orbInsideTransform;
+    }
+
+    if (isLandingPage && !isMobile && isForwardShrinking) {
+      return activeTransition?.isAtRest
+        ? orbInsideTransform
+        : landingOrbHeroTransform;
+    }
+
+    if (isLandingPage && !isMobile && !isTransitionActive) {
+      return isLandingScrollCollapsed
+        ? orbScrollCollapsedTransform
+        : landingOrbHeroTransform;
+    }
+
+    return isDesktopOrbExpanded ? orbOutsideTransform : orbInsideTransform;
+  })();
+
+  const useLandingScrollNavStyle =
+    isLandingPage && !isMobile && !isTransitionActive;
+
+  const landingScrollNavStyle: CSSProperties | undefined = useLandingScrollNavStyle
+    ? {
+        opacity: isLandingScrollCollapsed ? 0 : 1,
+        pointerEvents: isLandingScrollCollapsed ? "none" : undefined,
+        transition: orbTransitionEnabled
+          ? `width ${orbMotionDuration}ms ${orbEase}, padding ${orbMotionDuration}ms ${orbEase}, opacity ${orbMotionDuration}ms ${orbEase}`
+          : "none",
+      }
+    : undefined;
 
   const handleNavClick = (
     item: (typeof navItems)[number],
@@ -472,6 +910,14 @@ export default function Header() {
 
     if (isMobile) {
       setMobileMenuPath(null);
+    }
+
+    if (isLandingPage && !isMobile) {
+      cancelLandingScrollHeaderAnimation();
+      landingScrollCollapsedRef.current = false;
+      landingCollapseStartedAtRef.current = null;
+      setLandingScrollCollapsed(false);
+      setLandingLabelsCollapsed(false);
     }
 
     const navRect = navRef.current?.getBoundingClientRect();
@@ -558,13 +1004,12 @@ export default function Header() {
             "h-[var(--orb-size)] w-[var(--orb-size)]",
           ].join(" ")}
           style={{
-            transform: isDesktopOrbExpanded
-              ? orbOutsideTransform
-              : orbInsideTransform,
+            transform: desktopOrbTransform,
             opacity: isDesktopOrbVisible ? 1 : 0,
-            transition: orbTransitionEnabled
-              ? `transform ${orbMotionDuration}ms ${orbEase}, opacity ${orbMotionDuration}ms ${orbEase}`
-              : "none",
+            transition:
+              orbTransitionEnabled
+                ? `transform ${orbMotionDuration}ms ${orbEase}, opacity ${orbMotionDuration}ms ${orbEase}`
+                : "none",
           }}
         >
           <button
@@ -582,12 +1027,8 @@ export default function Header() {
               "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
             ].join(" ")}
           >
-            {shouldShowDesktopLandingOrbOutside || isReturnAbsorbed ? (
-              <SiteLogoIcon
-                className={
-                  shouldShowDesktopLandingOrbOutside ? "" : "opacity-0"
-                }
-              />
+            {shouldShowLandingOrbIcon ? (
+              <SiteLogoIcon />
             ) : null}
           </button>
         </span>
@@ -625,14 +1066,18 @@ export default function Header() {
         className={[
           "dynamic-header relative flex items-center justify-center bg-black",
           isMobile ? "h-[44px]" : "h-[var(--header-height)]",
+          returnNavElevated ? "z-20" : "",
           "overflow-hidden",
           headerShadowClassName,
-          "transition-[width,padding]",
-          transitionEaseClassName,
+          useLandingScrollNavStyle
+            ? ""
+            : "transition-[width,padding,opacity]",
+          useLandingScrollNavStyle ? "" : transitionEaseClassName,
           navShapeClassName,
           navSizeClassName,
           isMobile ? "ml-auto origin-right touch-manipulation" : "",
         ].join(" ")}
+        style={landingScrollNavStyle}
       >
         {isMobile && isLandingPage && !isMobileExpanded && !isTransitionActive ? (
           <button
@@ -692,14 +1137,29 @@ export default function Header() {
         <div
           className={[
             isMobile ? mobileExpandedNavListClassName : desktopExpandedNavListClassName,
+            "landing-nav-items",
+            "transition-[opacity,transform]",
+            transitionEaseClassName,
             navButtonsHidden ? "pointer-events-none opacity-0" : "",
           ].join(" ")}
         >
-          {navItems.map((item) => (
+          {navItems.map((item, index) => (
             <button
               key={item.href}
               type="button"
+              data-landing-nav-item=""
               onClick={(event) => handleNavClick(item, event.currentTarget)}
+              style={
+                isLandingPage && !isMobile
+                  ? ({
+                      transform: landingLabelsCollapsed
+                        ? `translateX(${-(navLabelViewportOffsets[index] ?? 0)}px)`
+                        : undefined,
+                      opacity: landingLabelsCollapsed ? 0 : undefined,
+                      transition: `transform ${labelMotionDuration}ms ${labelEase}, opacity ${labelMotionDuration}ms ${labelEase}`,
+                    } as CSSProperties)
+                  : undefined
+              }
               className={[
                 "max-lg:w-full lg:w-auto text-center leading-none touch-manipulation",
                 "transition-[color,opacity,transform]",
@@ -709,7 +1169,9 @@ export default function Header() {
                 item.href === pathname
                   ? "text-white"
                   : "text-[#999999] md:hover:text-white",
-                isLandingPage || isMobileExpanded ? "opacity-100" : "",
+                (isLandingPage && !isLandingScrollCollapsed) || isMobileExpanded
+                  ? "opacity-100"
+                  : "",
                 !isLandingPage &&
                 !isMobile &&
                 currentItem?.href === item.href
