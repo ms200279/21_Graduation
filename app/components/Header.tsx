@@ -8,6 +8,13 @@ import useLandingScrollProgress from "../hooks/useLandingScrollProgress";
 import {
   LANDING_SCROLL_INTENT_EVENT,
   LANDING_SCROLL_PROGRESS_EVENT,
+  clearLandingScrollDepthOnLeave,
+  getLandingScrollDepthOnLeave,
+  getLandingScrollGestureMaxProgress,
+  landingScrollConceptThreshold,
+  landingScrollHeaderExpandMaxProgress,
+  landingScrollIndexThreshold,
+  recordLandingScrollDepthOnLeave,
   scrollLandingFullpageTo,
 } from "./LandingScrollExperience";
 
@@ -27,6 +34,8 @@ const orbReturnHoldDelay = 140;
 const transitionDuration = orbMotionDuration;
 const transitionSettleDelay = 180;
 const landingScrollCollapseThreshold = 0.02;
+/** Header orb animation only runs in the landing ↔ index scroll zone (scrollProgress 0–1). */
+const landingScrollPastIndexThreshold = landingScrollIndexThreshold;
 const orbEase = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 const labelEase = orbEase;
 const orbOutsideTransform = "translate(var(--landing-orb-offset), -50%)";
@@ -174,6 +183,8 @@ export default function Header() {
   const isMobileRef = useRef(false);
   const landingScrollDirectionRef = useRef<"up" | "down">("down");
   const previousLandingScrollProgressRef = useRef(0);
+  const previousLandingScrollScrollProgressRef = useRef(0);
+  const landingScrollGestureMaxProgressRef = useRef(0);
   const [landingScrollCollapsed, setLandingScrollCollapsed] = useState(false);
   const [landingLabelsCollapsed, setLandingLabelsCollapsed] = useState(false);
   const [landingOrbOutsideDeltaPx, setLandingOrbOutsideDeltaPx] = useState(0);
@@ -412,8 +423,50 @@ export default function Header() {
     [cancelLandingScrollHeaderAnimation],
   );
 
+  const setLandingScrollHeaderCollapsedInstant = useCallback(
+    (shouldCollapse: boolean) => {
+      if (shouldCollapse === landingScrollCollapsedRef.current) {
+        return;
+      }
+
+      cancelLandingScrollHeaderAnimation();
+      landingScrollCollapsedRef.current = shouldCollapse;
+
+      if (shouldCollapse) {
+        landingCollapseStartedAtRef.current = performance.now();
+      } else {
+        landingCollapseStartedAtRef.current = null;
+      }
+
+      setOrbTransitionEnabled(false);
+      setLandingScrollCollapsed(shouldCollapse);
+      setLandingLabelsCollapsed(shouldCollapse);
+
+      requestAnimationFrame(() => {
+        setOrbTransitionEnabled(true);
+      });
+    },
+    [cancelLandingScrollHeaderAnimation],
+  );
+
+  const gestureIncludesConceptTravel = useCallback(
+    (maxScrollProgressInGesture: number) =>
+      maxScrollProgressInGesture > landingScrollHeaderExpandMaxProgress,
+    [],
+  );
+
+  const isAtOrPastIndexSection = useCallback(
+    (scrollProgress: number) =>
+      scrollProgress >= landingScrollPastIndexThreshold,
+    [],
+  );
+
   const syncLandingScrollHeaderFromProgress = useCallback(
-    (progress: number) => {
+    (
+      progress: number,
+      scrollProgress = progress,
+      maxScrollProgressInGesture = landingScrollGestureMaxProgressRef.current,
+    ) => {
       if (
         pathnameRef.current !== "/" ||
         isMobileRef.current ||
@@ -422,35 +475,83 @@ export default function Header() {
         return;
       }
 
-      const previous = previousLandingScrollProgressRef.current;
+      landingScrollGestureMaxProgressRef.current = maxScrollProgressInGesture;
+
+      const previousScrollProgress =
+        previousLandingScrollScrollProgressRef.current;
       let direction = landingScrollDirectionRef.current;
 
-      if (progress > previous + 0.0001) {
+      if (scrollProgress > previousScrollProgress + 0.0001) {
         direction = "down";
-      } else if (progress < previous - 0.0001) {
+      } else if (scrollProgress < previousScrollProgress - 0.0001) {
         direction = "up";
       }
 
       landingScrollDirectionRef.current = direction;
       previousLandingScrollProgressRef.current = progress;
+      previousLandingScrollScrollProgressRef.current = scrollProgress;
       landingScrollProgressRef.current = progress;
 
-      const shouldCollapse =
-        direction === "up" && landingScrollCollapsedRef.current
-          ? false
-          : direction === "down" && progress > landingScrollCollapseThreshold
-            ? true
-            : landingScrollCollapsedRef.current;
+      const includesConceptTravel = gestureIncludesConceptTravel(
+        maxScrollProgressInGesture,
+      );
 
-      runLandingScrollHeaderTransition(shouldCollapse);
+      if (isAtOrPastIndexSection(scrollProgress)) {
+        if (!landingScrollCollapsedRef.current) {
+          if (includesConceptTravel) {
+            setLandingScrollHeaderCollapsedInstant(true);
+          } else {
+            runLandingScrollHeaderTransition(true);
+          }
+        }
+
+        return;
+      }
+
+      if (includesConceptTravel) {
+        if (!landingScrollCollapsedRef.current) {
+          setLandingScrollHeaderCollapsedInstant(true);
+        }
+
+        return;
+      }
+
+      const isLandingToIndexScroll =
+        direction === "down" && progress > landingScrollCollapseThreshold;
+      const isIndexToLandingScroll =
+        direction === "up" && landingScrollCollapsedRef.current;
+
+      if (!isLandingToIndexScroll && !isIndexToLandingScroll) {
+        return;
+      }
+
+      runLandingScrollHeaderTransition(isLandingToIndexScroll);
     },
-    [runLandingScrollHeaderTransition],
+    [
+      gestureIncludesConceptTravel,
+      isAtOrPastIndexSection,
+      runLandingScrollHeaderTransition,
+      setLandingScrollHeaderCollapsedInstant,
+    ],
   );
 
   const expandLandingScrollHeader = useCallback(() => {
+    const scrollProgress = previousLandingScrollScrollProgressRef.current;
+    const maxScrollProgressInGesture = getLandingScrollGestureMaxProgress();
+    const isAtIndexSnap =
+      scrollProgress >= landingScrollPastIndexThreshold &&
+      scrollProgress <= landingScrollHeaderExpandMaxProgress;
+
+    if (!isAtIndexSnap || gestureIncludesConceptTravel(maxScrollProgressInGesture)) {
+      return;
+    }
+
     landingScrollDirectionRef.current = "up";
     runLandingScrollHeaderTransition(false);
-  }, [runLandingScrollHeaderTransition]);
+  }, [
+    gestureIncludesConceptTravel,
+    runLandingScrollHeaderTransition,
+  ]);
 
   useEffect(() => {
     if (!isLandingPage || isMobile) {
@@ -466,11 +567,24 @@ export default function Header() {
     };
 
     const handleLandingScrollProgress = (event: Event) => {
-      const customEvent = event as CustomEvent<{ progress: number }>;
-      syncLandingScrollHeaderFromProgress(customEvent.detail.progress);
+      const customEvent = event as CustomEvent<{
+        progress: number;
+        scrollProgress?: number;
+        maxScrollProgressInGesture?: number;
+      }>;
+      syncLandingScrollHeaderFromProgress(
+        customEvent.detail.progress,
+        customEvent.detail.scrollProgress ?? customEvent.detail.progress,
+        customEvent.detail.maxScrollProgressInGesture ??
+          landingScrollGestureMaxProgressRef.current,
+      );
     };
 
-    syncLandingScrollHeaderFromProgress(landingScrollProgressRef.current);
+    syncLandingScrollHeaderFromProgress(
+      landingScrollProgressRef.current,
+      landingScrollProgressRef.current,
+      landingScrollGestureMaxProgressRef.current,
+    );
     window.addEventListener(LANDING_SCROLL_INTENT_EVENT, handleLandingScrollIntent);
     window.addEventListener(LANDING_SCROLL_PROGRESS_EVENT, handleLandingScrollProgress);
 
@@ -502,6 +616,8 @@ export default function Header() {
     landingCollapseStartedAtRef.current = null;
     landingScrollDirectionRef.current = "down";
     previousLandingScrollProgressRef.current = 0;
+    previousLandingScrollScrollProgressRef.current = 0;
+    landingScrollGestureMaxProgressRef.current = 0;
     cancelLandingScrollHeaderAnimation();
 
     const resetFrame = requestAnimationFrame(() => {
@@ -659,6 +775,19 @@ export default function Header() {
     }
 
     if (activeTransitionRef.current?.phase === "forward") {
+      return;
+    }
+
+    const depthOnLeave = getLandingScrollDepthOnLeave();
+    clearLandingScrollDepthOnLeave();
+
+    if (depthOnLeave >= landingScrollConceptThreshold) {
+      cancelLandingScrollHeaderAnimation();
+      landingScrollCollapsedRef.current = true;
+      landingCollapseStartedAtRef.current = null;
+      setLandingScrollCollapsed(true);
+      setLandingLabelsCollapsed(true);
+      setReturnNavElevated(false);
       return;
     }
 
@@ -915,6 +1044,9 @@ export default function Header() {
     }
 
     if (isLandingPage && !isMobile) {
+      recordLandingScrollDepthOnLeave(
+        previousLandingScrollScrollProgressRef.current,
+      );
       cancelLandingScrollHeaderAnimation();
       landingScrollCollapsedRef.current = false;
       landingCollapseStartedAtRef.current = null;

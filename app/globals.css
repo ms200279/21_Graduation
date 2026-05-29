@@ -38,7 +38,11 @@ body.landing-fullpage-active {
   z-index: 0;
 }
 
-.landing-fullpage__section--content {
+.landing-fullpage__section--index {
+  z-index: 1;
+}
+
+.landing-fullpage__section--concept {
   z-index: 1;
 }
 
