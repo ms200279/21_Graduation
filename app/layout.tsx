@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import Header from "./components/Header";
+import TypoLogoButton from "./components/TypoLogoButton";
 import "./globals.css";
 
 const pretendard = localFont({
@@ -23,6 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${pretendard.variable} font-sans antialiased`}>
+        <TypoLogoButton />
         <Header />
         {children}
       </body>
