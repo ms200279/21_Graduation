@@ -438,7 +438,9 @@ export default function Header() {
       const shouldCollapse =
         direction === "up" && landingScrollCollapsedRef.current
           ? false
-          : progress > landingScrollCollapseThreshold;
+          : direction === "down" && progress > landingScrollCollapseThreshold
+            ? true
+            : landingScrollCollapsedRef.current;
 
       runLandingScrollHeaderTransition(shouldCollapse);
     },
