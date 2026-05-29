@@ -45,7 +45,7 @@ export default function TypoLogoButton() {
       className={[
         "typo-logo-button desktop-header",
         isMobileHeaderExpanded ? "typo-logo-button--blurred" : "",
-        "flex h-[var(--typo-logo-height)] w-[var(--typo-logo-width)] items-center justify-center",
+        "flex items-center justify-center",
         "touch-manipulation focus-visible:outline focus-visible:outline-2",
         "focus-visible:outline-offset-4 focus-visible:outline-black",
       ].join(" ")}
@@ -57,7 +57,7 @@ export default function TypoLogoButton() {
         width={538}
         height={105}
         unoptimized
-        className="h-full w-full object-contain"
+        className="object-contain"
       />
     </button>
   );
