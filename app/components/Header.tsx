@@ -11,10 +11,12 @@ import {
   clearLandingScrollDepthOnLeave,
   getLandingScrollDepthOnLeave,
   getLandingScrollGestureMaxProgress,
+  getLandingScrollSectionProgress,
   landingScrollConceptThreshold,
   landingScrollHeaderExpandMaxProgress,
   landingScrollIndexThreshold,
   recordLandingScrollDepthOnLeave,
+  resetLandingScrollGestureForOrbHome,
   scrollLandingFullpageTo,
 } from "./LandingScrollExperience";
 
@@ -185,6 +187,7 @@ export default function Header() {
   const previousLandingScrollProgressRef = useRef(0);
   const previousLandingScrollScrollProgressRef = useRef(0);
   const landingScrollGestureMaxProgressRef = useRef(0);
+  const landingScrollOrbHomeActiveRef = useRef(false);
   const [landingScrollCollapsed, setLandingScrollCollapsed] = useState(false);
   const [landingLabelsCollapsed, setLandingLabelsCollapsed] = useState(false);
   const [landingOrbOutsideDeltaPx, setLandingOrbOutsideDeltaPx] = useState(0);
@@ -497,6 +500,14 @@ export default function Header() {
       );
 
       if (isAtOrPastIndexSection(scrollProgress)) {
+        if (landingScrollOrbHomeActiveRef.current) {
+          if (scrollProgress < landingScrollCollapseThreshold) {
+            landingScrollOrbHomeActiveRef.current = false;
+          }
+
+          return;
+        }
+
         if (!landingScrollCollapsedRef.current) {
           if (includesConceptTravel) {
             setLandingScrollHeaderCollapsedInstant(true);
@@ -509,6 +520,10 @@ export default function Header() {
       }
 
       if (includesConceptTravel) {
+        if (landingScrollOrbHomeActiveRef.current) {
+          return;
+        }
+
         if (!landingScrollCollapsedRef.current) {
           setLandingScrollHeaderCollapsedInstant(true);
         }
@@ -534,6 +549,14 @@ export default function Header() {
       setLandingScrollHeaderCollapsedInstant,
     ],
   );
+
+  const forceExpandLandingScrollHeaderForOrbHome = useCallback(() => {
+    landingScrollOrbHomeActiveRef.current = true;
+    landingScrollGestureMaxProgressRef.current = 0;
+    resetLandingScrollGestureForOrbHome();
+    landingScrollDirectionRef.current = "up";
+    runLandingScrollHeaderTransition(false);
+  }, [runLandingScrollHeaderTransition]);
 
   const expandLandingScrollHeader = useCallback(() => {
     const scrollProgress = previousLandingScrollScrollProgressRef.current;
@@ -618,6 +641,7 @@ export default function Header() {
     previousLandingScrollProgressRef.current = 0;
     previousLandingScrollScrollProgressRef.current = 0;
     landingScrollGestureMaxProgressRef.current = 0;
+    landingScrollOrbHomeActiveRef.current = false;
     cancelLandingScrollHeaderAnimation();
 
     const resetFrame = requestAnimationFrame(() => {
@@ -971,6 +995,10 @@ export default function Header() {
     }
 
     if (pathname === "/") {
+      if (getLandingScrollSectionProgress() >= landingScrollPastIndexThreshold) {
+        forceExpandLandingScrollHeaderForOrbHome();
+      }
+
       scrollLandingFullpageTo(0);
       return;
     }

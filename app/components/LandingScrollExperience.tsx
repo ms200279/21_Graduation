@@ -31,6 +31,14 @@ export function getLandingScrollGestureMaxProgress() {
   return landingScrollSectionProgressState.maxProgressInGesture;
 }
 
+export function getLandingScrollSectionProgress() {
+  return landingScrollSectionProgressState.current;
+}
+
+export function resetLandingScrollGestureForOrbHome() {
+  landingScrollSectionProgressState.maxProgressInGesture = 0;
+}
+
 export function recordLandingScrollDepthOnLeave(depth: number) {
   landingScrollSectionProgressState.depthOnLeave = depth;
 }
@@ -231,10 +239,19 @@ export default function LandingScrollExperience({
         return;
       }
 
-      maxScrollProgressInGestureRef.current = currentSection;
-      landingScrollSectionProgressState.maxProgressInGesture = currentSection;
+      if (targetSection === 0 && currentSection > 0) {
+        maxScrollProgressInGestureRef.current = 0;
+        landingScrollSectionProgressState.maxProgressInGesture = 0;
+      } else {
+        maxScrollProgressInGestureRef.current = currentSection;
+        landingScrollSectionProgressState.maxProgressInGesture = currentSection;
+      }
 
-      if (targetSection < currentSection && currentSection === 1 && targetSection === 0) {
+      if (
+        targetSection < currentSection &&
+        currentSection === 1 &&
+        targetSection === 0
+      ) {
         dispatchLandingScrollIntent("up");
       }
 
