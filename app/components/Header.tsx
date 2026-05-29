@@ -244,6 +244,27 @@ export default function Header() {
     };
   }, [isMobile, isMobileMenuOpen]);
 
+  useEffect(() => {
+    const isExpanded = isMobile && isMobileMenuOpen;
+
+    document.body.classList.toggle("mobile-header-expanded", isExpanded);
+
+    window.dispatchEvent(
+      new CustomEvent("mobile-header-expanded-change", {
+        detail: { expanded: isExpanded },
+      }),
+    );
+
+    return () => {
+      document.body.classList.remove("mobile-header-expanded");
+      window.dispatchEvent(
+        new CustomEvent("mobile-header-expanded-change", {
+          detail: { expanded: false },
+        }),
+      );
+    };
+  }, [isMobile, isMobileMenuOpen]);
+
   const clearTransitionTimers = () => {
     if (routeTimerRef.current) {
       clearTimeout(routeTimerRef.current);
