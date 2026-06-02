@@ -48,7 +48,7 @@ const transitionEaseClassName =
   "duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]";
 const headerShadowClassName = "shadow-[0_12px_40px_rgba(0,0,0,0.18)]";
 const movingLabelClassName = [
-  "pointer-events-none absolute left-1/2 top-1/2 z-10 leading-none text-white",
+  "pointer-events-none absolute left-1/2 top-1/2 z-10 leading-none font-bold text-white",
   "transition-transform",
   transitionEaseClassName,
   "text-[14px] md:text-[18px] lg:text-[20px]",
@@ -1273,7 +1273,7 @@ export default function Header() {
         ) : null}
 
         {showMobileCurrentLabel ? (
-          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[14px] leading-none text-white">
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[14px] font-bold leading-none text-white">
             {currentItem.label}
           </span>
         ) : null}
@@ -1282,7 +1282,7 @@ export default function Header() {
           <span
             className={[
               "pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2",
-              "text-[18px] leading-none text-white transition-transform lg:text-[20px]",
+              "text-[18px] font-bold leading-none text-white transition-transform lg:text-[20px]",
               transitionEaseClassName,
               "md:group-hover:translate-x-[calc(-50%+var(--current-label-offset))]",
             ].join(" ")}
@@ -1324,13 +1324,13 @@ export default function Header() {
               }
               className={[
                 "max-lg:w-full lg:w-auto text-center leading-none touch-manipulation",
-                "transition-[color,opacity,transform]",
+                "transition-[opacity,transform]",
                 transitionEaseClassName,
                 "text-[14px] md:text-[18px] lg:text-[20px]",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
                 item.href === pathname
-                  ? "text-white"
-                  : "text-[#999999] md:hover:text-white",
+                  ? "font-bold text-white"
+                  : "text-[#999999] hover:font-bold hover:text-white md:hover:font-bold md:hover:text-white",
                 (isLandingPage && !isLandingScrollCollapsed) || isMobileExpanded
                   ? "opacity-100"
                   : "",
