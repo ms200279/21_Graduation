@@ -12,8 +12,8 @@ const pretendard = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Graduation Online Exhibition",
-  description: "University graduation online exhibition",
+  title: "sensibility",
+  description: "TUK 21st graduation online exhibition",
 };
 
 export default function RootLayout({

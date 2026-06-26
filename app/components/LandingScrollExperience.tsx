@@ -16,16 +16,19 @@ export const landingScrollIndexThreshold = 1 - 0.0001;
 export const landingScrollHeaderExpandMaxProgress = 1 + 0.02;
 
 const SCROLL_LOCK_MS = 500;
-const WHEEL_GESTURE_IDLE_MS = 160;
 const WHEEL_DELTA_THRESHOLD = 50;
 const TOUCH_SWIPE_THRESHOLD = 56;
 const SCROLL_END_FALLBACK_MS = 120;
+/** Brief cooldown after scroll settles to absorb trackpad momentum tail. */
+const POST_SETTLE_LOCK_MS = 180;
 
 const landingScrollSectionProgressState = {
   current: 0,
   depthOnLeave: 0,
   maxProgressInGesture: 0,
 };
+
+const landingScrollRevealedState = { current: false };
 
 export function getLandingScrollGestureMaxProgress() {
   return landingScrollSectionProgressState.maxProgressInGesture;
@@ -63,19 +66,49 @@ function dispatchLandingScrollIntent(direction: "up" | "down") {
   );
 }
 
+const lastDispatchedScrollProgressState = {
+  progress: Number.NaN,
+  scrollProgress: Number.NaN,
+  maxScrollProgressInGesture: Number.NaN,
+};
+
 function dispatchLandingScrollProgress(
   progress: number,
   scrollProgress: number,
   maxScrollProgressInGesture: number,
 ) {
+  const shouldReveal = scrollProgress >= 1;
+
+  if (
+        Math.abs(progress - lastDispatchedScrollProgressState.progress) <
+          0.0001 &&
+        Math.abs(
+          scrollProgress - lastDispatchedScrollProgressState.scrollProgress,
+        ) < 0.0001 &&
+        maxScrollProgressInGesture ===
+          lastDispatchedScrollProgressState.maxScrollProgressInGesture &&
+        shouldReveal === landingScrollRevealedState.current
+      ) {
+    return;
+  }
+
+  lastDispatchedScrollProgressState.progress = progress;
+  lastDispatchedScrollProgressState.scrollProgress = scrollProgress;
+  lastDispatchedScrollProgressState.maxScrollProgressInGesture =
+    maxScrollProgressInGesture;
+
   document.documentElement.style.setProperty(
     "--landing-scroll-progress",
     String(progress),
   );
-  document.documentElement.classList.toggle(
-    "landing-scroll-revealed",
-    scrollProgress >= 1,
-  );
+
+  if (shouldReveal !== landingScrollRevealedState.current) {
+    landingScrollRevealedState.current = shouldReveal;
+    document.documentElement.classList.toggle(
+      "landing-scroll-revealed",
+      shouldReveal,
+    );
+  }
 
   landingScrollSectionProgressState.current = scrollProgress;
   landingScrollSectionProgressState.maxProgressInGesture =
@@ -100,12 +133,15 @@ type LandingScrollExperienceProps = {
   hero: ReactNode;
   index: ReactNode;
   concept?: ReactNode;
+  /** Decorative background layer rendered behind every section (fixed). */
+  background?: ReactNode;
 };
 
 export default function LandingScrollExperience({
   hero,
   index,
   concept,
+  background,
 }: LandingScrollExperienceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastProgressRef = useRef(0);
@@ -114,14 +150,13 @@ export default function LandingScrollExperience({
   const maxScrollProgressInGestureRef = useRef(0);
   const currentSectionRef = useRef(0);
   const scrollLockedUntilRef = useRef(0);
+  const isAnimatingRef = useRef(false);
   const wheelGestureConsumedRef = useRef(false);
-  const wheelGestureIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
   const touchGestureConsumedRef = useRef(false);
   const scrollEndFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const progressRafRef = useRef<number>(0);
 
   useEffect(() => {
     document.body.classList.add("landing-fullpage-active");
@@ -152,19 +187,11 @@ export default function LandingScrollExperience({
     const getSectionIndex = (scrollTop: number, viewportHeight: number) =>
       clamp(Math.round(scrollTop / viewportHeight), 0, maxSectionIndex);
 
-    const resetWheelGesture = () => {
+    const releaseScrollGesture = () => {
+      isAnimatingRef.current = false;
       wheelGestureConsumedRef.current = false;
-    };
-
-    const scheduleWheelGestureReset = () => {
-      if (wheelGestureIdleTimerRef.current) {
-        clearTimeout(wheelGestureIdleTimerRef.current);
-      }
-
-      wheelGestureIdleTimerRef.current = setTimeout(
-        resetWheelGesture,
-        WHEEL_GESTURE_IDLE_MS,
-      );
+      touchGestureConsumedRef.current = false;
+      scrollLockedUntilRef.current = performance.now() + POST_SETTLE_LOCK_MS;
     };
 
     const updateProgress = () => {
@@ -208,7 +235,7 @@ export default function LandingScrollExperience({
       currentSectionRef.current = section;
       maxScrollProgressInGestureRef.current = section;
       landingScrollSectionProgressState.maxProgressInGesture = section;
-      armScrollLock();
+      releaseScrollGesture();
       updateProgress();
     };
 
@@ -256,6 +283,9 @@ export default function LandingScrollExperience({
       }
 
       currentSectionRef.current = targetSection;
+      isAnimatingRef.current = true;
+      wheelGestureConsumedRef.current = true;
+      touchGestureConsumedRef.current = true;
       armScrollLock();
 
       container.scrollTo({
@@ -264,19 +294,28 @@ export default function LandingScrollExperience({
       });
     };
 
+    const scheduleProgressUpdate = () => {
+      if (progressRafRef.current) {
+        return;
+      }
+
+      progressRafRef.current = requestAnimationFrame(() => {
+        progressRafRef.current = 0;
+        updateProgress();
+      });
+    };
+
     const handleScroll = () => {
-      updateProgress();
+      scheduleProgressUpdate();
       scheduleScrollEndFallback();
     };
 
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault();
 
-      if (isScrollLocked()) {
+      if (isScrollLocked() || isAnimatingRef.current) {
         return;
       }
-
-      scheduleWheelGestureReset();
 
       if (wheelGestureConsumedRef.current) {
         return;
@@ -313,7 +352,11 @@ export default function LandingScrollExperience({
     };
 
     const handleTouchEnd = (event: TouchEvent) => {
-      if (isScrollLocked() || touchGestureConsumedRef.current) {
+      if (
+        isScrollLocked() ||
+        isAnimatingRef.current ||
+        touchGestureConsumedRef.current
+      ) {
         touchStartYRef.current = null;
         return;
       }
@@ -384,16 +427,33 @@ export default function LandingScrollExperience({
     container.addEventListener("touchmove", handleTouchMove, { passive: false });
     container.addEventListener("touchend", handleTouchEnd, { passive: true });
     container.addEventListener("scrollend", handleScrollEnd);
-    window.addEventListener("resize", updateProgress);
+
+    let resizeRaf = 0;
+    const handleResize = () => {
+      if (resizeRaf) {
+        return;
+      }
+
+      resizeRaf = requestAnimationFrame(() => {
+        resizeRaf = 0;
+        updateProgress();
+      });
+    };
+
+    window.addEventListener("resize", handleResize);
     window.addEventListener(LANDING_FULLPAGE_SCROLL_TO_EVENT, handleScrollTo);
 
     return () => {
-      if (wheelGestureIdleTimerRef.current) {
-        clearTimeout(wheelGestureIdleTimerRef.current);
-      }
-
       if (scrollEndFallbackTimerRef.current) {
         clearTimeout(scrollEndFallbackTimerRef.current);
+      }
+
+      if (progressRafRef.current) {
+        cancelAnimationFrame(progressRafRef.current);
+      }
+
+      if (resizeRaf) {
+        cancelAnimationFrame(resizeRaf);
       }
 
       container.removeEventListener("scroll", handleScroll);
@@ -402,13 +462,14 @@ export default function LandingScrollExperience({
       container.removeEventListener("touchmove", handleTouchMove);
       container.removeEventListener("touchend", handleTouchEnd);
       container.removeEventListener("scrollend", handleScrollEnd);
-      window.removeEventListener("resize", updateProgress);
+      window.removeEventListener("resize", handleResize);
       window.removeEventListener(LANDING_FULLPAGE_SCROLL_TO_EVENT, handleScrollTo);
     };
   }, [concept]);
 
   return (
     <div ref={containerRef} className="landing-fullpage">
+      {background}
       <section className="landing-fullpage__section landing-fullpage__section--hero">
         {hero}
       </section>

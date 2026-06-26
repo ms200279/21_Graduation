@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import useLandingScrollProgress from "../hooks/useLandingScrollProgress";
+import { useLiquidGlass } from "./liquid-glass";
 import {
   LANDING_SCROLL_INTENT_EVENT,
   LANDING_SCROLL_PROGRESS_EVENT,
@@ -48,13 +48,13 @@ const transitionEaseClassName =
   "duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]";
 const headerShadowClassName = "shadow-[0_12px_40px_rgba(0,0,0,0.18)]";
 const movingLabelClassName = [
-  "pointer-events-none absolute left-1/2 top-1/2 z-10 leading-none font-bold text-white",
+  "pointer-events-none absolute left-1/2 top-1/2 z-10 leading-none font-bold text-systemNavy",
   "transition-transform",
   transitionEaseClassName,
   "text-[14px] md:text-[18px] lg:text-[20px]",
 ].join(" ");
 
-const siteLogoIconPath = "/icons/favicon.svg";
+const siteLogoIconPath = "/icons/symbol.svg";
 
 function measureOrbCenterDeltaPx(
   orbElement: HTMLSpanElement,
@@ -128,13 +128,13 @@ function SiteLogoIcon({
       src={siteLogoIconPath}
       alt=""
       aria-hidden="true"
-      width={24}
-      height={24}
+      width={66}
+      height={100}
       unoptimized
       style={style}
       className={[
-        "h-[calc(var(--orb-size)*0.416)] w-[calc(var(--orb-size)*0.416)] object-contain",
-        "brightness-0 invert",
+        "block h-[calc(var(--orb-size)*0.48)] w-[calc(var(--orb-size)*0.317)] object-contain object-center",
+        "translate-y-[1px]",
         disableTransition ? "" : "transition-opacity",
         disableTransition ? "" : transitionEaseClassName,
         className,
@@ -149,6 +149,20 @@ export default function Header() {
   const navRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const orbRef = useRef<HTMLSpanElement>(null);
+  const orbButtonRef = useRef<HTMLButtonElement>(null);
+
+  useLiquidGlass(navRef, {
+    depth: 12,
+    strength: 180,
+    chromaticAberration: 9,
+    blur: 1,
+  });
+  useLiquidGlass(orbButtonRef, {
+    depth: 8,
+    strength: 110,
+    chromaticAberration: 6,
+    blur: 1,
+  });
   const mobilePillMeasureRef = useRef<HTMLSpanElement>(null);
   const routeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -156,6 +170,7 @@ export default function Header() {
   const previousPathnameRef = useRef(pathname);
   const isMobile = useIsMobile();
   const [mobileMenuPath, setMobileMenuPath] = useState<string | null>(null);
+  const mobileMenuPathRef = useRef<string | null>(null);
   const [mobilePagePillWidth, setMobilePagePillWidth] = useState(112);
   const [orbTransitionEnabled, setOrbTransitionEnabled] = useState(true);
   const [activeTransition, setActiveTransition] = useState<{
@@ -195,12 +210,11 @@ export default function Header() {
   const [navLabelViewportOffsets, setNavLabelViewportOffsets] = useState<number[]>(
     [],
   );
-  const landingScrollProgress = useLandingScrollProgress();
-  const landingScrollProgressRef = useRef(landingScrollProgress);
+  const landingScrollProgressRef = useRef(0);
 
   useEffect(() => {
-    landingScrollProgressRef.current = landingScrollProgress;
-  }, [landingScrollProgress]);
+    mobileMenuPathRef.current = mobileMenuPath;
+  }, [mobileMenuPath]);
 
   useEffect(() => {
     pathnameRef.current = pathname;
@@ -277,10 +291,6 @@ export default function Header() {
       if (resetTimerRef.current) {
         clearTimeout(resetTimerRef.current);
       }
-
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
     };
   }, []);
 
@@ -332,31 +342,6 @@ export default function Header() {
     );
 
     setLandingOrbOutsideDeltaPx(outsideDelta);
-  }, [isLandingPage, isMobile]);
-
-  useEffect(() => {
-    if (!isLandingPage || isMobile) {
-      return;
-    }
-
-    const handleResize = () => {
-      const orb = orbRef.current;
-      const header = headerRef.current;
-
-      if (!orb || !header) {
-        return;
-      }
-
-      setLandingOrbOutsideDeltaPx(
-        measureOrbCenterDeltaPx(orb, header, orbOutsideTransform),
-      );
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    return () => {
-      window.removeEventListener("resize", handleResize);
-    };
   }, [isLandingPage, isMobile]);
 
   const cancelLandingScrollHeaderAnimation = useCallback(() => {
@@ -577,11 +562,44 @@ export default function Header() {
   ]);
 
   useEffect(() => {
-    if (!isLandingPage || isMobile) {
-      return;
-    }
+    let progressRaf = 0;
+    let pendingProgress: {
+      progress: number;
+      scrollProgress: number;
+      maxScrollProgressInGesture: number;
+    } | null = null;
+
+    const flushLandingScrollProgress = () => {
+      progressRaf = 0;
+
+      if (!pendingProgress) {
+        return;
+      }
+
+      const { progress, scrollProgress, maxScrollProgressInGesture } =
+        pendingProgress;
+      pendingProgress = null;
+
+      if (progress > 0 && mobileMenuPathRef.current !== null) {
+        setMobileMenuPath(null);
+      }
+
+      if (!isLandingPage || isMobileRef.current) {
+        return;
+      }
+
+      syncLandingScrollHeaderFromProgress(
+        progress,
+        scrollProgress,
+        maxScrollProgressInGesture,
+      );
+    };
 
     const handleLandingScrollIntent = (event: Event) => {
+      if (!isLandingPage || isMobileRef.current) {
+        return;
+      }
+
       const customEvent = event as CustomEvent<{ direction: "up" | "down" }>;
 
       if (customEvent.detail.direction === "up") {
@@ -595,19 +613,29 @@ export default function Header() {
         scrollProgress?: number;
         maxScrollProgressInGesture?: number;
       }>;
-      syncLandingScrollHeaderFromProgress(
-        customEvent.detail.progress,
-        customEvent.detail.scrollProgress ?? customEvent.detail.progress,
-        customEvent.detail.maxScrollProgressInGesture ??
+
+      pendingProgress = {
+        progress: customEvent.detail.progress,
+        scrollProgress:
+          customEvent.detail.scrollProgress ?? customEvent.detail.progress,
+        maxScrollProgressInGesture:
+          customEvent.detail.maxScrollProgressInGesture ??
           landingScrollGestureMaxProgressRef.current,
-      );
+      };
+
+      if (!progressRaf) {
+        progressRaf = requestAnimationFrame(flushLandingScrollProgress);
+      }
     };
 
-    syncLandingScrollHeaderFromProgress(
-      landingScrollProgressRef.current,
-      landingScrollProgressRef.current,
-      landingScrollGestureMaxProgressRef.current,
-    );
+    if (isLandingPage && !isMobile) {
+      syncLandingScrollHeaderFromProgress(
+        landingScrollProgressRef.current,
+        landingScrollProgressRef.current,
+        landingScrollGestureMaxProgressRef.current,
+      );
+    }
+
     window.addEventListener(LANDING_SCROLL_INTENT_EVENT, handleLandingScrollIntent);
     window.addEventListener(LANDING_SCROLL_PROGRESS_EVENT, handleLandingScrollProgress);
 
@@ -620,6 +648,9 @@ export default function Header() {
         LANDING_SCROLL_PROGRESS_EVENT,
         handleLandingScrollProgress,
       );
+      if (progressRaf) {
+        cancelAnimationFrame(progressRaf);
+      }
       cancelLandingScrollHeaderAnimation();
     };
   }, [
@@ -698,39 +729,39 @@ export default function Header() {
       return;
     }
 
+    let resizeRaf = 0;
     const handleResize = () => {
-      if (landingScrollCollapsed) {
+      if (resizeRaf) {
         return;
       }
 
-      measureNavLabelViewportOffsets();
+      resizeRaf = requestAnimationFrame(() => {
+        resizeRaf = 0;
+
+        const orb = orbRef.current;
+        const header = headerRef.current;
+
+        if (orb && header) {
+          setLandingOrbOutsideDeltaPx(
+            measureOrbCenterDeltaPx(orb, header, orbOutsideTransform),
+          );
+        }
+
+        if (!landingScrollCollapsedRef.current) {
+          measureNavLabelViewportOffsets();
+        }
+      });
     };
 
     window.addEventListener("resize", handleResize);
 
     return () => {
       window.removeEventListener("resize", handleResize);
-    };
-  }, [isLandingPage, isMobile, landingScrollCollapsed, measureNavLabelViewportOffsets]);
-
-  useEffect(() => {
-    const handleLandingScrollProgress = (event: Event) => {
-      const customEvent = event as CustomEvent<{ progress: number }>;
-
-      if (customEvent.detail.progress > 0) {
-        setMobileMenuPath(null);
+      if (resizeRaf) {
+        cancelAnimationFrame(resizeRaf);
       }
     };
-
-    window.addEventListener(LANDING_SCROLL_PROGRESS_EVENT, handleLandingScrollProgress);
-
-    return () => {
-      window.removeEventListener(
-        LANDING_SCROLL_PROGRESS_EVENT,
-        handleLandingScrollProgress,
-      );
-    };
-  }, []);
+  }, [isLandingPage, isMobile, measureNavLabelViewportOffsets]);
 
   useEffect(() => {
     if (!isMobile || !isMobileMenuOpen) {
@@ -1130,6 +1161,7 @@ export default function Header() {
     (isMobile && isLandingPage && !isMobileExpanded) ||
     (isMobile && !isLandingPage && !isMobileExpanded);
 
+
   return (
     <header
       ref={headerRef}
@@ -1162,7 +1194,7 @@ export default function Header() {
         <span
           ref={orbRef}
           className={[
-            "pointer-events-none absolute left-1/2 top-1/2 z-10",
+            "pointer-events-none absolute left-1/2 top-1/2 z-0",
             "h-[var(--orb-size)] w-[var(--orb-size)]",
           ].join(" ")}
           style={{
@@ -1175,12 +1207,13 @@ export default function Header() {
           }}
         >
           <button
+            ref={orbButtonRef}
             type="button"
             aria-label={isLandingPage ? "페이지 최상단으로 이동" : "홈으로 이동"}
             onClick={handleOrbClick}
             tabIndex={isDesktopOrbInteractive ? 0 : -1}
             className={[
-              "flex h-full w-full items-center justify-center rounded-full bg-black",
+              "flex h-full w-full items-center justify-center rounded-full liquid-glass-surface",
               headerShadowClassName,
               "touch-manipulation",
               isDesktopOrbInteractive
@@ -1226,9 +1259,9 @@ export default function Header() {
             : undefined
         }
         className={[
-          "dynamic-header relative flex items-center justify-center bg-black",
+          "dynamic-header relative flex items-center justify-center liquid-glass-surface",
           isMobile ? "h-[44px]" : "h-[var(--header-height)]",
-          returnNavElevated ? "z-20" : "",
+          returnNavElevated ? "z-20" : "z-10",
           "overflow-hidden",
           headerShadowClassName,
           useLandingScrollNavStyle
@@ -1273,7 +1306,7 @@ export default function Header() {
         ) : null}
 
         {showMobileCurrentLabel ? (
-          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[14px] font-bold leading-none text-white">
+          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-[14px] font-bold leading-none text-systemNavy">
             {currentItem.label}
           </span>
         ) : null}
@@ -1282,7 +1315,7 @@ export default function Header() {
           <span
             className={[
               "pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2",
-              "text-[18px] font-bold leading-none text-white transition-transform lg:text-[20px]",
+              "text-[18px] font-bold leading-none text-systemNavy transition-transform lg:text-[20px]",
               transitionEaseClassName,
               "md:group-hover:translate-x-[calc(-50%+var(--current-label-offset))]",
             ].join(" ")}
@@ -1329,8 +1362,8 @@ export default function Header() {
                 "text-[14px] md:text-[18px] lg:text-[20px]",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
                 item.href === pathname
-                  ? "font-bold text-white"
-                  : "text-[#999999] hover:font-bold hover:text-white md:hover:font-bold md:hover:text-white",
+                  ? "font-bold text-systemNavy"
+                  : "text-systemNavy/55 hover:font-bold hover:text-systemNavy md:hover:font-bold md:hover:text-systemNavy",
                 (isLandingPage && !isLandingScrollCollapsed) || isMobileExpanded
                   ? "opacity-100"
                   : "",
