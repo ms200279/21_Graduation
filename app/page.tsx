@@ -1,22 +1,54 @@
 import LandingScrollExperience from "./components/LandingScrollExperience";
+import LandingHeroActionButton from "./components/LandingHeroActionButton";
+import { LandingCarousel } from "./components/landing-carousel";
 
 export default function LandingPage() {
   return (
     <LandingScrollExperience
       hero={
-        <div className="flex h-full items-end p-8 md:p-12">
-          <p className="text-sm text-[#999999] md:text-base">
-            Graduation Online Exhibition
-          </p>
+        <div className="landing-hero relative flex h-full min-h-[100dvh] w-full flex-col justify-end overflow-hidden py-8 md:py-12">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/bg.gif"
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            className="landing-hero__background pointer-events-none absolute inset-0 z-0 block h-full w-full max-w-none object-cover object-center select-none"
+          />
+          <div className="landing-hero__background-blur" aria-hidden="true">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/bg.gif"
+              alt=""
+              aria-hidden="true"
+              draggable={false}
+              className="landing-hero__background-blur-image pointer-events-none block max-w-none select-none"
+            />
+          </div>
+          <div className="landing-hero__gradient" aria-hidden="true" />
+          <div className="landing-hero__copy relative z-[3] flex w-full flex-col items-start px-[var(--landing-copy-inset-x)]">
+            <p
+              id="landing-hero-copy"
+              className="m-0 text-sm leading-snug tracking-tight text-systemNavy md:text-base"
+            >
+              26.09.18 FRI - 20 SUN
+              <br />
+              Hongik University Art Center B2
+              <br />
+              Department of Design Engineering
+            </p>
+            <p className="landing-hero-copy-secondary m-0 mt-2 text-[1.05rem] font-semibold leading-snug tracking-tight text-systemNavy md:mt-2.5 md:text-[1.2rem]">
+              Tech University of Korea
+              <br />
+              21st Grad Exhibition
+            </p>
+          </div>
+          <LandingHeroActionButton />
         </div>
       }
       index={
-        <div className="mx-auto flex h-full max-w-3xl flex-col justify-center px-8 md:px-12">
-          <h1 className="text-2xl leading-tight md:text-4xl">Index</h1>
-          <p className="mt-6 max-w-xl text-sm leading-relaxed text-[#666666] md:text-base">
-            랜딩에서 첫 스크롤로 도달하는 두 번째 화면입니다. 이후 콘텐츠는
-            이 영역에 채워집니다.
-          </p>
+        <div className="relative z-10 flex h-[100dvh] w-full items-center justify-center pointer-events-auto">
+          <LandingCarousel />
         </div>
       }
       concept={
