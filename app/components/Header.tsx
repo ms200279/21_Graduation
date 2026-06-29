@@ -156,12 +156,14 @@ export default function Header() {
     strength: 180,
     chromaticAberration: 9,
     blur: 1,
+    redrawDuringSizeTransition: true,
   });
   useLiquidGlass(orbButtonRef, {
     depth: 8,
     strength: 110,
     chromaticAberration: 6,
     blur: 1,
+    redrawDuringSizeTransition: true,
   });
   const mobilePillMeasureRef = useRef<HTMLSpanElement>(null);
   const routeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

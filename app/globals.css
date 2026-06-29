@@ -286,38 +286,6 @@ body.landing-fullpage-active {
   cursor: default;
 }
 
-body.landing-hero-action-blur-active .landing-hero__background-blur {
-  opacity: 1;
-}
-
-.landing-hero__background-blur {
-  position: absolute;
-  top: var(--landing-hero-action-blur-top, 0px);
-  left: var(--landing-hero-action-blur-left, 0px);
-  width: var(--landing-hero-action-blur-width, 0px);
-  height: var(--landing-hero-action-blur-height, 0px);
-  border-radius: var(--landing-hero-action-blur-radius, 999px);
-  z-index: 1;
-  pointer-events: none;
-  overflow: hidden;
-  opacity: 0;
-  isolation: isolate;
-  contain: paint;
-}
-
-.landing-hero__background-blur-image {
-  position: absolute;
-  top: calc(-1 * var(--landing-hero-action-blur-top, 0px));
-  left: calc(-1 * var(--landing-hero-action-blur-left, 0px));
-  width: var(--landing-hero-blur-bg-width, 100%);
-  height: var(--landing-hero-blur-bg-height, 100%);
-  object-fit: cover;
-  object-position: center;
-  filter: blur(16px);
-  transform: scale(1.08);
-  transform-origin: center;
-}
-
 .landing-hero__copy {
   pointer-events: none;
 }
