@@ -6,13 +6,13 @@ export const LANDING_SCROLL_PROGRESS_EVENT = "landing-scroll-progress";
 export const LANDING_SCROLL_INTENT_EVENT = "landing-scroll-intent";
 export const LANDING_FULLPAGE_SCROLL_TO_EVENT = "landing-fullpage-scroll-to";
 
-/** scrollProgress at or beyond the concept section (landing ↔ index animation is inactive). */
-export const landingScrollConceptThreshold = 2 - 0.0001;
+/** scrollProgress at or beyond the concept (carousel) section. */
+export const landingScrollConceptThreshold = 1 - 0.0001;
 
-/** scrollProgress at or beyond the index section (outside landing ↔ index transition). */
-export const landingScrollIndexThreshold = 1 - 0.0001;
+/** scrollProgress at or beyond the media section. */
+export const landingScrollMediaThreshold = 2 - 0.0001;
 
-/** Upper bound of the landing ↔ index zone; above this is index ↔ concept travel. */
+/** Upper bound of the landing ↔ concept zone; above this is concept ↔ media travel. */
 export const landingScrollHeaderExpandMaxProgress = 1 + 0.02;
 
 const SCROLL_LOCK_MS = 500;
@@ -131,16 +131,16 @@ export function scrollLandingFullpageTo(top: number, behavior: ScrollBehavior = 
 
 type LandingScrollExperienceProps = {
   hero: ReactNode;
-  index: ReactNode;
-  concept?: ReactNode;
+  concept: ReactNode;
+  media?: ReactNode;
   /** Decorative background layer rendered behind every section (fixed). */
   background?: ReactNode;
 };
 
 export default function LandingScrollExperience({
   hero,
-  index,
   concept,
+  media,
   background,
 }: LandingScrollExperienceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -176,7 +176,7 @@ export default function LandingScrollExperience({
       return;
     }
 
-    const maxSectionIndex = concept ? 2 : 1;
+    const maxSectionIndex = media ? 2 : 1;
 
     const isScrollLocked = () => performance.now() < scrollLockedUntilRef.current;
 
@@ -465,7 +465,7 @@ export default function LandingScrollExperience({
       window.removeEventListener("resize", handleResize);
       window.removeEventListener(LANDING_FULLPAGE_SCROLL_TO_EVENT, handleScrollTo);
     };
-  }, [concept]);
+  }, [media]);
 
   return (
     <div ref={containerRef} className="landing-fullpage">
@@ -473,12 +473,12 @@ export default function LandingScrollExperience({
       <section className="landing-fullpage__section landing-fullpage__section--hero">
         {hero}
       </section>
-      <section className="landing-fullpage__section landing-fullpage__section--index">
-        {index}
+      <section className="landing-fullpage__section landing-fullpage__section--concept">
+        {concept}
       </section>
-      {concept ? (
-        <section className="landing-fullpage__section landing-fullpage__section--concept">
-          {concept}
+      {media ? (
+        <section className="landing-fullpage__section landing-fullpage__section--media">
+          {media}
         </section>
       ) : null}
     </div>

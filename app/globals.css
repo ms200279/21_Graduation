@@ -335,11 +335,11 @@ body.landing-fullpage-active {
   );
 }
 
-.landing-fullpage__section--index {
+.landing-fullpage__section--concept {
   z-index: 3;
 }
 
-.landing-fullpage__section--concept {
+.landing-fullpage__section--media {
   z-index: 2;
 }
 

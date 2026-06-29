@@ -14,7 +14,7 @@ import {
   getLandingScrollSectionProgress,
   landingScrollConceptThreshold,
   landingScrollHeaderExpandMaxProgress,
-  landingScrollIndexThreshold,
+  landingScrollMediaThreshold,
   recordLandingScrollDepthOnLeave,
   resetLandingScrollGestureForOrbHome,
   scrollLandingFullpageTo,
@@ -36,8 +36,8 @@ const orbReturnHoldDelay = 140;
 const transitionDuration = orbMotionDuration;
 const transitionSettleDelay = 180;
 const landingScrollCollapseThreshold = 0.02;
-/** Header orb animation only runs in the landing ↔ index scroll zone (scrollProgress 0–1). */
-const landingScrollPastIndexThreshold = landingScrollIndexThreshold;
+/** Header orb animation only runs in the landing ↔ concept scroll zone (scrollProgress 0–1). */
+const landingScrollPastConceptThreshold = landingScrollConceptThreshold;
 const orbEase = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 const labelEase = orbEase;
 const orbOutsideTransform = "translate(var(--landing-orb-offset), -50%)";
@@ -92,6 +92,12 @@ const mobileExpandedNavListClassName =
 
 const desktopExpandedNavListClassName =
   "w-full whitespace-nowrap max-lg:grid max-lg:grid-cols-4 max-lg:items-center lg:flex lg:items-center lg:justify-between lg:gap-[20px]";
+
+const inactiveNavLabelClassName = [
+  "text-systemNavy/55 hover:text-systemNavy",
+  "hover:[text-shadow:0.03em_0_0_currentColor,-0.03em_0_0_currentColor]",
+  "md:hover:[text-shadow:0.03em_0_0_currentColor,-0.03em_0_0_currentColor]",
+].join(" ");
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
@@ -437,15 +443,15 @@ export default function Header() {
     [cancelLandingScrollHeaderAnimation],
   );
 
-  const gestureIncludesConceptTravel = useCallback(
+  const gestureIncludesMediaTravel = useCallback(
     (maxScrollProgressInGesture: number) =>
       maxScrollProgressInGesture > landingScrollHeaderExpandMaxProgress,
     [],
   );
 
-  const isAtOrPastIndexSection = useCallback(
+  const isAtOrPastConceptSection = useCallback(
     (scrollProgress: number) =>
-      scrollProgress >= landingScrollPastIndexThreshold,
+      scrollProgress >= landingScrollPastConceptThreshold,
     [],
   );
 
@@ -480,11 +486,11 @@ export default function Header() {
       previousLandingScrollScrollProgressRef.current = scrollProgress;
       landingScrollProgressRef.current = progress;
 
-      const includesConceptTravel = gestureIncludesConceptTravel(
+      const includesMediaTravel = gestureIncludesMediaTravel(
         maxScrollProgressInGesture,
       );
 
-      if (isAtOrPastIndexSection(scrollProgress)) {
+      if (isAtOrPastConceptSection(scrollProgress)) {
         if (landingScrollOrbHomeActiveRef.current) {
           if (scrollProgress < landingScrollCollapseThreshold) {
             landingScrollOrbHomeActiveRef.current = false;
@@ -494,7 +500,7 @@ export default function Header() {
         }
 
         if (!landingScrollCollapsedRef.current) {
-          if (includesConceptTravel) {
+          if (includesMediaTravel) {
             setLandingScrollHeaderCollapsedInstant(true);
           } else {
             runLandingScrollHeaderTransition(true);
@@ -504,7 +510,7 @@ export default function Header() {
         return;
       }
 
-      if (includesConceptTravel) {
+      if (includesMediaTravel) {
         if (landingScrollOrbHomeActiveRef.current) {
           return;
         }
@@ -516,20 +522,20 @@ export default function Header() {
         return;
       }
 
-      const isLandingToIndexScroll =
+      const isLandingToConceptScroll =
         direction === "down" && progress > landingScrollCollapseThreshold;
-      const isIndexToLandingScroll =
+      const isConceptToLandingScroll =
         direction === "up" && landingScrollCollapsedRef.current;
 
-      if (!isLandingToIndexScroll && !isIndexToLandingScroll) {
+      if (!isLandingToConceptScroll && !isConceptToLandingScroll) {
         return;
       }
 
-      runLandingScrollHeaderTransition(isLandingToIndexScroll);
+      runLandingScrollHeaderTransition(isLandingToConceptScroll);
     },
     [
-      gestureIncludesConceptTravel,
-      isAtOrPastIndexSection,
+      gestureIncludesMediaTravel,
+      isAtOrPastConceptSection,
       runLandingScrollHeaderTransition,
       setLandingScrollHeaderCollapsedInstant,
     ],
@@ -546,18 +552,18 @@ export default function Header() {
   const expandLandingScrollHeader = useCallback(() => {
     const scrollProgress = previousLandingScrollScrollProgressRef.current;
     const maxScrollProgressInGesture = getLandingScrollGestureMaxProgress();
-    const isAtIndexSnap =
-      scrollProgress >= landingScrollPastIndexThreshold &&
+    const isAtConceptSnap =
+      scrollProgress >= landingScrollPastConceptThreshold &&
       scrollProgress <= landingScrollHeaderExpandMaxProgress;
 
-    if (!isAtIndexSnap || gestureIncludesConceptTravel(maxScrollProgressInGesture)) {
+    if (!isAtConceptSnap || gestureIncludesMediaTravel(maxScrollProgressInGesture)) {
       return;
     }
 
     landingScrollDirectionRef.current = "up";
     runLandingScrollHeaderTransition(false);
   }, [
-    gestureIncludesConceptTravel,
+    gestureIncludesMediaTravel,
     runLandingScrollHeaderTransition,
   ]);
 
@@ -836,7 +842,7 @@ export default function Header() {
     const depthOnLeave = getLandingScrollDepthOnLeave();
     clearLandingScrollDepthOnLeave();
 
-    if (depthOnLeave >= landingScrollConceptThreshold) {
+    if (depthOnLeave >= landingScrollMediaThreshold) {
       cancelLandingScrollHeaderAnimation();
       landingScrollCollapsedRef.current = true;
       landingCollapseStartedAtRef.current = null;
@@ -1026,7 +1032,7 @@ export default function Header() {
     }
 
     if (pathname === "/") {
-      if (getLandingScrollSectionProgress() >= landingScrollPastIndexThreshold) {
+      if (getLandingScrollSectionProgress() >= landingScrollPastConceptThreshold) {
         forceExpandLandingScrollHeaderForOrbHome();
       }
 
@@ -1361,7 +1367,7 @@ export default function Header() {
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
                 item.href === pathname
                   ? "font-bold text-systemNavy"
-                  : "text-systemNavy/55 hover:font-bold hover:text-systemNavy md:hover:font-bold md:hover:text-systemNavy",
+                  : inactiveNavLabelClassName,
                 (isLandingPage && !isLandingScrollCollapsed) || isMobileExpanded
                   ? "opacity-100"
                   : "",
