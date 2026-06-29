@@ -57,7 +57,7 @@ const movingLabelClassName = [
 const siteLogoIconPath = "/icons/symbol.svg";
 
 function measureOrbCenterDeltaPx(
-  orbElement: HTMLSpanElement,
+  orbElement: HTMLElement,
   headerElement: HTMLElement,
   transform: string,
 ) {
@@ -148,8 +148,7 @@ export default function Header() {
   const router = useRouter();
   const navRef = useRef<HTMLElement>(null);
   const headerRef = useRef<HTMLElement>(null);
-  const orbRef = useRef<HTMLSpanElement>(null);
-  const orbButtonRef = useRef<HTMLButtonElement>(null);
+  const orbRef = useRef<HTMLButtonElement>(null);
 
   useLiquidGlass(navRef, {
     depth: 12,
@@ -158,12 +157,11 @@ export default function Header() {
     blur: 1,
     redrawDuringSizeTransition: true,
   });
-  useLiquidGlass(orbButtonRef, {
+  useLiquidGlass(orbRef, {
     depth: 8,
     strength: 110,
     chromaticAberration: 6,
     blur: 1,
-    redrawDuringSizeTransition: true,
   });
   const mobilePillMeasureRef = useRef<HTMLSpanElement>(null);
   const routeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1194,28 +1192,18 @@ export default function Header() {
 
       {!isMobile ? (
         <span
-          ref={orbRef}
-          className={[
-            "pointer-events-none absolute left-1/2 top-1/2 z-0",
-            "h-[var(--orb-size)] w-[var(--orb-size)]",
-          ].join(" ")}
-          style={{
-            transform: desktopOrbTransform,
-            opacity: isDesktopOrbVisible ? 1 : 0,
-            transition:
-              orbTransitionEnabled
-                ? `transform ${orbMotionDuration}ms ${orbEase}, opacity ${orbMotionDuration}ms ${orbEase}`
-                : "none",
-          }}
+          className="pointer-events-none absolute left-1/2 top-1/2 z-0"
+          aria-hidden="true"
         >
           <button
-            ref={orbButtonRef}
+            ref={orbRef}
             type="button"
             aria-label={isLandingPage ? "페이지 최상단으로 이동" : "홈으로 이동"}
             onClick={handleOrbClick}
             tabIndex={isDesktopOrbInteractive ? 0 : -1}
             className={[
-              "flex h-full w-full items-center justify-center rounded-full liquid-glass-surface",
+              "flex h-[var(--orb-size)] w-[var(--orb-size)] shrink-0 items-center justify-center",
+              "rounded-full liquid-glass-surface",
               headerShadowClassName,
               "touch-manipulation",
               isDesktopOrbInteractive
@@ -1223,6 +1211,14 @@ export default function Header() {
                 : "pointer-events-none",
               "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
             ].join(" ")}
+            style={{
+              transform: desktopOrbTransform,
+              opacity: isDesktopOrbVisible ? 1 : 0,
+              transition:
+                orbTransitionEnabled
+                  ? `transform ${orbMotionDuration}ms ${orbEase}, opacity ${orbMotionDuration}ms ${orbEase}`
+                  : "none",
+            }}
           >
             {shouldShowLandingOrbIcon ? (
               <SiteLogoIcon />
