@@ -56,7 +56,6 @@ Tech University of Korea(TUK) 21st 졸업 전시를 온라인으로 아카이브
 | 타이포 로고 | `TypoLogoButton.tsx` | `/icons/typo.svg`, Hero 카피 좌측 정렬, 랜딩 top 스크롤·홈 이동 |
 | 헤더 | `Header.tsx` | 반응형 네비 + Liquid Glass + 오브·스크롤 연동 |
 | Liquid Glass | `components/liquid-glass/` | `useLiquidGlass` — 헤더 nav·오브, Hero Action 버튼에 적용 |
-| 모션 유틸 | `lib/headerMotion.ts` | 스크롤 진행률 → 베지어 이징 매핑 |
 
 ### 글로벌 헤더 (`Header.tsx` + `globals.css`)
 
@@ -172,7 +171,7 @@ npm run start
 ### 개발자
 
 - 경로 별칭: `@/*` → 프로젝트 루트
-- 랜딩 스크롤: `LandingScrollExperience`, `useLandingScrollProgress`, `scrollLandingFullpageTo`
+- 랜딩 스크롤: `LandingScrollExperience`, `scrollLandingFullpageTo`
 - 헤더·오브: `Header.tsx`, `globals.css` `.desktop-header`
 - Liquid Glass: `app/components/liquid-glass/`, `app/styles/liquid-glass.css`
 - Agent 규칙: `.cursor/rules/` (`project-rules.mdc`)
@@ -191,14 +190,9 @@ npm run start
 │   │   │   ├── LandingCarousel.tsx
 │   │   │   └── index.ts
 │   │   └── liquid-glass/
-│   │       ├── LiquidGlass.tsx
 │   │       ├── useLiquidGlass.ts
 │   │       ├── liquidGlassFilter.ts
 │   │       └── index.ts
-│   ├── hooks/
-│   │   └── useLandingScrollProgress.ts
-│   ├── lib/
-│   │   └── headerMotion.ts
 │   ├── styles/
 │   │   └── liquid-glass.css
 │   ├── creditspage/page.tsx
