@@ -9,9 +9,13 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import {
+  CONCEPT_CAROUSEL_SLIDES,
+  type LandingCarouselSlide,
+} from "./slides";
+import ConceptCarouselSlideContent from "./ConceptCarouselSlideContent";
 
 /** Design-max tokens (large viewport baseline). */
-const SLIDE_COUNT = 4;
 const SLIDE_WIDTH = 1080;
 const SLIDE_HEIGHT = 600;
 const SLIDE_GAP = 30;
@@ -141,12 +145,14 @@ function computeCarouselLayout(
 }
 
 type CarouselSlideProps = {
+  slide: LandingCarouselSlide;
   index: number;
   slideCount: number;
   isActive: boolean;
 };
 
 const CarouselSlide = memo(function CarouselSlide({
+  slide,
   index,
   slideCount,
   isActive,
@@ -167,6 +173,7 @@ const CarouselSlide = memo(function CarouselSlide({
       ].join(" ")}
       style={slideStyle}
       aria-hidden={!isActive}
+      aria-label={slide.title}
     >
       <div
         className="landing-carousel__slide-shadow"
@@ -177,10 +184,7 @@ const CarouselSlide = memo(function CarouselSlide({
         className="landing-carousel__slide-surface relative z-[1]"
         style={{ borderRadius: SLIDE_RADIUS_MAX }}
       >
-        <div
-          className="landing-carousel__blur-surface h-full w-full overflow-hidden"
-          style={{ borderRadius: SLIDE_RADIUS_MAX }}
-        />
+        <ConceptCarouselSlideContent slide={slide} />
       </div>
     </article>
   );
@@ -244,16 +248,17 @@ function getCarouselLayoutServerSnapshot() {
 }
 
 type LandingCarouselProps = {
-  slideCount?: number;
+  slides?: LandingCarouselSlide[];
   className?: string;
 };
 
 export default function LandingCarousel({
-  slideCount = SLIDE_COUNT,
+  slides = CONCEPT_CAROUSEL_SLIDES,
   className = "",
 }: LandingCarouselProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const slideCount = slides.length;
   const layout = useSyncExternalStore(
     subscribeToCarouselLayout,
     getCarouselLayoutSnapshot,
@@ -331,9 +336,10 @@ export default function LandingCarousel({
                   height: SLIDE_HEIGHT,
                 }}
               >
-                {Array.from({ length: slideCount }, (_, index) => (
+                {slides.map((slide, index) => (
                   <CarouselSlide
-                    key={index}
+                    key={slide.id}
+                    slide={slide}
                     index={index}
                     slideCount={slideCount}
                     isActive={index === activeIndex}
@@ -348,16 +354,16 @@ export default function LandingCarousel({
               role="tablist"
               aria-label="Carousel pagination"
             >
-              {Array.from({ length: slideCount }, (_, index) => {
+              {slides.map((slide, index) => {
                 const isActive = index === activeIndex;
 
                 return (
                   <button
-                    key={index}
+                    key={slide.id}
                     type="button"
                     role="tab"
                     aria-selected={isActive}
-                    aria-label={`Go to slide ${index + 1}`}
+                    aria-label={`Go to ${slide.title} slide`}
                     onClick={() => setActiveIndex(index)}
                     className={[
                       "landing-carousel__dot rounded-full bg-systemNavy/35 transition-all duration-500 ease-out",
