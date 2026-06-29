@@ -2,29 +2,23 @@ import LandingScrollExperience from "./components/LandingScrollExperience";
 import LandingHeroActionButton from "./components/LandingHeroActionButton";
 import { LandingCarousel } from "./components/landing-carousel";
 
+const HERO_BACKGROUND_SRC = "/images/bg.webm";
+
 export default function LandingPage() {
   return (
     <LandingScrollExperience
       hero={
         <div className="landing-hero relative flex h-full min-h-[100dvh] w-full flex-col justify-end overflow-hidden py-8 md:py-12">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/images/bg.gif"
-            alt=""
+          <video
+            src={HERO_BACKGROUND_SRC}
+            autoPlay
+            muted
+            loop
+            playsInline
+            disablePictureInPicture
             aria-hidden="true"
-            draggable={false}
             className="landing-hero__background pointer-events-none absolute inset-0 z-0 block h-full w-full max-w-none object-cover object-center select-none"
           />
-          <div className="landing-hero__background-blur" aria-hidden="true">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/bg.gif"
-              alt=""
-              aria-hidden="true"
-              draggable={false}
-              className="landing-hero__background-blur-image pointer-events-none block max-w-none select-none"
-            />
-          </div>
           <div className="landing-hero__gradient" aria-hidden="true" />
           <div className="landing-hero__copy relative z-[3] flex w-full flex-col items-start px-[var(--landing-copy-inset-x)]">
             <p
