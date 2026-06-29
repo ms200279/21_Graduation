@@ -20,15 +20,6 @@ export interface UseLiquidGlassOptions {
   redrawDuringSizeTransition?: boolean;
 }
 
-const MOTION_SIZE_QUANTUM = 24;
-const MOTION_REDRAW_INTERVAL_MS = 40;
-
-function quantizeMotionSize(value: number) {
-  return Math.max(
-    1,
-    Math.round(value / MOTION_SIZE_QUANTUM) * MOTION_SIZE_QUANTUM,
-  );
-}
 const SIZE_TRANSITION_PROPERTIES = new Set([
   "width",
   "height",
@@ -115,15 +106,12 @@ export function useLiquidGlass(
     let sizeTransitionCount = 0;
     let redrawRaf = 0;
     let motionRaf = 0;
-    let lastMotionRedrawAt = 0;
 
     const stopMotionRedraw = () => {
       if (motionRaf) {
         cancelAnimationFrame(motionRaf);
         motionRaf = 0;
       }
-
-      lastMotionRedrawAt = 0;
     };
 
     const syncMotionFilter = () => {
@@ -133,15 +121,10 @@ export function useLiquidGlass(
         return;
       }
 
-      const now = performance.now();
-
-      if (now - lastMotionRedrawAt >= MOTION_REDRAW_INTERVAL_MS) {
-        lastMotionRedrawAt = now;
-        lastWidth = -1;
-        lastHeight = -1;
-        lastRadius = -1;
-        redraw({ motion: true });
-      }
+      lastWidth = -1;
+      lastHeight = -1;
+      lastRadius = -1;
+      redraw();
 
       motionRaf = requestAnimationFrame(syncMotionFilter);
     };
@@ -164,17 +147,12 @@ export function useLiquidGlass(
       el.style.setProperty("-webkit-backdrop-filter", value);
     };
 
-    const redraw = (options?: { motion?: boolean }) => {
+    const redraw = () => {
       redrawRaf = 0;
 
-      let { width, height } = getFilterDimensions(el);
+      const { width, height } = getFilterDimensions(el);
       if (width === 0 || height === 0) {
         return;
-      }
-
-      if (options?.motion) {
-        width = quantizeMotionSize(width);
-        height = quantizeMotionSize(height);
       }
 
       const resolvedRadius =

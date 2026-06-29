@@ -154,7 +154,7 @@ export default function LandingHeroActionButton() {
     strength: 180,
     chromaticAberration: 9,
     blur: 1,
-    mountKey: portalActive,
+    mountKey: portalActive ? (isBoxExpanded ? "expanded" : "motion") : "idle",
     redrawDuringSizeTransition: portalActive,
   });
 
@@ -172,86 +172,6 @@ export default function LandingHeroActionButton() {
       document.body.classList.remove("landing-hero-action-expanded");
     };
   }, [isBoxExpanded]);
-
-  useEffect(() => {
-    document.body.classList.toggle("landing-hero-action-blur-active", portalActive);
-
-    return () => {
-      document.body.classList.remove("landing-hero-action-blur-active");
-    };
-  }, [portalActive]);
-
-  useEffect(() => {
-    const hero = document.querySelector<HTMLElement>(".landing-hero");
-    const root = document.documentElement;
-    const blurVars = [
-      "--landing-hero-action-blur-top",
-      "--landing-hero-action-blur-left",
-      "--landing-hero-action-blur-width",
-      "--landing-hero-action-blur-height",
-      "--landing-hero-action-blur-radius",
-      "--landing-hero-blur-bg-width",
-      "--landing-hero-blur-bg-height",
-    ] as const;
-
-    const clearBlurVars = () => {
-      for (const name of blurVars) {
-        root.style.removeProperty(name);
-      }
-    };
-
-    if (!portalActive) {
-      clearBlurVars();
-      return;
-    }
-
-    let frame = 0;
-
-    const syncBlurRect = () => {
-      const button = buttonRef.current;
-
-      if (!hero || !button) {
-        frame = requestAnimationFrame(syncBlurRect);
-        return;
-      }
-
-      const heroRect = hero.getBoundingClientRect();
-      const boxRect = button.getBoundingClientRect();
-      const radius = getComputedStyle(button).borderRadius;
-
-      root.style.setProperty(
-        "--landing-hero-action-blur-top",
-        `${boxRect.top - heroRect.top}px`,
-      );
-      root.style.setProperty(
-        "--landing-hero-action-blur-left",
-        `${boxRect.left - heroRect.left}px`,
-      );
-      root.style.setProperty(
-        "--landing-hero-action-blur-width",
-        `${boxRect.width}px`,
-      );
-      root.style.setProperty(
-        "--landing-hero-action-blur-height",
-        `${boxRect.height}px`,
-      );
-      root.style.setProperty("--landing-hero-action-blur-radius", radius);
-      root.style.setProperty("--landing-hero-blur-bg-width", `${heroRect.width}px`);
-      root.style.setProperty(
-        "--landing-hero-blur-bg-height",
-        `${heroRect.height}px`,
-      );
-
-      frame = requestAnimationFrame(syncBlurRect);
-    };
-
-    frame = requestAnimationFrame(syncBlurRect);
-
-    return () => {
-      cancelAnimationFrame(frame);
-      clearBlurVars();
-    };
-  }, [portalActive]);
 
   useEffect(() => {
     if (!portalActive || !isBoxExpanded) {
