@@ -139,9 +139,11 @@ function getCollapsedTargetRect(
 export default function LandingHeroActionButton() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const isBoxExpandedRef = useRef(false);
+  const isCollapsingRef = useRef(false);
   const anchorRef = useRef<{ bottom: number; right: number } | null>(null);
   const [portalActive, setPortalActive] = useState(false);
   const [isBoxExpanded, setIsBoxExpanded] = useState(false);
+  const [isCollapsing, setIsCollapsing] = useState(false);
   const [motionRect, setMotionRect] = useState<MotionRect | null>(null);
   const isMounted = useSyncExternalStore(
     () => () => {},
@@ -150,12 +152,12 @@ export default function LandingHeroActionButton() {
   );
 
   useLiquidGlass(buttonRef, {
-    depth: 12,
-    strength: 180,
-    chromaticAberration: 9,
+    depth: 10,
+    strength: 150,
+    chromaticAberration: 6,
     blur: 1,
-    mountKey: portalActive ? (isBoxExpanded ? "expanded" : "motion") : "idle",
-    redrawDuringSizeTransition: portalActive,
+    mountKey: portalActive,
+    redrawDuringSizeTransition: false,
   });
 
   useEffect(() => {
@@ -163,18 +165,29 @@ export default function LandingHeroActionButton() {
   }, [isBoxExpanded]);
 
   useEffect(() => {
+    isCollapsingRef.current = isCollapsing;
+  }, [isCollapsing]);
+
+  const finishCollapse = useCallback(() => {
+    setPortalActive(false);
+    setIsCollapsing(false);
+    setMotionRect(null);
+    anchorRef.current = null;
+  }, []);
+
+  useEffect(() => {
     document.body.classList.toggle(
       "landing-hero-action-expanded",
-      isBoxExpanded,
+      isBoxExpanded || isCollapsing,
     );
 
     return () => {
       document.body.classList.remove("landing-hero-action-expanded");
     };
-  }, [isBoxExpanded]);
+  }, [isBoxExpanded, isCollapsing]);
 
   useEffect(() => {
-    if (!portalActive || !isBoxExpanded) {
+    if (!portalActive || (!isBoxExpanded && !isCollapsing)) {
       return;
     }
 
@@ -184,7 +197,7 @@ export default function LandingHeroActionButton() {
     return () => {
       document.body.style.overflow = previousOverflow;
     };
-  }, [portalActive, isBoxExpanded]);
+  }, [portalActive, isBoxExpanded, isCollapsing]);
 
   const expand = useCallback(() => {
     const button = buttonRef.current;
@@ -198,6 +211,7 @@ export default function LandingHeroActionButton() {
     anchorRef.current = anchor;
 
     setPortalActive(true);
+    setIsCollapsing(false);
     setIsBoxExpanded(false);
     setMotionRect({
       top: snapshot.top,
@@ -207,10 +221,13 @@ export default function LandingHeroActionButton() {
     });
 
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setMotionRect(getExpandedRect(anchor));
-        setIsBoxExpanded(true);
-      });
+      const button = buttonRef.current;
+      if (button) {
+        void button.offsetWidth;
+      }
+
+      setMotionRect(getExpandedRect(anchor));
+      setIsBoxExpanded(true);
     });
   }, [portalActive]);
 
@@ -219,24 +236,38 @@ export default function LandingHeroActionButton() {
       return;
     }
 
+    setIsCollapsing(true);
     setIsBoxExpanded(false);
-    setMotionRect(getCollapsedTargetRect(anchorRef.current ?? undefined));
+
+    requestAnimationFrame(() => {
+      const button = buttonRef.current;
+      if (button) {
+        void button.offsetWidth;
+      }
+
+      setMotionRect(getCollapsedTargetRect(anchorRef.current ?? undefined));
+    });
   }, [portalActive]);
 
   const handleTransitionEnd = useCallback(
     (event: TransitionEvent<HTMLButtonElement>) => {
-      if (event.target !== buttonRef.current || event.propertyName !== "width") {
+      if (
+        event.target !== buttonRef.current ||
+        event.propertyName !== "width"
+      ) {
         return;
       }
 
-      if (!isBoxExpandedRef.current && portalActive) {
-        setPortalActive(false);
-        setMotionRect(null);
-        anchorRef.current = null;
+      if (!isCollapsingRef.current) {
+        return;
       }
+
+      finishCollapse();
     },
-    [portalActive],
+    [finishCollapse],
   );
+
+  const showInfoLabel = !portalActive || isCollapsing;
 
   const motionStyle: CSSProperties | undefined = portalActive
     ? {
@@ -264,12 +295,14 @@ export default function LandingHeroActionButton() {
   const buttonClassName = [
     "landing-hero-action liquid-glass-surface touch-manipulation",
     portalActive ? "landing-hero-action--portal" : "",
-    isBoxExpanded ? "landing-hero-action--expanded cursor-default" : "cursor-pointer",
+    isBoxExpanded ? "landing-hero-action--expanded cursor-default" : "",
+    isCollapsing ? "landing-hero-action--collapsing cursor-default" : "",
+    !isBoxExpanded && !isCollapsing ? "cursor-pointer" : "",
     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-systemNavy",
   ].join(" ");
 
   const expandedPanels = isBoxExpanded ? (
-    <div className="landing-hero-action__panels" aria-hidden={false}>
+    <div className="landing-hero-action__panels" aria-hidden={!isBoxExpanded}>
       <div className="landing-hero-action__panel landing-hero-action__panel--schedule">
         <h2 className="landing-hero-action__section-title">Schedule</h2>
         <div className="landing-hero-action__schedule-days">
@@ -332,9 +365,9 @@ export default function LandingHeroActionButton() {
       style={motionStyle}
       className={buttonClassName}
     >
-      {!portalActive ? (
+      {!showInfoLabel ? null : (
         <span className="landing-hero-action__label">INFO</span>
-      ) : null}
+      )}
       {expandedPanels}
     </button>
   );

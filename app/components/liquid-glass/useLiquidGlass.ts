@@ -30,6 +30,17 @@ const SIZE_TRANSITION_PROPERTIES = new Set([
   "padding-bottom",
 ]);
 
+/** Throttle displacement regen during CSS size morphs (motion path only). */
+const MOTION_SIZE_QUANTUM = 24;
+const MOTION_REDRAW_INTERVAL_MS = 40;
+
+function quantizeMotionSize(value: number) {
+  return Math.max(
+    1,
+    Math.round(value / MOTION_SIZE_QUANTUM) * MOTION_SIZE_QUANTUM,
+  );
+}
+
 let canUseUrlFilter: boolean | null = null;
 
 function getCanUseUrlFilter() {
@@ -106,12 +117,15 @@ export function useLiquidGlass(
     let sizeTransitionCount = 0;
     let redrawRaf = 0;
     let motionRaf = 0;
+    let lastMotionRedrawAt = 0;
 
     const stopMotionRedraw = () => {
       if (motionRaf) {
         cancelAnimationFrame(motionRaf);
         motionRaf = 0;
       }
+
+      lastMotionRedrawAt = 0;
     };
 
     const syncMotionFilter = () => {
@@ -121,10 +135,15 @@ export function useLiquidGlass(
         return;
       }
 
-      lastWidth = -1;
-      lastHeight = -1;
-      lastRadius = -1;
-      redraw();
+      const now = performance.now();
+
+      if (now - lastMotionRedrawAt >= MOTION_REDRAW_INTERVAL_MS) {
+        lastMotionRedrawAt = now;
+        lastWidth = -1;
+        lastHeight = -1;
+        lastRadius = -1;
+        redraw({ motion: true });
+      }
 
       motionRaf = requestAnimationFrame(syncMotionFilter);
     };
@@ -147,12 +166,17 @@ export function useLiquidGlass(
       el.style.setProperty("-webkit-backdrop-filter", value);
     };
 
-    const redraw = () => {
+    const redraw = (options?: { motion?: boolean }) => {
       redrawRaf = 0;
 
-      const { width, height } = getFilterDimensions(el);
+      let { width, height } = getFilterDimensions(el);
       if (width === 0 || height === 0) {
         return;
+      }
+
+      if (options?.motion) {
+        width = quantizeMotionSize(width);
+        height = quantizeMotionSize(height);
       }
 
       const resolvedRadius =
@@ -209,6 +233,22 @@ export function useLiquidGlass(
       });
     };
 
+    const applyBlurOnlyFallback = () => {
+      const { width, height } = getFilterDimensions(el);
+
+      if (width === 0 || height === 0) {
+        return;
+      }
+
+      if (supportsUrlFilter) {
+        apply(
+          `blur(${Math.max(blur, 12)}px) brightness(${brightness}) saturate(${saturate})`,
+        );
+      } else {
+        apply(`blur(${Math.max(width, height) / 20}px)`);
+      }
+    };
+
     const handleTransitionStart = (event: TransitionEvent) => {
       if (event.target !== el) {
         return;
@@ -219,6 +259,10 @@ export function useLiquidGlass(
         (redrawDuringSizeTransition && event.propertyName === "border-radius")
       ) {
         sizeTransitionCount += 1;
+
+        if (sizeTransitionCount === 1 && !redrawDuringSizeTransition) {
+          applyBlurOnlyFallback();
+        }
 
         if (redrawDuringSizeTransition) {
           startMotionRedraw();

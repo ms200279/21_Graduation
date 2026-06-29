@@ -1,0 +1,90 @@
+"use client";
+
+import { memo, useId } from "react";
+import type { SymbolHeadingVariant } from "./slides";
+
+const SYMBOL_PATH =
+  "M59.2307 26.4726C62.9689 26.473 66 29.4828 66 33.1956V76.4699C66 80.1826 62.9689 83.1925 59.2307 83.1928C55.492 83.1928 52.4611 80.1828 52.4611 76.4699V70.7895C52.4611 67.3108 49.6216 64.4908 46.1189 64.4908C42.6162 64.4908 39.7769 67.3108 39.7769 70.7895V93.277C39.7765 96.9897 36.7458 100 33.0074 100C29.2691 99.9996 26.2382 96.9896 26.238 93.277V38.8668C26.238 35.1541 29.2691 32.1442 33.0074 32.144C36.746 32.144 39.7767 35.1539 39.7769 38.8668V52.3107C39.7769 55.7893 42.6162 58.6093 46.1189 58.6093C49.6216 58.6093 52.4611 55.7893 52.4611 52.3107V33.1956C52.4611 29.4827 55.492 26.4726 59.2307 26.4726ZM33.0074 0C36.746 0 39.7769 3.00995 39.7769 6.72286V16.8053C39.7769 20.5182 36.746 23.5283 33.0074 23.5283C29.2689 23.5279 26.238 20.518 26.238 16.8053C26.238 16.1084 25.6691 15.5434 24.9672 15.5434H19.8884C16.3816 15.5434 13.5388 18.3667 13.5388 21.8493V55.8807C13.5387 59.5934 10.508 62.6035 6.76941 62.6035C3.03085 62.6035 9.17281e-05 59.5934 0 55.8807V6.72286C0 3.00995 3.0308 0 6.76941 0C10.508 2.58196e-05 13.5388 3.00997 13.5388 6.72286C13.5388 8.345 14.863 9.66 16.4963 9.66H23.2805C24.9139 9.66 26.238 8.345 26.238 6.72286C26.238 3.01014 29.2689 0.000308127 33.0074 0ZM59.2307 0C62.9689 0.000247807 66 3.0101 66 6.72286V10.7134C66 14.4262 62.9689 17.436 59.2307 17.4363C55.492 17.4363 52.4611 14.4263 52.4611 10.7134V6.72286C52.4611 3.00995 55.492 0 59.2307 0Z";
+
+const SYMBOL_VIEWBOX = "0 0 66 100";
+
+function getSymbolStyles(variant: SymbolHeadingVariant) {
+  if (variant === "navy") {
+    return {
+      fill: "var(--color-systemNavy)",
+      stroke: "none",
+      strokeWidth: 0,
+    };
+  }
+
+  return {
+    fill: "var(--color-systemBlack)",
+    stroke: "none",
+    strokeWidth: 0,
+  };
+}
+
+function OutlinedSymbolIcon() {
+  const clipId = useId().replace(/:/g, "");
+
+  return (
+    <svg
+      viewBox={SYMBOL_VIEWBOX}
+      className="landing-carousel__slide-symbol"
+      role="img"
+      aria-hidden="true"
+    >
+      <defs>
+        <clipPath id={clipId}>
+          <path d={SYMBOL_PATH} />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`}>
+        <path d={SYMBOL_PATH} fill="#ffffff" />
+        <path
+          d={SYMBOL_PATH}
+          fill="none"
+          stroke="var(--color-systemBlack)"
+          strokeWidth={4}
+        />
+      </g>
+    </svg>
+  );
+}
+
+type SymbolCarouselIconsProps = {
+  variants: SymbolHeadingVariant[];
+};
+
+function SymbolCarouselIcons({ variants }: SymbolCarouselIconsProps) {
+  return (
+    <div className="landing-carousel__slide-heading-symbols" aria-hidden="true">
+      {variants.map((variant) => {
+        if (variant === "outlined") {
+          return <OutlinedSymbolIcon key={variant} />;
+        }
+
+        const styles = getSymbolStyles(variant);
+
+        return (
+          <svg
+            key={variant}
+            viewBox={SYMBOL_VIEWBOX}
+            className="landing-carousel__slide-symbol"
+            role="img"
+            aria-hidden="true"
+          >
+            <path
+              d={SYMBOL_PATH}
+              fill={styles.fill}
+              stroke={styles.stroke}
+              strokeWidth={styles.strokeWidth}
+            />
+          </svg>
+        );
+      })}
+    </div>
+  );
+}
+
+export default memo(SymbolCarouselIcons);

@@ -97,7 +97,6 @@ body.landing-fullpage-active {
   }
 }
 
-.landing-hero-action--portal .landing-hero-action__label,
 .landing-hero-action--expanded .landing-hero-action__label {
   display: none;
 }
@@ -133,6 +132,20 @@ body.landing-fullpage-active {
   cursor: default;
 }
 
+.landing-hero-action--collapsing,
+.landing-hero-action--collapsing:hover {
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transform: scale(1) !important;
+  cursor: default;
+}
+
+.landing-hero-action--collapsing .landing-hero-action__label {
+  position: relative;
+  z-index: 1;
+}
+
 .landing-hero-action__panels {
   position: relative;
   z-index: 2;
@@ -144,6 +157,7 @@ body.landing-fullpage-active {
   height: 100%;
   min-height: 0;
   text-align: left;
+  contain: layout style paint;
 }
 
 .landing-hero-action__panel {
@@ -335,11 +349,11 @@ body.landing-fullpage-active {
   );
 }
 
-.landing-fullpage__section--index {
+.landing-fullpage__section--concept {
   z-index: 3;
 }
 
-.landing-fullpage__section--concept {
+.landing-fullpage__section--media {
   z-index: 2;
 }
 
