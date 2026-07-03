@@ -304,7 +304,8 @@ body.landing-fullpage-active {
   pointer-events: none;
 }
 
-.landing-hero-action.liquid-glass-surface {
+.landing-hero-action.liquid-glass-surface,
+.desktop-header .liquid-glass-surface {
   box-shadow:
     inset 0 0 4px 0 rgba(250, 250, 250, 0.16),
     0 10px 32px rgba(0, 0, 0, 0.11);
@@ -436,11 +437,47 @@ body.landing-fullpage-active {
 }
 
 .landing-footer__brand,
-.landing-footer__links {
+.landing-footer__column {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 0.65rem;
+}
+
+.landing-footer__columns {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 5rem;
+}
+
+.landing-footer__nav-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.landing-footer__nav-link {
+  margin: 0;
+  color: #ffffff;
+  opacity: 0.65;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  transition: color 160ms ease, opacity 160ms ease;
+}
+
+.landing-footer__nav-link:hover {
+  color: #ffffff;
+  opacity: 1;
+}
+
+.landing-footer__nav-link:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 3px;
 }
 
 .landing-footer__logo {
@@ -512,7 +549,8 @@ body.landing-fullpage-active {
   }
 
   .landing-footer__exhibition,
-  .landing-footer__links-item {
+  .landing-footer__links-item,
+  .landing-footer__nav-link {
     font-size: 0.875rem;
   }
 
