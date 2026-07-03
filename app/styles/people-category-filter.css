@@ -69,9 +69,12 @@
   color: var(--color-systemNavy);
   transform: translateY(-1px);
   filter: drop-shadow(0 1px 3px rgba(8, 16, 48, 0.12));
+}
+
+.people-category-filter__button:hover:not(.people-category-filter__button--active) {
   text-shadow:
-    0.045em 0 0 currentColor,
-    -0.045em 0 0 currentColor;
+    0.03em 0 0 currentColor,
+    -0.03em 0 0 currentColor;
 }
 
 .people-category-filter__button--active {
@@ -88,9 +91,7 @@
 }
 
 .people-category-filter__search-morph.liquid-glass-surface {
-  box-shadow:
-    inset 0 0 3px 0 rgba(250, 250, 250, 0.16),
-    0 3px 10px rgba(8, 16, 48, 0.09);
+  box-shadow: 0 3px 10px rgba(8, 16, 48, 0.09);
 }
 
 .people-category-filter__search-morph {
@@ -116,9 +117,7 @@
 
 .people-category-filter__search-morph:not(.people-category-filter__search-morph--open):hover {
   transform: translateY(calc(-50% - 1px));
-  box-shadow:
-    inset 0 0 3px 0 rgba(250, 250, 250, 0.18),
-    0 4px 14px rgba(8, 16, 48, 0.13);
+  box-shadow: 0 4px 14px rgba(8, 16, 48, 0.13);
 }
 
 .people-category-filter__search-morph--open {
