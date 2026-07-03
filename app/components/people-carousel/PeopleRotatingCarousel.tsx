@@ -129,6 +129,20 @@ function measureExpandAnchorMetrics(
   };
 }
 
+function expandAnchorMetricsEqual(
+  left: ExpandAnchorMetrics,
+  right: ExpandAnchorMetrics,
+) {
+  return (
+    left.bodyAnchorRect.top === right.bodyAnchorRect.top &&
+    left.bodyAnchorRect.left === right.bodyAnchorRect.left &&
+    left.bodyAnchorRect.width === right.bodyAnchorRect.width &&
+    left.bodyAnchorRect.height === right.bodyAnchorRect.height &&
+    left.cardOrigin.x === right.cardOrigin.x &&
+    left.cardOrigin.y === right.cardOrigin.y
+  );
+}
+
 function computeExpandAlignBaseRect(
   containerRect: CardRect,
   stageWidth: number,
@@ -399,6 +413,7 @@ export default function PeopleRotatingCarousel({
   const pendingExpandSyncRef = useRef<number | null>(null);
   const isHistorySyncRef = useRef(false);
   const pendingInitialSlugRef = useRef(initialMemberSlug ?? null);
+  const expandOpenSessionRef = useRef<number | null>(null);
   const zoneItemIndex = Math.min(
     batchStartIndex + zoneSlotInBatch,
     Math.max(items.length - 1, 0),
@@ -615,6 +630,7 @@ export default function PeopleRotatingCarousel({
       setExpandAlignLayoutRect(null);
       setExpandOverlayReady(false);
       setExpandTransformOrigin("50% 50%");
+      expandOpenSessionRef.current = null;
 
       setExpandedCard({
         item: items[itemIndex],
@@ -819,6 +835,7 @@ export default function PeopleRotatingCarousel({
 
     expandCloseTimerRef.current = setTimeout(() => {
       expandCloseTimerRef.current = null;
+      expandOpenSessionRef.current = null;
       setExpandedCard(null);
       setLiveBodyAnchorRect(null);
       setExpandAlignLayoutRect(null);
@@ -843,24 +860,52 @@ export default function PeopleRotatingCarousel({
       return;
     }
 
+    if (expandOpenSessionRef.current === expandedCard.itemIndex) {
+      return;
+    }
+
+    expandOpenSessionRef.current = expandedCard.itemIndex;
+
     const freshAnchor = measureExpandAnchorMetrics(
       bodyRef.current,
       zoneCardSurfaceRef.current,
     );
 
     if (freshAnchor) {
-      setExpandedCard((previous) =>
-        previous &&
-        !previous.isOpen &&
-        !previous.isClosing &&
-        !previous.pendingClose
-          ? { ...previous, anchor: freshAnchor }
-          : previous,
-      );
-      setLiveBodyAnchorRect(freshAnchor.bodyAnchorRect);
+      setExpandedCard((previous) => {
+        if (
+          !previous ||
+          previous.isOpen ||
+          previous.isClosing ||
+          previous.pendingClose
+        ) {
+          return previous;
+        }
+
+        if (expandAnchorMetricsEqual(previous.anchor, freshAnchor)) {
+          return previous;
+        }
+
+        return { ...previous, anchor: freshAnchor };
+      });
+      setLiveBodyAnchorRect((previous) => {
+        const next = freshAnchor.bodyAnchorRect;
+
+        if (
+          previous &&
+          previous.top === next.top &&
+          previous.left === next.left &&
+          previous.width === next.width &&
+          previous.height === next.height
+        ) {
+          return previous;
+        }
+
+        return next;
+      });
     }
 
-    setExpandOverlayReady(true);
+    setExpandOverlayReady((previous) => (previous ? previous : true));
 
     const measureExpandOrigin = () => {
       const alignElement = expandAlignRef.current;
@@ -902,7 +947,14 @@ export default function PeopleRotatingCarousel({
     return () => {
       window.cancelAnimationFrame(openFrame);
     };
-  }, [expandedCard, pushMemberUrl]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- omit expandedCard object to avoid expand open loop
+  }, [
+    expandedCard?.isClosing,
+    expandedCard?.isOpen,
+    expandedCard?.itemIndex,
+    expandedCard?.pendingClose,
+    pushMemberUrl,
+  ]);
 
   useLayoutEffect(() => {
     if (!expandedCard) {
