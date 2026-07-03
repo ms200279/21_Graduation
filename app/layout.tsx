@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import GlobalFooterReveal from "./components/GlobalFooterReveal";
 import Header from "./components/Header";
+import SitePageShell from "./components/SitePageShell";
 import TypoLogoButton from "./components/TypoLogoButton";
 import "./globals.css";
 
@@ -26,7 +28,8 @@ export default function RootLayout({
       <body className={`${pretendard.variable} font-sans antialiased`}>
         <TypoLogoButton />
         <Header />
-        {children}
+        <SitePageShell>{children}</SitePageShell>
+        <GlobalFooterReveal />
       </body>
     </html>
   );

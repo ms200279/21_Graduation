@@ -1,9 +1,20 @@
+.people-page {
+  --people-category-filter-top: calc(100vh / 6);
+}
+
+.people-page .people-carousel-wrap {
+  top: var(--header-height, 46px);
+  height: calc(100vh - var(--header-height, 46px));
+}
+
 .people-carousel-scroll-track {
   position: relative;
   width: 100%;
 }
 
 .people-carousel-wrap {
+  --people-carousel-card-w: min(calc(100vw - 3rem), 340px);
+  --people-carousel-card-h: calc(var(--people-carousel-card-w) * 0.52);
   position: sticky;
   top: var(--header-height, 46px);
   width: 100%;
@@ -17,6 +28,83 @@
   padding-top: 0.5rem;
   padding-bottom: clamp(1.25rem, 4vh, 2rem);
   box-sizing: border-box;
+}
+
+.people-carousel-step-nav {
+  position: absolute;
+  right: clamp(2.25rem, 6vw, 4rem);
+  top: calc(50% + clamp(2rem, 5vh, 3.25rem));
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--people-carousel-card-h) * 0.5);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.people-carousel-step-nav__button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--color-systemNavy);
+  box-shadow: 0 6px 18px rgba(8, 16, 48, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    opacity 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+}
+
+.people-carousel-step-nav__button svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.people-carousel-step-nav__button:first-child svg {
+  transform: translateY(-0.5px);
+}
+
+.people-carousel-step-nav__button:last-child svg {
+  transform: translateY(0.5px);
+}
+
+.people-carousel-step-nav__button:not(:disabled):hover {
+  box-shadow: 0 8px 22px rgba(8, 16, 48, 0.12);
+}
+
+.people-carousel-step-nav__button:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.people-carousel-step-nav__button:focus-visible {
+  outline: 2px solid var(--color-systemNavy);
+  outline-offset: 2px;
+}
+
+.people-carousel-step-nav__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.28;
+}
+
+@media (max-width: 767px) {
+  .people-carousel-step-nav {
+    right: clamp(1.5rem, 5vw, 2.5rem);
+  }
+
+  .people-carousel-step-nav__button {
+    width: 38px;
+    height: 38px;
+  }
 }
 
 .people-carousel-header {
@@ -116,7 +204,7 @@
 }
 
 .people-carousel-card__surface--source-hidden {
-  opacity: 0 !important;
+  visibility: hidden !important;
 }
 
 .people-carousel-expand {
@@ -170,6 +258,19 @@
 }
 
 .people-carousel-expand--closing .people-carousel-expand-3d-root {
+  pointer-events: none;
+}
+
+.people-carousel-expand--closing
+  .people-carousel-expand-3d-root
+  .people-carousel-card__surface {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.people-carousel-expand--handoff {
+  opacity: 0;
   pointer-events: none;
 }
 
@@ -251,22 +352,37 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid rgba(32, 60, 96, 0.14);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
+  min-width: 32px;
+  min-height: 32px;
+  margin: 0;
+  padding: 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--color-systemNavy);
-  font-size: 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 300;
   line-height: 1;
   cursor: pointer;
-  opacity: 1;
-  pointer-events: auto;
-  transition: background 0.2s ease;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, color 0.2s ease;
 }
 
-.people-carousel-expand__close:hover {
-  background: rgba(255, 255, 255, 1);
+.people-carousel-expand__close--visible {
+  opacity: 0.72;
+  pointer-events: auto;
+}
+
+.people-carousel-expand__close--visible:hover {
+  opacity: 1;
+  color: var(--color-systemNavy);
+}
+
+.people-carousel-expand__close:focus-visible {
+  outline: 2px solid var(--color-systemNavy);
+  outline-offset: 4px;
+  border-radius: 2px;
 }
 
 .people-carousel-card__label {
