@@ -1,0 +1,293 @@
+.people-carousel-scroll-track {
+  position: relative;
+  width: 100%;
+}
+
+.people-carousel-wrap {
+  position: sticky;
+  top: var(--header-height, 46px);
+  width: 100%;
+  height: calc(100vh - var(--header-height, 46px));
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  background: #ffffff;
+  padding-top: 0.5rem;
+  padding-bottom: clamp(1.25rem, 4vh, 2rem);
+  box-sizing: border-box;
+}
+
+.people-carousel-header {
+  width: 100%;
+  max-width: 48rem;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.people-carousel-body {
+  position: relative;
+  display: flex;
+  flex: 1;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  perspective-origin: 46% 54%;
+  padding-top: clamp(0.5rem, 2vh, 1.25rem);
+  padding-bottom: clamp(3rem, 10vh, 5rem);
+}
+
+.people-carousel-zone-hit {
+  position: absolute;
+  z-index: 20;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
+}
+
+.people-carousel-rig {
+  position: relative;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.people-carousel-stage {
+  --people-carousel-card-w: min(calc(100vw - 3rem), 340px);
+  --people-carousel-card-h: calc(var(--people-carousel-card-w) * 0.52);
+  position: relative;
+  width: var(--people-carousel-card-w);
+  height: var(--people-carousel-card-h);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.people-carousel-card {
+  position: absolute;
+  inset: 0;
+  width: var(--people-carousel-card-w);
+  height: var(--people-carousel-card-h);
+  transform-style: preserve-3d;
+  pointer-events: none;
+  backface-visibility: hidden;
+}
+
+.people-carousel-card__surface {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  padding: 16px 22px;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(32, 60, 96, 0.14);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  color: var(--color-systemNavy);
+  transform-style: preserve-3d;
+  box-shadow:
+    0 8px 24px rgba(8, 16, 48, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  opacity: 0.72;
+  user-select: none;
+  backface-visibility: hidden;
+  pointer-events: none;
+}
+
+.people-carousel-card__surface--in-zone {
+  opacity: 1;
+  transition:
+    transform 0.38s cubic-bezier(0.34, 1.18, 0.64, 1),
+    box-shadow 0.38s cubic-bezier(0.34, 1.18, 0.64, 1),
+    opacity 0.28s ease;
+}
+
+.people-carousel-card__surface--in-zone-hovered {
+  transform: rotateX(calc(-1 * var(--zone-hover-stand-deg, 14deg)))
+    translateZ(var(--zone-hover-lift-px, 22px));
+  box-shadow:
+    0 16px 36px rgba(8, 16, 48, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.people-carousel-card__surface--source-hidden {
+  opacity: 0 !important;
+}
+
+.people-carousel-expand {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  pointer-events: none;
+}
+
+.people-carousel-expand--visible {
+  pointer-events: auto;
+}
+
+.people-carousel-expand__backdrop {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: rgba(248, 250, 252, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--people-expand-duration, 520ms) ease;
+}
+
+.people-carousel-expand--open .people-carousel-expand__backdrop {
+  opacity: 1;
+}
+
+.people-carousel-expand--closing .people-carousel-expand__backdrop {
+  opacity: 0;
+}
+
+.people-carousel-expand-3d-root {
+  position: fixed;
+  z-index: 1;
+  margin: 0;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  padding-top: clamp(0.5rem, 2vh, 1.25rem);
+  padding-bottom: clamp(3rem, 10vh, 5rem);
+  perspective-origin: 46% 54%;
+  transform-style: preserve-3d;
+  overflow: visible;
+}
+
+.people-carousel-expand--closing .people-carousel-expand-3d-root {
+  pointer-events: none;
+}
+
+.people-carousel-expand-align {
+  flex-shrink: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.people-carousel-expand-3d-root .people-carousel-card,
+.people-carousel-expand-3d-root .people-carousel-card__surface {
+  backface-visibility: visible;
+}
+
+.people-carousel-expand-align--animate {
+  transition:
+    transform var(--people-expand-duration, 520ms)
+      cubic-bezier(0.34, 1.12, 0.64, 1),
+    transform-origin var(--people-expand-duration, 520ms)
+      cubic-bezier(0.34, 1.12, 0.64, 1);
+}
+
+.people-carousel-expand-layer {
+  will-change: transform;
+}
+
+.people-carousel-expand-layer--animate {
+  transition: transform var(--people-expand-duration, 520ms)
+    cubic-bezier(0.34, 1.12, 0.64, 1);
+}
+
+.people-carousel-expand__surface--open {
+  border-radius: 10px;
+  border: 0.5px solid rgba(32, 60, 96, 0.12);
+  padding: clamp(24px, 3vw, 40px) clamp(28px, 3.5vw, 44px);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow:
+    0 24px 64px rgba(8, 16, 48, 0.14),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.72);
+}
+
+.people-carousel-expand__surface--open .people-carousel-card__label {
+  bottom: clamp(24px, 3vw, 40px);
+  left: clamp(28px, 3.5vw, 44px);
+  right: clamp(28px, 3.5vw, 44px);
+  font-size: 0.625rem;
+}
+
+.people-carousel-expand__surface--open .people-carousel-card__role {
+  top: clamp(24px, 3vw, 40px);
+  left: clamp(28px, 3.5vw, 44px);
+  right: clamp(28px, 3.5vw, 44px);
+  font-size: 0.5rem;
+}
+
+.people-carousel-card__surface.people-carousel-expand__surface--open,
+.people-carousel-card__surface.people-carousel-expand__surface--open
+  .people-carousel-card__label,
+.people-carousel-card__surface.people-carousel-expand__surface--open
+  .people-carousel-card__role {
+  transition:
+    padding var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
+    background var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
+    border var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
+    box-shadow var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
+    border-radius var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
+    font-size var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
+    top var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
+    bottom var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
+    left var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
+    right var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1);
+}
+
+.people-carousel-expand__close {
+  position: fixed;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(32, 60, 96, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--color-systemNavy);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 1;
+  pointer-events: auto;
+  transition: background 0.2s ease;
+}
+
+.people-carousel-expand__close:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+.people-carousel-card__label {
+  position: absolute;
+  bottom: 16px;
+  left: 22px;
+  right: 22px;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+}
+
+.people-carousel-card__role {
+  position: absolute;
+  top: 16px;
+  left: 22px;
+  right: 22px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  opacity: 0.82;
+}
