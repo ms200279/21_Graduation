@@ -374,11 +374,29 @@ body.landing-fullpage-active {
 }
 
 .site-page-shell {
-  transform: translate3d(
-    0,
-    calc(-1 * var(--landing-footer-reveal, 0) * var(--landing-footer-ratio, 0.4) * 100dvh),
-    0
+  --site-footer-lift: calc(
+    -1 * var(--landing-footer-reveal, 0) * var(--landing-footer-ratio, 0.4) * 100dvh
   );
+  transform: translate3d(0, var(--site-footer-lift), 0);
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+/*
+ * People page uses sticky carousel/filter layers. A transformed ancestor does not
+ * visually lift sticky descendants, so the footer appears to overlay the carousel.
+ * Lift those sticky layers directly instead of the shell wrapper.
+ */
+.site-page-shell:has(.people-page) {
+  transform: none;
+}
+
+.site-page-shell:has(.people-page) .people-category-filter,
+.site-page-shell:has(.people-page) .people-carousel-wrap {
+  --site-footer-lift: calc(
+    -1 * var(--landing-footer-reveal, 0) * var(--landing-footer-ratio, 0.4) * 100dvh
+  );
+  transform: translate3d(0, var(--site-footer-lift), 0);
   transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
 }
