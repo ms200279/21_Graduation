@@ -1,5 +1,6 @@
 import LandingScrollExperience from "./components/LandingScrollExperience";
 import LandingHeroActionButton from "./components/LandingHeroActionButton";
+import LandingFooter from "./components/LandingFooter";
 import { LandingCarousel } from "./components/landing-carousel";
 
 const HERO_BACKGROUND_SRC = "/images/bg.webm";
@@ -46,8 +47,9 @@ export default function LandingPage() {
         </div>
       }
       media={
-        <div className="relative z-10 h-[100dvh] w-full pointer-events-auto" />
+        <div className="relative z-10 h-[100dvh] w-full bg-white pointer-events-auto" />
       }
+      footer={<LandingFooter />}
     />
   );
 }

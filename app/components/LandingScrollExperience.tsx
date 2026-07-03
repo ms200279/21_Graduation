@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 export const LANDING_SCROLL_PROGRESS_EVENT = "landing-scroll-progress";
 export const LANDING_SCROLL_INTENT_EVENT = "landing-scroll-intent";
@@ -12,10 +13,48 @@ export const landingScrollConceptThreshold = 1 - 0.0001;
 /** scrollProgress at or beyond the media section. */
 export const landingScrollMediaThreshold = 2 - 0.0001;
 
+/** Footer panel height as a fraction of the viewport. */
+export const LANDING_FOOTER_VIEWPORT_RATIO = 0.4;
+
+/** scrollProgress when the footer snap is fully revealed. */
+export const landingScrollFooterThreshold =
+  2 + LANDING_FOOTER_VIEWPORT_RATIO - 0.0001;
+
 /** Upper bound of the landing ↔ concept zone; above this is concept ↔ media travel. */
 export const landingScrollHeaderExpandMaxProgress = 1 + 0.02;
 
+function getLandingSnapOffsets(
+  viewportHeight: number,
+  options: { hasMedia: boolean },
+) {
+  const { hasMedia } = options;
+  const offsets = [0, viewportHeight];
+
+  if (hasMedia) {
+    offsets.push(2 * viewportHeight);
+  }
+
+  return offsets;
+}
+
+function getNearestSnapSection(scrollTop: number, offsets: number[]) {
+  let section = 0;
+  let minDistance = Infinity;
+
+  for (let index = 0; index < offsets.length; index += 1) {
+    const distance = Math.abs(scrollTop - offsets[index]);
+
+    if (distance < minDistance) {
+      minDistance = distance;
+      section = index;
+    }
+  }
+
+  return section;
+}
+
 const SCROLL_LOCK_MS = 500;
+const FOOTER_REVEAL_MS = 420;
 const WHEEL_DELTA_THRESHOLD = 50;
 const TOUCH_SWIPE_THRESHOLD = 56;
 const SCROLL_END_FALLBACK_MS = 120;
@@ -133,6 +172,7 @@ type LandingScrollExperienceProps = {
   hero: ReactNode;
   concept: ReactNode;
   media?: ReactNode;
+  footer?: ReactNode;
   /** Decorative background layer rendered behind every section (fixed). */
   background?: ReactNode;
 };
@@ -141,6 +181,7 @@ export default function LandingScrollExperience({
   hero,
   concept,
   media,
+  footer,
   background,
 }: LandingScrollExperienceProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -157,15 +198,49 @@ export default function LandingScrollExperience({
     null,
   );
   const progressRafRef = useRef<number>(0);
+  const footerRevealProgressRef = useRef(0);
+  const footerAnimatingRef = useRef(false);
+  const footerRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasFooter = Boolean(media && footer);
+  const [footerRevealProgress, setFooterRevealProgress] = useState(0);
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
+  const applyFooterRevealProgress = (progress: number) => {
+    const clamped = clamp(progress, 0, 1);
+    footerRevealProgressRef.current = clamped;
+    setFooterRevealProgress(clamped);
+    document.documentElement.style.setProperty(
+      "--landing-footer-reveal",
+      String(clamped),
+    );
+  };
 
   useEffect(() => {
     document.body.classList.add("landing-fullpage-active");
+    document.documentElement.style.setProperty("--landing-footer-reveal", "0");
+    document.documentElement.style.setProperty(
+      "--landing-footer-ratio",
+      String(LANDING_FOOTER_VIEWPORT_RATIO),
+    );
 
     return () => {
       document.body.classList.remove("landing-fullpage-active");
       lastProgressRef.current = 0;
       maxScrollProgressInGestureRef.current = 0;
       dispatchLandingScrollProgress(0, 0, 0);
+      if (footerRevealTimerRef.current) {
+        clearTimeout(footerRevealTimerRef.current);
+        footerRevealTimerRef.current = null;
+      }
+      footerAnimatingRef.current = false;
+      footerRevealProgressRef.current = 0;
+      setFooterRevealProgress(0);
+      document.documentElement.style.removeProperty("--landing-footer-reveal");
+      document.documentElement.style.removeProperty("--landing-footer-ratio");
     };
   }, []);
 
@@ -176,16 +251,66 @@ export default function LandingScrollExperience({
       return;
     }
 
-    const maxSectionIndex = media ? 2 : 1;
+    const hasFooterSnap = Boolean(media && footer);
+    const snapOptions = { hasMedia: Boolean(media) };
+    const mediaSectionIndex = snapOptions.hasMedia ? 2 : 1;
+
+    const getSnapOffsets = (viewportHeight: number) =>
+      getLandingSnapOffsets(viewportHeight, snapOptions);
+
+    const maxSectionIndex = getSnapOffsets(1).length - 1;
 
     const isScrollLocked = () => performance.now() < scrollLockedUntilRef.current;
 
-    const armScrollLock = () => {
-      scrollLockedUntilRef.current = performance.now() + SCROLL_LOCK_MS;
+    const armScrollLock = (durationMs = SCROLL_LOCK_MS) => {
+      scrollLockedUntilRef.current = performance.now() + durationMs;
     };
 
-    const getSectionIndex = (scrollTop: number, viewportHeight: number) =>
-      clamp(Math.round(scrollTop / viewportHeight), 0, maxSectionIndex);
+    const releaseFooterGesture = () => {
+      footerAnimatingRef.current = false;
+      wheelGestureConsumedRef.current = false;
+      touchGestureConsumedRef.current = false;
+      scrollLockedUntilRef.current = performance.now() + POST_SETTLE_LOCK_MS;
+    };
+
+    const setFooterRevealed = (revealed: boolean) => {
+      if (footerAnimatingRef.current) {
+        return false;
+      }
+
+      const targetProgress = revealed ? 1 : 0;
+
+      if (Math.abs(footerRevealProgressRef.current - targetProgress) < 0.0001) {
+        return false;
+      }
+
+      footerAnimatingRef.current = true;
+      wheelGestureConsumedRef.current = true;
+      touchGestureConsumedRef.current = true;
+      armScrollLock(FOOTER_REVEAL_MS + POST_SETTLE_LOCK_MS);
+      applyFooterRevealProgress(targetProgress);
+
+      if (footerRevealTimerRef.current) {
+        clearTimeout(footerRevealTimerRef.current);
+      }
+
+      footerRevealTimerRef.current = setTimeout(() => {
+        footerRevealTimerRef.current = null;
+        releaseFooterGesture();
+      }, FOOTER_REVEAL_MS);
+
+      return true;
+    };
+
+    const getSectionIndex = (scrollTop: number, viewportHeight: number) => {
+      const offsets = getSnapOffsets(viewportHeight);
+
+      return clamp(
+        getNearestSnapSection(scrollTop, offsets),
+        0,
+        offsets.length - 1,
+      );
+    };
 
     const releaseScrollGesture = () => {
       isAnimatingRef.current = false;
@@ -217,6 +342,7 @@ export default function LandingScrollExperience({
       }
 
       lastProgressRef.current = scrollProgress;
+
       dispatchLandingScrollProgress(
         progress,
         scrollProgress,
@@ -266,6 +392,16 @@ export default function LandingScrollExperience({
         return;
       }
 
+      if (targetSection !== mediaSectionIndex) {
+        if (footerRevealTimerRef.current) {
+          clearTimeout(footerRevealTimerRef.current);
+          footerRevealTimerRef.current = null;
+        }
+
+        footerAnimatingRef.current = false;
+        applyFooterRevealProgress(0);
+      }
+
       if (targetSection === 0 && currentSection > 0) {
         maxScrollProgressInGestureRef.current = 0;
         landingScrollSectionProgressState.maxProgressInGesture = 0;
@@ -289,7 +425,7 @@ export default function LandingScrollExperience({
       armScrollLock();
 
       container.scrollTo({
-        top: targetSection * viewportHeight,
+        top: getSnapOffsets(viewportHeight)[targetSection] ?? 0,
         behavior,
       });
     };
@@ -313,7 +449,7 @@ export default function LandingScrollExperience({
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault();
 
-      if (isScrollLocked() || isAnimatingRef.current) {
+      if (isScrollLocked() || isAnimatingRef.current || footerAnimatingRef.current) {
         return;
       }
 
@@ -326,13 +462,27 @@ export default function LandingScrollExperience({
       }
 
       const direction = event.deltaY > 0 ? 1 : -1;
+      const currentSection = currentSectionRef.current;
+
+      if (hasFooterSnap && currentSection === mediaSectionIndex) {
+        if (direction > 0 && footerRevealProgressRef.current < 0.999) {
+          setFooterRevealed(true);
+          return;
+        }
+
+        if (direction < 0 && footerRevealProgressRef.current > 0.001) {
+          setFooterRevealed(false);
+          return;
+        }
+      }
+
       const targetSection = clamp(
-        currentSectionRef.current + direction,
+        currentSection + direction,
         0,
         maxSectionIndex,
       );
 
-      if (targetSection === currentSectionRef.current) {
+      if (targetSection === currentSection) {
         return;
       }
 
@@ -355,6 +505,7 @@ export default function LandingScrollExperience({
       if (
         isScrollLocked() ||
         isAnimatingRef.current ||
+        footerAnimatingRef.current ||
         touchGestureConsumedRef.current
       ) {
         touchStartYRef.current = null;
@@ -377,13 +528,27 @@ export default function LandingScrollExperience({
       }
 
       const direction = deltaY < 0 ? 1 : -1;
+      const currentSection = currentSectionRef.current;
+
+      if (hasFooterSnap && currentSection === mediaSectionIndex) {
+        if (direction > 0 && footerRevealProgressRef.current < 0.999) {
+          setFooterRevealed(true);
+          return;
+        }
+
+        if (direction < 0 && footerRevealProgressRef.current > 0.001) {
+          setFooterRevealed(false);
+          return;
+        }
+      }
+
       const targetSection = clamp(
-        currentSectionRef.current + direction,
+        currentSection + direction,
         0,
         maxSectionIndex,
       );
 
-      if (targetSection === currentSectionRef.current) {
+      if (targetSection === currentSection) {
         return;
       }
 
@@ -444,6 +609,10 @@ export default function LandingScrollExperience({
     window.addEventListener(LANDING_FULLPAGE_SCROLL_TO_EVENT, handleScrollTo);
 
     return () => {
+      if (footerRevealTimerRef.current) {
+        clearTimeout(footerRevealTimerRef.current);
+      }
+
       if (scrollEndFallbackTimerRef.current) {
         clearTimeout(scrollEndFallbackTimerRef.current);
       }
@@ -465,22 +634,43 @@ export default function LandingScrollExperience({
       window.removeEventListener("resize", handleResize);
       window.removeEventListener(LANDING_FULLPAGE_SCROLL_TO_EVENT, handleScrollTo);
     };
-  }, [media]);
+  }, [media, footer]);
 
   return (
-    <div ref={containerRef} className="landing-fullpage">
-      {background}
-      <section className="landing-fullpage__section landing-fullpage__section--hero">
-        {hero}
-      </section>
-      <section className="landing-fullpage__section landing-fullpage__section--concept">
-        {concept}
-      </section>
-      {media ? (
-        <section className="landing-fullpage__section landing-fullpage__section--media">
-          {media}
+    <>
+      <div ref={containerRef} className="landing-fullpage">
+        {background}
+        <section className="landing-fullpage__section landing-fullpage__section--hero">
+          {hero}
         </section>
-      ) : null}
-    </div>
+        <section className="landing-fullpage__section landing-fullpage__section--concept">
+          {concept}
+        </section>
+        {media ? (
+          <section className="landing-fullpage__section landing-fullpage__section--media">
+            <div className="landing-fullpage__media-inner">{media}</div>
+          </section>
+        ) : null}
+      </div>
+      {hasFooter && isMounted
+        ? createPortal(
+            <div
+              className={[
+                "landing-fullpage__footer-dock",
+                footerRevealProgress > 0 ? "landing-fullpage__footer-dock--visible" : "",
+              ].join(" ")}
+              style={
+                {
+                  "--landing-footer-reveal": String(footerRevealProgress),
+                } as CSSProperties
+              }
+              aria-hidden={footerRevealProgress <= 0}
+            >
+              {footer}
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
