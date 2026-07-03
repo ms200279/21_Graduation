@@ -1,3 +1,12 @@
+.people-page {
+  --people-category-filter-top: calc(100vh / 6);
+}
+
+.people-page .people-carousel-wrap {
+  top: var(--header-height, 46px);
+  height: calc(100vh - var(--header-height, 46px));
+}
+
 .people-carousel-scroll-track {
   position: relative;
   width: 100%;
