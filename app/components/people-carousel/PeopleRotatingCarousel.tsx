@@ -18,14 +18,24 @@ import {
   getMemberPathFromIndex,
   parseMemberSlugFromPath,
 } from "./memberPaths";
+import {
+  correctPeopleFooterHandoffScroll,
+  isInPeopleFooterHandoffZone,
+  isPeopleCarouselScrollLockedByFooter,
+  notifyPeopleCarouselProgrammaticStep,
+} from "./peopleCarouselFooter";
 
 import "@/app/styles/people-carousel.css";
 
 const CARD_GAP_PX = 0;
 /** Scroll distance assigned to each card along the track. */
 const SCROLL_VH_PER_CARD = 12;
-const SNAP_IDLE_MS = 140;
 const SNAP_DURATION_MS = 420;
+const SNAP_POSITION_TOLERANCE_PX = 4;
+/** Max distance (in member units) from a snap point to count as "in zone". */
+const ZONE_SNAP_THRESHOLD = 0.45;
+/** Last-member scroll fraction required before #99 zone snap (keeps #98 stable). */
+const PAGE_END_SNAP_ZONE_FRACTION = 0.25;
 /** Slight overshoot for a soft, elastic snap settle. */
 const SNAP_EASE_OVERSHOOT = 0.82;
 const MIN_CAROUSEL_RADIUS_PX = 180;
@@ -43,6 +53,7 @@ const ZONE_HOVER_LIFT_PX = 22;
 const EXPANDED_CARD_WIDTH_PX = 1080;
 const EXPANDED_CARD_HEIGHT_PX = 600;
 const EXPAND_DURATION_MS = 520;
+const EXPAND_MORPH_TRANSFORM_END_COUNT = 4;
 /** Cards shown on the cylinder per batch (e.g. 1–11, then 12–22). */
 export const VISIBLE_CAROUSEL_SLOTS = 11;
 
@@ -342,6 +353,31 @@ function getScrollMetrics(track: HTMLElement) {
   return { trackTop, loopHeight };
 }
 
+function resolveZoneSnapItemIndex(
+  itemPositionFloat: number,
+  maxItemIndex: number,
+) {
+  if (maxItemIndex <= 0) {
+    return 0;
+  }
+
+  const clamped = clamp(itemPositionFloat, 0, maxItemIndex);
+  let targetIndex = Math.round(clamped);
+
+  const pageEndSnapMinFloat =
+    maxItemIndex - PAGE_END_SNAP_ZONE_FRACTION;
+
+  if (targetIndex === maxItemIndex && clamped < pageEndSnapMinFloat) {
+    targetIndex = maxItemIndex - 1;
+  }
+
+  if (Math.abs(clamped - targetIndex) > ZONE_SNAP_THRESHOLD) {
+    return null;
+  }
+
+  return targetIndex;
+}
+
 export default function PeopleRotatingCarousel({
   items,
   className = "",
@@ -357,7 +393,9 @@ export default function PeopleRotatingCarousel({
   const isClampingScrollRef = useRef(false);
   const isSnapAnimatingRef = useRef(false);
   const snapAnimFrameRef = useRef<number | null>(null);
-  const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const carouselScrollIdleRef = useRef(true);
+  const lastFooterHandoffWheelScrollYRef = useRef<number | null>(null);
+  const programmaticStepRef = useRef(false);
 
   const [rotation, setRotation] = useState(0);
   const [batchIndex, setBatchIndex] = useState(0);
@@ -405,6 +443,9 @@ export default function PeopleRotatingCarousel({
   const expandCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const expandOpenFrameRef = useRef<number | null>(null);
   const expandAlignRef = useRef<HTMLDivElement>(null);
+  const expand3dRootRef = useRef<HTMLDivElement>(null);
+  const expandSurfaceRef = useRef<HTMLDivElement>(null);
+  const expandCloseHandoffFrameRef = useRef<number | null>(null);
   const [expandTransformOrigin, setExpandTransformOrigin] = useState("50% 50%");
   const [expandAlignLayoutRect, setExpandAlignLayoutRect] = useState<CardRect | null>(
     null,
@@ -414,6 +455,12 @@ export default function PeopleRotatingCarousel({
   const isHistorySyncRef = useRef(false);
   const pendingInitialSlugRef = useRef(initialMemberSlug ?? null);
   const expandOpenSessionRef = useRef<number | null>(null);
+  const expandCloseReadyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const [expandCloseReady, setExpandCloseReady] = useState(false);
+  const [expandCloseHandoff, setExpandCloseHandoff] = useState(false);
+  const expandCloseFinishedRef = useRef(false);
   const zoneItemIndex = Math.min(
     batchStartIndex + zoneSlotInBatch,
     Math.max(items.length - 1, 0),
@@ -436,6 +483,16 @@ export default function PeopleRotatingCarousel({
     if (expandCloseTimerRef.current !== null) {
       clearTimeout(expandCloseTimerRef.current);
       expandCloseTimerRef.current = null;
+    }
+
+    if (expandCloseReadyTimerRef.current !== null) {
+      clearTimeout(expandCloseReadyTimerRef.current);
+      expandCloseReadyTimerRef.current = null;
+    }
+
+    if (expandCloseHandoffFrameRef.current !== null) {
+      window.cancelAnimationFrame(expandCloseHandoffFrameRef.current);
+      expandCloseHandoffFrameRef.current = null;
     }
   }, []);
 
@@ -629,6 +686,8 @@ export default function PeopleRotatingCarousel({
       setLiveBodyAnchorRect(anchor.bodyAnchorRect);
       setExpandAlignLayoutRect(null);
       setExpandOverlayReady(false);
+      setExpandCloseHandoff(false);
+      expandCloseFinishedRef.current = false;
       setExpandTransformOrigin("50% 50%");
       expandOpenSessionRef.current = null;
 
@@ -754,6 +813,8 @@ export default function PeopleRotatingCarousel({
 
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
+          setExpandOverlayReady(false);
+
           setExpandedCard((previous) =>
             previous?.pendingClose
               ? {
@@ -826,6 +887,7 @@ export default function PeopleRotatingCarousel({
 
   useEffect(() => {
     if (!expandedCard?.isClosing) {
+      expandCloseFinishedRef.current = false;
       return;
     }
 
@@ -833,22 +895,109 @@ export default function PeopleRotatingCarousel({
       return;
     }
 
-    expandCloseTimerRef.current = setTimeout(() => {
-      expandCloseTimerRef.current = null;
-      expandOpenSessionRef.current = null;
-      setExpandedCard(null);
-      setLiveBodyAnchorRect(null);
-      setExpandAlignLayoutRect(null);
-      setExpandOverlayReady(false);
-    }, EXPAND_DURATION_MS);
+    let transformEndCount = 0;
+    let surfaceStyleSettled = false;
+
+    const finishExpandClose = () => {
+      if (expandCloseFinishedRef.current) {
+        return;
+      }
+
+      expandCloseFinishedRef.current = true;
+
+      if (expandCloseTimerRef.current !== null) {
+        clearTimeout(expandCloseTimerRef.current);
+        expandCloseTimerRef.current = null;
+      }
+
+      setExpandCloseHandoff(true);
+    };
+
+    const tryFinishExpandClose = () => {
+      if (
+        transformEndCount >= EXPAND_MORPH_TRANSFORM_END_COUNT &&
+        surfaceStyleSettled
+      ) {
+        finishExpandClose();
+      }
+    };
+
+    const onTransitionEnd = (event: TransitionEvent) => {
+      const root = expand3dRootRef.current;
+
+      if (!root?.contains(event.target as Node)) {
+        return;
+      }
+
+      if (event.propertyName === "transform") {
+        transformEndCount += 1;
+        tryFinishExpandClose();
+        return;
+      }
+
+      if (
+        event.target === expandSurfaceRef.current &&
+        (event.propertyName === "border-radius" ||
+          event.propertyName === "padding")
+      ) {
+        surfaceStyleSettled = true;
+        tryFinishExpandClose();
+      }
+    };
+
+    const root = expand3dRootRef.current;
+    root?.addEventListener("transitionend", onTransitionEnd);
+
+    expandCloseTimerRef.current = setTimeout(
+      finishExpandClose,
+      EXPAND_DURATION_MS + 120,
+    );
 
     return () => {
+      root?.removeEventListener("transitionend", onTransitionEnd);
+
       if (expandCloseTimerRef.current !== null) {
         clearTimeout(expandCloseTimerRef.current);
         expandCloseTimerRef.current = null;
       }
     };
   }, [expandedCard?.isClosing, expandedCard?.itemIndex]);
+
+  useLayoutEffect(() => {
+    if (!expandCloseHandoff) {
+      return;
+    }
+
+    if (expandCloseHandoffFrameRef.current !== null) {
+      window.cancelAnimationFrame(expandCloseHandoffFrameRef.current);
+    }
+
+    const unmountExpandOverlay = () => {
+      expandOpenSessionRef.current = null;
+      setExpandedCard(null);
+      setLiveBodyAnchorRect(null);
+      setExpandAlignLayoutRect(null);
+      setExpandOverlayReady(false);
+
+      expandCloseHandoffFrameRef.current = window.requestAnimationFrame(() => {
+        expandCloseHandoffFrameRef.current = null;
+        setExpandCloseHandoff(false);
+      });
+    };
+
+    expandCloseHandoffFrameRef.current = window.requestAnimationFrame(() => {
+      expandCloseHandoffFrameRef.current = window.requestAnimationFrame(
+        unmountExpandOverlay,
+      );
+    });
+
+    return () => {
+      if (expandCloseHandoffFrameRef.current !== null) {
+        window.cancelAnimationFrame(expandCloseHandoffFrameRef.current);
+        expandCloseHandoffFrameRef.current = null;
+      }
+    };
+  }, [expandCloseHandoff]);
 
   useLayoutEffect(() => {
     if (
@@ -988,12 +1137,24 @@ export default function PeopleRotatingCarousel({
   }, [clearExpandTimers]);
 
   useEffect(() => {
-    if (!expandedCard) {
+    const shouldLockScroll = Boolean(expandedCard) || expandCloseHandoff;
+
+    if (!shouldLockScroll) {
       return;
     }
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [expandCloseHandoff, expandedCard]);
+
+  useEffect(() => {
+    if (!expandedCard) {
+      return;
+    }
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -1005,11 +1166,39 @@ export default function PeopleRotatingCarousel({
     window.addEventListener("resize", updateExpandedTargetRect);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", updateExpandedTargetRect);
     };
   }, [closeExpandedCard, expandedCard, updateExpandedTargetRect]);
+
+  useEffect(() => {
+    const isExpandedOpen = Boolean(
+      expandedCard?.isOpen && !expandedCard?.isClosing,
+    );
+
+    if (!isExpandedOpen) {
+      setExpandCloseReady(false);
+
+      if (expandCloseReadyTimerRef.current !== null) {
+        clearTimeout(expandCloseReadyTimerRef.current);
+        expandCloseReadyTimerRef.current = null;
+      }
+
+      return;
+    }
+
+    expandCloseReadyTimerRef.current = setTimeout(() => {
+      expandCloseReadyTimerRef.current = null;
+      setExpandCloseReady(true);
+    }, EXPAND_DURATION_MS);
+
+    return () => {
+      if (expandCloseReadyTimerRef.current !== null) {
+        clearTimeout(expandCloseReadyTimerRef.current);
+        expandCloseReadyTimerRef.current = null;
+      }
+    };
+  }, [expandedCard?.isClosing, expandedCard?.isOpen]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -1073,12 +1262,30 @@ export default function PeopleRotatingCarousel({
 
   const animateSnapToItemIndex = useCallback(
     (targetItemIndex: number, trackTop: number, loopHeight: number) => {
-      cancelSnapAnimation();
-
-      const startScrollY = window.scrollY;
       const targetScrollY =
         trackTop + (targetItemIndex / (items.length - 1)) * loopHeight;
-      const startProgress = clamp((startScrollY - trackTop) / loopHeight, 0, 1);
+
+      if (Math.abs(window.scrollY - targetScrollY) <= SNAP_POSITION_TOLERANCE_PX) {
+        const { batchIndex: nextBatchIndex, rotation: nextRotation } =
+          getCarouselStateFromItemPosition(
+            targetItemIndex,
+            items.length,
+            VISIBLE_CAROUSEL_SLOTS,
+            true,
+          );
+
+        applyCarouselState(nextBatchIndex, nextRotation);
+        return;
+      }
+
+      const startProgress = clamp(
+        (window.scrollY - trackTop) / loopHeight,
+        0,
+        1,
+      );
+
+      cancelSnapAnimation();
+
       const targetProgress = targetItemIndex / (items.length - 1);
       const animationStart = performance.now();
 
@@ -1123,8 +1330,11 @@ export default function PeopleRotatingCarousel({
     [applyCarouselState, applyRotationFromScrollProgress, cancelSnapAnimation, items.length],
   );
 
-  const updateRotationFromScroll = useCallback(
-    (snapToCard = false) => {
+  const updateRotationFromScroll = useCallback(() => {
+      if (isPeopleCarouselScrollLockedByFooter()) {
+        return;
+      }
+
       const track = trackRef.current;
 
       if (!track || items.length <= 1 || batchCount <= 0) {
@@ -1149,6 +1359,11 @@ export default function PeopleRotatingCarousel({
       let scrolled = window.scrollY - trackTop;
 
       if (scrolled > loopHeight) {
+        if (!carouselScrollIdleRef.current) {
+          applyRotationFromScrollProgress(1);
+          return;
+        }
+
         isClampingScrollRef.current = true;
         window.scrollTo(0, trackTop + loopHeight);
         scrolled = loopHeight;
@@ -1166,32 +1381,9 @@ export default function PeopleRotatingCarousel({
 
       const progress = clamp(scrolled / loopHeight, 0, 1);
 
-      if (snapToCard) {
-        const targetItemIndex = Math.round(progress * (items.length - 1));
-        const targetScrollY =
-          trackTop + (targetItemIndex / (items.length - 1)) * loopHeight;
-
-        if (Math.abs(window.scrollY - targetScrollY) <= 1) {
-          const { batchIndex: nextBatchIndex, rotation: nextRotation } =
-            getCarouselStateFromItemPosition(
-              targetItemIndex,
-              items.length,
-              VISIBLE_CAROUSEL_SLOTS,
-              true,
-            );
-
-          applyCarouselState(nextBatchIndex, nextRotation);
-          return;
-        }
-
-        animateSnapToItemIndex(targetItemIndex, trackTop, loopHeight);
-        return;
-      }
-
       applyRotationFromScrollProgress(progress);
     },
     [
-      animateSnapToItemIndex,
       applyCarouselState,
       applyRotationFromScrollProgress,
       batchCount,
@@ -1199,23 +1391,125 @@ export default function PeopleRotatingCarousel({
     ],
   );
 
-  const snapToNearestCard = useCallback(() => {
-    updateRotationFromScroll(true);
-  }, [updateRotationFromScroll]);
-
-  const scheduleSnapToNearestCard = useCallback(() => {
-    if (snapTimerRef.current) {
-      clearTimeout(snapTimerRef.current);
+  const snapToZoneCard = useCallback(() => {
+    if (isPeopleCarouselScrollLockedByFooter()) {
+      return;
     }
 
-    snapTimerRef.current = setTimeout(() => {
-      snapTimerRef.current = null;
-      snapToNearestCard();
-    }, SNAP_IDLE_MS);
-  }, [snapToNearestCard]);
+    const track = trackRef.current;
+
+    if (
+      !track ||
+      items.length <= 1 ||
+      isSnapAnimatingRef.current ||
+      expandedCard
+    ) {
+      return;
+    }
+
+    const { trackTop, loopHeight } = getScrollMetrics(track);
+
+    if (loopHeight <= 0) {
+      return;
+    }
+
+    if (isInPeopleFooterHandoffZone(window.scrollY, items.length)) {
+      return;
+    }
+
+    const progress = clamp((window.scrollY - trackTop) / loopHeight, 0, 1);
+    const maxItemIndex = items.length - 1;
+    const itemPositionFloat = progress * maxItemIndex;
+    const targetIndex = resolveZoneSnapItemIndex(
+      itemPositionFloat,
+      maxItemIndex,
+    );
+
+    if (targetIndex === null) {
+      return;
+    }
+
+    animateSnapToItemIndex(targetIndex, trackTop, loopHeight);
+  }, [animateSnapToItemIndex, expandedCard, items.length]);
+
+  const stepCarousel = useCallback(
+    (direction: -1 | 1) => {
+      if (expandedCard || isSnapAnimatingRef.current) {
+        return;
+      }
+
+      const targetIndex = zoneItemIndex + direction;
+
+      if (targetIndex < 0 || targetIndex >= items.length) {
+        return;
+      }
+
+      const leavingCarouselEnd =
+        direction === -1 && zoneItemIndex >= items.length - 1;
+
+      if (isPeopleCarouselScrollLockedByFooter() && !leavingCarouselEnd) {
+        return;
+      }
+
+      const track = trackRef.current;
+
+      if (!track) {
+        return;
+      }
+
+      const { trackTop, loopHeight } = getScrollMetrics(track);
+
+      if (loopHeight <= 0) {
+        return;
+      }
+
+      programmaticStepRef.current = true;
+      lastFooterHandoffWheelScrollYRef.current = null;
+
+      if (direction === -1) {
+        notifyPeopleCarouselProgrammaticStep(direction);
+      }
+
+      animateSnapToItemIndex(targetIndex, trackTop, loopHeight);
+    },
+    [animateSnapToItemIndex, expandedCard, items.length, zoneItemIndex],
+  );
 
   useEffect(() => {
+    const onWheel = () => {
+      if (
+        isPeopleCarouselScrollLockedByFooter() ||
+        isSnapAnimatingRef.current ||
+        expandedCard
+      ) {
+        return;
+      }
+
+      const track = trackRef.current;
+
+      if (!track) {
+        return;
+      }
+
+      const { trackTop, loopHeight } = getScrollMetrics(track);
+
+      if (loopHeight <= 0 || items.length <= 1) {
+        return;
+      }
+
+      const oneCardPx = loopHeight / (items.length - 1);
+      const handoffApproachY = trackTop + loopHeight - oneCardPx * 2;
+
+      if (window.scrollY < handoffApproachY) {
+        return;
+      }
+
+      lastFooterHandoffWheelScrollYRef.current = window.scrollY;
+    };
+
     const onScroll = () => {
+      carouselScrollIdleRef.current = false;
+
       if (isSnapAnimatingRef.current) {
         return;
       }
@@ -1226,30 +1520,53 @@ export default function PeopleRotatingCarousel({
 
       frameRef.current = window.requestAnimationFrame(() => {
         frameRef.current = null;
-        updateRotationFromScroll(false);
+        updateRotationFromScroll();
       });
-
-      scheduleSnapToNearestCard();
     };
 
     const onScrollEnd = () => {
-      if (snapTimerRef.current) {
-        clearTimeout(snapTimerRef.current);
-        snapTimerRef.current = null;
+      if (isPeopleCarouselScrollLockedByFooter()) {
+        return;
       }
 
-      snapToNearestCard();
+      carouselScrollIdleRef.current = true;
+
+      if (programmaticStepRef.current) {
+        programmaticStepRef.current = false;
+        lastFooterHandoffWheelScrollYRef.current = null;
+        return;
+      }
+
+      const correctedScrollY = correctPeopleFooterHandoffScroll(
+        lastFooterHandoffWheelScrollYRef.current,
+        window.scrollY,
+        items.length,
+      );
+
+      lastFooterHandoffWheelScrollYRef.current = null;
+
+      if (Math.abs(correctedScrollY - window.scrollY) > SNAP_POSITION_TOLERANCE_PX) {
+        window.scrollTo(0, correctedScrollY);
+        requestAnimationFrame(() => {
+          updateRotationFromScroll();
+        });
+        return;
+      }
+
+      snapToZoneCard();
     };
 
     const initFrame = requestAnimationFrame(() => {
-      updateRotationFromScroll(false);
+      updateRotationFromScroll();
     });
+    window.addEventListener("wheel", onWheel, { passive: true });
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("scrollend", onScrollEnd);
     window.addEventListener("resize", onScroll);
 
     return () => {
       cancelAnimationFrame(initFrame);
+      window.removeEventListener("wheel", onWheel);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("scrollend", onScrollEnd);
       window.removeEventListener("resize", onScroll);
@@ -1259,17 +1576,16 @@ export default function PeopleRotatingCarousel({
         frameRef.current = null;
       }
 
+      carouselScrollIdleRef.current = true;
+      programmaticStepRef.current = false;
+      lastFooterHandoffWheelScrollYRef.current = null;
       cancelSnapAnimation();
-
-      if (snapTimerRef.current) {
-        clearTimeout(snapTimerRef.current);
-        snapTimerRef.current = null;
-      }
     };
   }, [
     cancelSnapAnimation,
-    scheduleSnapToNearestCard,
-    snapToNearestCard,
+    expandedCard,
+    items.length,
+    snapToZoneCard,
     updateRotationFromScroll,
   ]);
 
@@ -1280,6 +1596,31 @@ export default function PeopleRotatingCarousel({
       const itemIndex = startIndex + slotIndex;
 
       if (itemIndex >= items.length) {
+        return null;
+      }
+
+      // Batch 0 wraps slot 11 over the #01 zone at rest — omit only in that case.
+      if (
+        batchIndex === 0 &&
+        zoneSlotInBatch === 0 &&
+        slotIndex === VISIBLE_CAROUSEL_SLOTS - 1
+      ) {
+        return null;
+      }
+
+      const lastBatchIndex = Math.max(
+        0,
+        getBatchCount(items.length, VISIBLE_CAROUSEL_SLOTS) - 1,
+      );
+      const lastItemZoneSlot =
+        items.length - 1 - lastBatchIndex * VISIBLE_CAROUSEL_SLOTS;
+
+      // Last batch wraps slot 1 under the final member zone — omit only in that case.
+      if (
+        batchIndex === lastBatchIndex &&
+        zoneSlotInBatch === lastItemZoneSlot &&
+        slotIndex === 0
+      ) {
         return null;
       }
 
@@ -1414,7 +1755,10 @@ export default function PeopleRotatingCarousel({
                       isInZone && isZoneHovered
                         ? "people-carousel-card__surface--in-zone-hovered"
                         : "",
-                      isInZone && expandedCard?.itemIndex === itemIndex && expandOverlayReady
+                      isInZone &&
+                      expandedCard?.itemIndex === itemIndex &&
+                      expandOverlayReady &&
+                      !expandedCard?.isClosing
                         ? "people-carousel-card__surface--source-hidden"
                         : "",
                     ]
@@ -1455,6 +1799,60 @@ export default function PeopleRotatingCarousel({
             />
           ) : null}
         </div>
+
+        {!expandedCard && items.length > 1 ? (
+          <nav
+            className="people-carousel-step-nav"
+            aria-label="Carousel step navigation"
+          >
+            <button
+              type="button"
+              className="people-carousel-step-nav__button"
+              disabled={zoneItemIndex <= 0}
+              onClick={() => stepCarousel(-1)}
+              aria-label="Previous member"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M2 10L7 5L12 10"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="people-carousel-step-nav__button"
+              disabled={zoneItemIndex >= items.length - 1}
+              onClick={() => stepCarousel(1)}
+              aria-label="Next member"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 14 14"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M12 4L7 9L2 4"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </nav>
+        ) : null}
       </div>
 
       {expandedCard && bodyAnchorRect && expandAnchor && expandRestPose
@@ -1467,6 +1865,7 @@ export default function PeopleRotatingCarousel({
                   ? "people-carousel-expand--open"
                   : "",
                 expandIsClosing ? "people-carousel-expand--closing" : "",
+                expandCloseHandoff ? "people-carousel-expand--handoff" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
@@ -1478,6 +1877,7 @@ export default function PeopleRotatingCarousel({
                 aria-label="Close expanded card"
               />
               <div
+                ref={expand3dRootRef}
                 className="people-carousel-expand-3d-root"
                 style={{
                   top: bodyAnchorRect.top,
@@ -1557,6 +1957,7 @@ export default function PeopleRotatingCarousel({
                         }}
                       >
                         <div
+                          ref={expandSurfaceRef}
                           className={[
                             "people-carousel-card__surface",
                             "people-carousel-card__surface--in-zone",
@@ -1585,10 +1986,10 @@ export default function PeopleRotatingCarousel({
                   </div>
                 </div>
               </div>
-              {expandIsOpen ? (
+              {expandIsOpen && expandCloseReady ? (
                 <button
                   type="button"
-                  className="people-carousel-expand__close"
+                  className="people-carousel-expand__close people-carousel-expand__close--visible"
                   style={{
                     top: expandedTargetLayoutRect.top + 16,
                     left:
