@@ -13,7 +13,7 @@ export const CONCEPT_CAROUSEL_SLIDES: LandingCarouselSlide[] = [
   {
     id: "concept",
     title: "Concept",
-    heading: "Sensibility",
+    heading: "'Sensibility'",
     paragraphs: [
       "우리는 수많은 데이터와 정보가 쏟아지는 시대 속에 살아간다.",
       "세상의 변화는 데이터와 정보가 아닌, 아직 포착되지 않은 미세한 가능성에서 시작된다.\n바다의 온도와 빛, 진동을 촉수로 감지하며 살아가는 해파리처럼\n우리는 사람과 사회, 기술의 변화 속에서 감각을 통해 보이지 않는 가능성을 발견한다.",
