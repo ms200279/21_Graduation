@@ -18,7 +18,48 @@ export interface UseLiquidGlassOptions {
   mountKey?: string | number | boolean;
   /** Keep displacement maps in sync during width/height CSS transitions. */
   redrawDuringSizeTransition?: boolean;
+  /** Fallback delay before restoring displacement after a size morph (blur-only path). */
+  sizeTransitionRestoreMs?: number;
+  /** Strength multiplier applied while a size morph is running. */
+  motionStrengthScale?: number;
+  /** Chromatic aberration while morphing; lower values reduce edge shimmer. */
+  motionChromaticAberration?: number;
+  /** Min layout delta before regenerating displacement during a morph. */
+  motionSizeChangeThreshold?: number;
+  /** Keep one displacement map sized to the morph target for the whole transition. */
+  motionLockFilterDimensions?: boolean;
 }
+
+/** Shared preset for landing INFO box and header glass surfaces. */
+export const LANDING_INFO_LIQUID_GLASS_OPTIONS: Pick<
+  UseLiquidGlassOptions,
+  "depth" | "strength" | "chromaticAberration" | "blur" | "redrawDuringSizeTransition"
+> = {
+  depth: 10,
+  strength: 150,
+  chromaticAberration: 6,
+  blur: 1,
+  redrawDuringSizeTransition: false,
+};
+
+/** Header nav morph: same glass params at every size (no blur-only fallback). */
+export const LANDING_HEADER_NAV_LIQUID_GLASS_OPTIONS: Pick<
+  UseLiquidGlassOptions,
+  | "depth"
+  | "strength"
+  | "chromaticAberration"
+  | "blur"
+  | "redrawDuringSizeTransition"
+  | "motionStrengthScale"
+  | "motionChromaticAberration"
+  | "motionSizeChangeThreshold"
+> = {
+  ...LANDING_INFO_LIQUID_GLASS_OPTIONS,
+  redrawDuringSizeTransition: true,
+  motionStrengthScale: 1,
+  motionChromaticAberration: LANDING_INFO_LIQUID_GLASS_OPTIONS.chromaticAberration,
+  motionSizeChangeThreshold: 4,
+};
 
 const SIZE_TRANSITION_PROPERTIES = new Set([
   "width",
@@ -30,14 +71,64 @@ const SIZE_TRANSITION_PROPERTIES = new Set([
   "padding-bottom",
 ]);
 
-/** Throttle displacement regen during CSS size morphs (motion path only). */
-const MOTION_SIZE_QUANTUM = 24;
-const MOTION_REDRAW_INTERVAL_MS = 40;
+/** Default matches the landing header nav width/padding morph duration. */
+const DEFAULT_SIZE_TRANSITION_RESTORE_MS = 720;
+const MOTION_REDRAW_INTERVAL_MS = 16;
+const DEFAULT_MOTION_STRENGTH_SCALE = 0.68;
+const DEFAULT_MOTION_CHROMATIC_ABERRATION = 2;
+const DEFAULT_MOTION_SIZE_CHANGE_THRESHOLD = 6;
 
-function quantizeMotionSize(value: number) {
-  return Math.max(
-    1,
-    Math.round(value / MOTION_SIZE_QUANTUM) * MOTION_SIZE_QUANTUM,
+function getFilterDimensions(el: HTMLElement) {
+  // Layout size (pre-transform). getBoundingClientRect() returns post-transform
+  // visual size and breaks displacement maps when an ancestor uses scale().
+  return {
+    width: Math.round(el.offsetWidth),
+    height: Math.round(el.offsetHeight),
+  };
+}
+
+function getHeaderMorphTargets(el: HTMLElement) {
+  const header = el.closest(".desktop-header") as HTMLElement | null;
+  const style = getComputedStyle(header ?? el);
+  const collapsedWidth = Math.round(
+    parseFloat(style.getPropertyValue("--orb-size")) || el.offsetWidth,
+  );
+  const expandedWidth = header
+    ? Math.round(header.offsetWidth)
+    : Math.round(parseFloat(style.getPropertyValue("--header-width")) || collapsedWidth);
+  const height = Math.round(
+    parseFloat(style.getPropertyValue("--header-height")) || el.offsetHeight,
+  );
+
+  return { collapsedWidth, expandedWidth, height };
+}
+
+function resolveMorphTargetDimensions(el: HTMLElement) {
+  const { expandedWidth, height } = getHeaderMorphTargets(el);
+
+  return {
+    width: expandedWidth,
+    height,
+  };
+}
+
+function hasMotionSizeChange(
+  width: number,
+  height: number,
+  radius: number,
+  lastWidth: number,
+  lastHeight: number,
+  lastRadius: number,
+  threshold: number,
+) {
+  if (lastWidth < 0 || lastHeight < 0) {
+    return true;
+  }
+
+  return (
+    Math.abs(width - lastWidth) >= threshold ||
+    Math.abs(height - lastHeight) >= threshold ||
+    Math.abs(radius - lastRadius) >= 1
   );
 }
 
@@ -67,15 +158,6 @@ function clearBackdropFilter(el: HTMLElement) {
   el.style.removeProperty("-webkit-backdrop-filter");
 }
 
-function getFilterDimensions(el: HTMLElement) {
-  // Layout size (pre-transform). getBoundingClientRect() returns post-transform
-  // visual size and breaks displacement maps when an ancestor uses scale().
-  return {
-    width: Math.round(el.offsetWidth),
-    height: Math.round(el.offsetHeight),
-  };
-}
-
 /**
  * Applies the cloned liquid-glass displacement backdrop-filter to an existing
  * element (kept faithful to the cloned repo's getDisplacementFilter util).
@@ -97,6 +179,11 @@ export function useLiquidGlass(
     enabled = true,
     mountKey,
     redrawDuringSizeTransition = false,
+    sizeTransitionRestoreMs = DEFAULT_SIZE_TRANSITION_RESTORE_MS,
+    motionStrengthScale = DEFAULT_MOTION_STRENGTH_SCALE,
+    motionChromaticAberration = DEFAULT_MOTION_CHROMATIC_ABERRATION,
+    motionSizeChangeThreshold = DEFAULT_MOTION_SIZE_CHANGE_THRESHOLD,
+    motionLockFilterDimensions = false,
   }: UseLiquidGlassOptions = {},
 ) {
   useEffect(() => {
@@ -117,7 +204,75 @@ export function useLiquidGlass(
     let sizeTransitionCount = 0;
     let redrawRaf = 0;
     let motionRaf = 0;
+    let morphRestoreTimer: ReturnType<typeof setTimeout> | null = null;
     let lastMotionRedrawAt = 0;
+    let lastDrawWasMotion = false;
+    let motionLockedFilterDimensions: {
+      width: number;
+      height: number;
+      radius: number;
+    } | null = null;
+
+    const clearMotionLockedFilterDimensions = () => {
+      motionLockedFilterDimensions = null;
+    };
+
+    const lockMotionFilterDimensions = () => {
+      if (!motionLockFilterDimensions) {
+        return;
+      }
+
+      const target = resolveMorphTargetDimensions(el);
+      motionLockedFilterDimensions = {
+        width: target.width,
+        height: target.height,
+        radius: resolveRadius(target.width, target.height),
+      };
+    };
+
+    const resolveDrawDimensions = (options?: { motion?: boolean }) => {
+      if (options?.motion && motionLockedFilterDimensions) {
+        return motionLockedFilterDimensions;
+      }
+
+      const { width, height } = getFilterDimensions(el);
+
+      return {
+        width,
+        height,
+        radius: resolveRadius(width, height),
+      };
+    };
+
+    const clearMorphRestoreTimer = () => {
+      if (morphRestoreTimer) {
+        clearTimeout(morphRestoreTimer);
+        morphRestoreTimer = null;
+      }
+    };
+
+    const restoreFullGlass = () => {
+      clearMorphRestoreTimer();
+      stopMotionRedraw();
+      clearMotionLockedFilterDimensions();
+      sizeTransitionCount = 0;
+      lastWidth = -1;
+      lastHeight = -1;
+      lastRadius = -1;
+      lastBackdropValue = "";
+      lastDrawWasMotion = false;
+      redraw();
+    };
+
+    const resolveRadius = (width: number, height: number) => {
+      const resolvedRadius =
+        radius ?? (parseFloat(getComputedStyle(el).borderRadius) || 0);
+
+      return Math.min(
+        Number.isFinite(resolvedRadius) ? resolvedRadius : 0,
+        Math.min(width, height) / 2,
+      );
+    };
 
     const stopMotionRedraw = () => {
       if (motionRaf) {
@@ -128,23 +283,62 @@ export function useLiquidGlass(
       lastMotionRedrawAt = 0;
     };
 
+    const scheduleMorphRestoreFallback = () => {
+      if (redrawDuringSizeTransition) {
+        return;
+      }
+
+      clearMorphRestoreTimer();
+      morphRestoreTimer = setTimeout(() => {
+        morphRestoreTimer = null;
+        restoreFullGlass();
+      }, sizeTransitionRestoreMs);
+    };
+
     const syncMotionFilter = () => {
       motionRaf = 0;
 
-      if (sizeTransitionCount <= 0 || !redrawDuringSizeTransition) {
+      if (
+        sizeTransitionCount <= 0 ||
+        !redrawDuringSizeTransition ||
+        motionLockFilterDimensions
+      ) {
         return;
       }
 
       const now = performance.now();
 
-      if (now - lastMotionRedrawAt >= MOTION_REDRAW_INTERVAL_MS) {
-        lastMotionRedrawAt = now;
-        lastWidth = -1;
-        lastHeight = -1;
-        lastRadius = -1;
-        redraw({ motion: true });
+      if (now - lastMotionRedrawAt < MOTION_REDRAW_INTERVAL_MS) {
+        motionRaf = requestAnimationFrame(syncMotionFilter);
+        return;
       }
 
+      const { width, height } = getFilterDimensions(el);
+
+      if (width === 0 || height === 0) {
+        motionRaf = requestAnimationFrame(syncMotionFilter);
+        return;
+      }
+
+      const safeRadius = resolveRadius(width, height);
+
+      if (
+        !hasMotionSizeChange(
+          width,
+          height,
+          safeRadius,
+          lastWidth,
+          lastHeight,
+          lastRadius,
+          motionSizeChangeThreshold,
+        )
+      ) {
+        motionRaf = requestAnimationFrame(syncMotionFilter);
+        return;
+      }
+
+      lastMotionRedrawAt = now;
+      redraw({ motion: true });
       motionRaf = requestAnimationFrame(syncMotionFilter);
     };
 
@@ -169,27 +363,19 @@ export function useLiquidGlass(
     const redraw = (options?: { motion?: boolean }) => {
       redrawRaf = 0;
 
-      let { width, height } = getFilterDimensions(el);
+      const { width, height, radius: safeRadius } = resolveDrawDimensions(options);
+
       if (width === 0 || height === 0) {
         return;
       }
 
-      if (options?.motion) {
-        width = quantizeMotionSize(width);
-        height = quantizeMotionSize(height);
-      }
-
-      const resolvedRadius =
-        radius ?? (parseFloat(getComputedStyle(el).borderRadius) || 0);
-      const safeRadius = Math.min(
-        Number.isFinite(resolvedRadius) ? resolvedRadius : 0,
-        Math.min(width, height) / 2,
-      );
+      const isMotion = Boolean(options?.motion);
 
       if (
         width === lastWidth &&
         height === lastHeight &&
-        safeRadius === lastRadius
+        safeRadius === lastRadius &&
+        isMotion === lastDrawWasMotion
       ) {
         return;
       }
@@ -197,6 +383,14 @@ export function useLiquidGlass(
       lastWidth = width;
       lastHeight = height;
       lastRadius = safeRadius;
+      lastDrawWasMotion = isMotion;
+
+      const activeStrength = isMotion
+        ? Math.max(1, Math.round(strength * motionStrengthScale))
+        : strength;
+      const activeChromaticAberration = isMotion
+        ? motionChromaticAberration
+        : chromaticAberration;
 
       if (supportsUrlFilter) {
         const filter = getDisplacementFilter({
@@ -204,8 +398,8 @@ export function useLiquidGlass(
           height,
           radius: safeRadius,
           depth,
-          strength,
-          chromaticAberration,
+          strength: activeStrength,
+          chromaticAberration: activeChromaticAberration,
         });
         apply(
           `blur(${blur / 2}px) url('${filter}') blur(${blur}px) brightness(${brightness}) saturate(${saturate})`,
@@ -262,10 +456,23 @@ export function useLiquidGlass(
 
         if (sizeTransitionCount === 1 && !redrawDuringSizeTransition) {
           applyBlurOnlyFallback();
+          scheduleMorphRestoreFallback();
         }
 
         if (redrawDuringSizeTransition) {
-          startMotionRedraw();
+          lastMotionRedrawAt = 0;
+          lastWidth = -1;
+          lastHeight = -1;
+          lastRadius = -1;
+          lastBackdropValue = "";
+
+          if (motionLockFilterDimensions) {
+            lockMotionFilterDimensions();
+            redraw({ motion: true });
+          } else {
+            redraw({ motion: true });
+            startMotionRedraw();
+          }
         }
       }
     };
@@ -285,11 +492,7 @@ export function useLiquidGlass(
       sizeTransitionCount = Math.max(0, sizeTransitionCount - 1);
 
       if (sizeTransitionCount === 0) {
-        stopMotionRedraw();
-        lastWidth = -1;
-        lastHeight = -1;
-        lastRadius = -1;
-        scheduleRedraw();
+        restoreFullGlass();
       }
     };
 
@@ -312,13 +515,16 @@ export function useLiquidGlass(
         cancelAnimationFrame(redrawRaf);
       }
 
+      clearMorphRestoreTimer();
       stopMotionRedraw();
+      clearMotionLockedFilterDimensions();
 
       lastWidth = -1;
       lastHeight = -1;
       lastRadius = -1;
       lastBackdropValue = "";
       sizeTransitionCount = 0;
+      lastDrawWasMotion = false;
       clearBackdropFilter(el);
     };
   }, [
@@ -333,5 +539,10 @@ export function useLiquidGlass(
     enabled,
     mountKey,
     redrawDuringSizeTransition,
+    sizeTransitionRestoreMs,
+    motionStrengthScale,
+    motionChromaticAberration,
+    motionSizeChangeThreshold,
+    motionLockFilterDimensions,
   ]);
 }

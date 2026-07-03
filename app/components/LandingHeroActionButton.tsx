@@ -10,7 +10,7 @@ import {
   type TransitionEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { useLiquidGlass } from "./liquid-glass";
+import { LANDING_INFO_LIQUID_GLASS_OPTIONS, useLiquidGlass } from "./liquid-glass";
 
 const MOTION_EASE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 const MOTION_DURATION_MS = 700;
@@ -152,12 +152,8 @@ export default function LandingHeroActionButton() {
   );
 
   useLiquidGlass(buttonRef, {
-    depth: 10,
-    strength: 150,
-    chromaticAberration: 6,
-    blur: 1,
+    ...LANDING_INFO_LIQUID_GLASS_OPTIONS,
     mountKey: portalActive,
-    redrawDuringSizeTransition: false,
   });
 
   useEffect(() => {

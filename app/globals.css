@@ -304,7 +304,8 @@ body.landing-fullpage-active {
   pointer-events: none;
 }
 
-.landing-hero-action.liquid-glass-surface {
+.landing-hero-action.liquid-glass-surface,
+.desktop-header .liquid-glass-surface {
   box-shadow:
     inset 0 0 4px 0 rgba(250, 250, 250, 0.16),
     0 10px 32px rgba(0, 0, 0, 0.11);

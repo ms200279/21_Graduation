@@ -4,7 +4,11 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useLiquidGlass } from "./liquid-glass";
+import {
+  LANDING_HEADER_NAV_LIQUID_GLASS_OPTIONS,
+  LANDING_INFO_LIQUID_GLASS_OPTIONS,
+  useLiquidGlass,
+} from "./liquid-glass";
 import {
   LANDING_SCROLL_INTENT_EVENT,
   LANDING_SCROLL_PROGRESS_EVENT,
@@ -46,7 +50,6 @@ const orbInsideTransform =
 const orbScrollCollapsedTransform = "translate(-50%, -50%)";
 const transitionEaseClassName =
   "duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]";
-const headerShadowClassName = "shadow-[0_12px_40px_rgba(0,0,0,0.18)]";
 const movingLabelClassName = [
   "pointer-events-none absolute left-1/2 top-1/2 z-10 leading-none font-bold text-systemNavy",
   "transition-transform",
@@ -156,18 +159,9 @@ export default function Header() {
   const headerRef = useRef<HTMLElement>(null);
   const orbRef = useRef<HTMLButtonElement>(null);
 
-  useLiquidGlass(navRef, {
-    depth: 12,
-    strength: 180,
-    chromaticAberration: 9,
-    blur: 1,
-    redrawDuringSizeTransition: true,
-  });
+  useLiquidGlass(navRef, LANDING_HEADER_NAV_LIQUID_GLASS_OPTIONS);
   useLiquidGlass(orbRef, {
-    depth: 8,
-    strength: 110,
-    chromaticAberration: 6,
-    blur: 1,
+    ...LANDING_INFO_LIQUID_GLASS_OPTIONS,
   });
   const mobilePillMeasureRef = useRef<HTMLSpanElement>(null);
   const routeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1210,7 +1204,6 @@ export default function Header() {
             className={[
               "flex h-[var(--orb-size)] w-[var(--orb-size)] shrink-0 items-center justify-center",
               "rounded-full liquid-glass-surface",
-              headerShadowClassName,
               "touch-manipulation",
               isDesktopOrbInteractive
                 ? "pointer-events-auto"
@@ -1267,7 +1260,6 @@ export default function Header() {
           isMobile ? "h-[44px]" : "h-[var(--header-height)]",
           returnNavElevated ? "z-20" : "z-10",
           "overflow-hidden",
-          headerShadowClassName,
           useLandingScrollNavStyle
             ? ""
             : "transition-[width,padding,opacity]",
