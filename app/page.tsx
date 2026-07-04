@@ -4,6 +4,7 @@ import LandingFooter from "./components/LandingFooter";
 import { LandingCarousel } from "./components/landing-carousel";
 
 const HERO_BACKGROUND_SRC = "/images/bg.webm";
+const CONCEPT_BACKGROUND_SRC = "/images/bg2.mp4";
 
 export default function LandingPage() {
   return (
@@ -42,8 +43,28 @@ export default function LandingPage() {
         </div>
       }
       concept={
-        <div className="relative z-10 flex h-[100dvh] w-full items-center justify-center pointer-events-auto">
-          <LandingCarousel />
+        <div className="landing-concept relative flex h-full min-h-[100dvh] w-full items-center justify-center overflow-hidden">
+          <video
+            src={CONCEPT_BACKGROUND_SRC}
+            autoPlay
+            muted
+            loop
+            playsInline
+            disablePictureInPicture
+            aria-hidden="true"
+            className="landing-hero__background pointer-events-none absolute inset-0 z-0 block h-full w-full max-w-none object-cover object-center select-none"
+          />
+          <div
+            className="landing-concept__gradient landing-concept__gradient--top"
+            aria-hidden="true"
+          />
+          <div
+            className="landing-concept__gradient landing-concept__gradient--bottom"
+            aria-hidden="true"
+          />
+          <div className="relative z-10 flex h-[100dvh] w-full items-center justify-center pointer-events-auto">
+            <LandingCarousel />
+          </div>
         </div>
       }
       media={
