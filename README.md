@@ -4,7 +4,7 @@ Tech University of Korea(TUK) 21st 졸업 전시를 온라인으로 아카이브
 
 ## 개요
 
-**Next.js App Router** 기반 프론트엔드 프로젝트입니다. 랜딩(`/`)에는 **Hero · Concept Carousel · Media · Footer** 풀페이지 스크롤과 Liquid Glass UI가 구현되어 있고, Projects / People / Showroom / Credits 서브 페이지는 **네비게이션·헤더 중심**으로 본문 퍼블리싱이 남아 있습니다.
+**Next.js App Router** 기반 프론트엔드 프로젝트입니다. 랜딩(`/`)에는 **Hero · Concept Carousel · Media · Footer** 풀페이지 스크롤과 Liquid Glass UI가 구현되어 있고, Projects / People 서브 페이지에는 전시 작품·참여자 탐색을 위한 인터랙티브 캐러셀 UI가 적용되어 있습니다.
 
 | 항목 | 내용 |
 |------|------|
@@ -27,8 +27,8 @@ Tech University of Korea(TUK) 21st 졸업 전시를 온라인으로 아카이브
 | 경로 | 상태 | 설명 |
 |------|------|------|
 | `/` | 구현됨 | Hero · Concept Carousel · Media · Footer 스냅 스크롤 |
-| `/projectspage` | 본문 준비 중 | Projects |
-| `/peoplepage` | 본문 준비 중 | People |
+| `/projectspage` | 구현 중 | Projects 카테고리 필터, 실린더/그리드 작품 갤러리 |
+| `/peoplepage` | 구현 중 | People 배경 이미지, 로테이팅 캐러셀, 상단 가독성 그라디언트 |
 | `/showroompage` | 본문 준비 중 | Showroom |
 | `/creditspage` | 본문 준비 중 | Credits |
 
@@ -70,6 +70,31 @@ Tech University of Korea(TUK) 21st 졸업 전시를 온라인으로 아카이브
 - 스크롤 **업**: 헤더 즉시 펼침 / **다운**: 오브·네비 접힘
 - Concept·Media·Footer에서 **오브 클릭**: Hero(top)로 스크롤 + 필요 시 헤더 강제 펼침
 - 서브 페이지에서 **오브 클릭**: `/`로 이동
+
+### Projects 페이지 (`app/projectspage/page.tsx`)
+
+Projects 페이지는 카테고리 필터와 작품 갤러리 뷰 전환을 중심으로 구성되어 있습니다.
+
+| 구성 | 파일 | 설명 |
+|------|------|------|
+| 카테고리 필터 | `ProjectsCategoryFilter.tsx` | All / Product / Brand / AI / UI-UX / Graphic / Editorial / Craft 태그 |
+| 뷰 전환 | `projectspage/page.tsx` | 실린더 뷰 / 그리드 뷰 아이콘 토글 |
+| 작품 갤러리 | `ProjectsCylinderGallery.tsx` | 77개 작품 카드, 12슬롯 실린더 회전, 그리드 전환 |
+| 스타일 | `projects-category-filter.css`, `projects-cylinder-gallery.css` | 필터 위치, 뷰 토글, 실린더/그리드 카드 레이아웃 |
+
+- 실린더 뷰는 위아래 두 줄이 서로 반대 방향으로 천천히 회전한다.
+- 각 줄은 12개 슬롯을 유지하고, 화면 뒤쪽에서 카드 번호를 교체해 앞쪽에서 갑작스러운 변경이 보이지 않게 한다.
+- 줄 위에서 휠 스크롤 시 페이지 스크롤 대신 해당 줄의 회전이 작동한다.
+- 좌우 화살표 버튼은 한 칸씩 회전시키며, 회전 후 가까운 카드 위치로 스냅된다.
+- 그리드 뷰는 77개 작품을 흰색 16:9 카드로 표시하며, 데스크톱 기준 한 줄에 3개가 들어가도록 폭과 여백을 조정한다.
+
+### People 페이지 (`app/peoplepage/page.tsx`)
+
+People 페이지는 배경 이미지 위에 로테이팅 캐러셀을 배치하는 구조입니다.
+
+- 배경은 화면 중앙 기준으로 꽉 차게 출력한다.
+- 상단에는 텍스트·버튼 가독성을 위한 자연스러운 흰색 그라디언트 틴트를 둔다.
+- 로테이팅 캐러셀 일반 카드는 투명 blur + shadow, 확대 카드는 흰색 표면으로 구분한다.
 
 ### 글로벌 UI
 
@@ -177,8 +202,10 @@ npm run start
 4. **Footer**: Instagram 링크, 섹션 네비 링크
 5. **헤더·오브**: Hero↔Concept 구간 morph; Concept 이후 오브 클릭 → Hero
 6. **People 로테이팅 캐러셀**: 일반 카드는 투명 blur + header 수준 shadow, hover 카드는 더 강한 blur, 확대 카드는 흰색 표면
-7. **모바일(≤767px)**: 햄버거·pill 탭
-8. **데스크톱(≥768px)**: 호버 확장, 볼드 라벨, 라우트 전환
+7. **Projects 실린더 갤러리**: 자동 회전, 줄 위 휠 회전, 좌우 버튼, 카드 번호 교체 타이밍
+8. **Projects 그리드 갤러리**: 뷰 전환, 데스크톱 3열 배치, 모바일 카드 축소
+9. **모바일(≤767px)**: 햄버거·pill 탭
+10. **데스크톱(≥768px)**: 호버 확장, 볼드 라벨, 라우트 전환
 
 ## 사용 방법
 
@@ -196,6 +223,7 @@ npm run start
 - 헤더·오브: `Header.tsx`, `globals.css` `.desktop-header`
 - Liquid Glass: `useLiquidGlass.ts`, `app/styles/liquid-glass.css`
 - People 로테이팅 캐러셀: `app/components/people-carousel/PeopleRotatingCarousel.tsx`, `app/styles/people-carousel.css`
+- Projects 갤러리: `app/components/projects/ProjectsCylinderGallery.tsx`, `app/styles/projects-cylinder-gallery.css`
 - Agent 규칙: `.cursor/rules/` (`project-rules.mdc`)
 
 ## 프로젝트 구조
@@ -215,12 +243,22 @@ npm run start
 │   │   │   ├── SymbolCarouselIcons.tsx
 │   │   │   ├── slides.ts                 # CONCEPT_CAROUSEL_SLIDES
 │   │   │   └── index.ts
+│   │   ├── people-carousel/
+│   │   │   ├── PeopleRotatingCarousel.tsx
+│   │   │   └── index.ts
+│   │   ├── projects/
+│   │   │   ├── ProjectsCategoryFilter.tsx
+│   │   │   ├── ProjectsCylinderGallery.tsx
+│   │   │   └── index.ts
 │   │   └── liquid-glass/
 │   │       ├── useLiquidGlass.ts
 │   │       ├── liquidGlassFilter.ts
 │   │       └── index.ts
 │   ├── styles/
-│   │   └── liquid-glass.css
+│   │   ├── liquid-glass.css
+│   │   ├── people-carousel.css
+│   │   ├── projects-category-filter.css
+│   │   └── projects-cylinder-gallery.css
 │   ├── creditspage/page.tsx
 │   ├── peoplepage/page.tsx
 │   ├── projectspage/page.tsx

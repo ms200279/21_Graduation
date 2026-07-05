@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useState } from "react";
 
 import "@/app/styles/projects-category-filter.css";
@@ -15,13 +16,26 @@ export const PROJECTS_CATEGORY_OPTIONS = [
 
 export type ProjectsCategoryId = (typeof PROJECTS_CATEGORY_OPTIONS)[number]["id"];
 
-export default function ProjectsCategoryFilter() {
+type ProjectsCategoryFilterProps = {
+  actionSlot?: ReactNode;
+  isSticky?: boolean;
+};
+
+export default function ProjectsCategoryFilter({
+  actionSlot,
+  isSticky = true,
+}: ProjectsCategoryFilterProps) {
   const [activeCategory, setActiveCategory] =
     useState<ProjectsCategoryId>("all-projects");
 
   return (
     <div
-      className="projects-category-filter"
+      className={[
+        "projects-category-filter",
+        isSticky ? "" : "projects-category-filter--flow",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       role="toolbar"
       aria-label="Project categories"
     >
@@ -48,6 +62,9 @@ export default function ProjectsCategoryFilter() {
             );
           })}
         </div>
+        {actionSlot ? (
+          <div className="projects-category-filter__actions">{actionSlot}</div>
+        ) : null}
       </div>
     </div>
   );

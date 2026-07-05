@@ -17,6 +17,21 @@
   transform: translateX(-50%);
 }
 
+.people-page__background-frame::after {
+  position: absolute;
+  inset: 0 0 auto;
+  height: clamp(10rem, 30vh, 18rem);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(255, 255, 255, 0.78) 30%,
+    rgba(255, 255, 255, 0.46) 66%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  content: "";
+  pointer-events: none;
+}
+
 .people-page__background {
   position: absolute;
   inset: 0;
