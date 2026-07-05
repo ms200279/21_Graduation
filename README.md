@@ -60,6 +60,9 @@ Tech University of Korea(TUK) 21st 졸업 전시를 온라인으로 아카이브
 
 슬라이드 UI: `ConceptCarouselSlideContent.tsx`, `SymbolCarouselIcons.tsx`
 
+- Concept 캐러셀 카드 표면은 흰색 박스가 아니라 투명한 backdrop blur 레이어로 처리한다.
+- 카드 외곽 shadow는 유지하되, 표면 자체의 흰색 배경·inset 하이라이트는 사용하지 않는다.
+
 **스크롤·헤더 연동 (랜딩, 데스크톱)**
 
 - `scrollProgress` **0–1**: Hero ↔ Concept — 헤더 **오브** 바깥↔안쪽 전환, 네비 접힘/펼침
@@ -170,11 +173,12 @@ npm run start
 
 1. **랜딩 스냅**: Hero → Concept → Media, Media에서 Footer reveal(40vh)
 2. **Hero**: WebM 배경, Schedule/Info 확장·collapse, Liquid Glass
-3. **Concept 캐러셀**: 4슬라이드(Concept/Typography/Symbol/Senses), prev/next·dot
+3. **Concept 캐러셀**: 4슬라이드(Concept/Typography/Symbol/Senses), prev/next·dot, 투명 blur 카드 표면
 4. **Footer**: Instagram 링크, 섹션 네비 링크
 5. **헤더·오브**: Hero↔Concept 구간 morph; Concept 이후 오브 클릭 → Hero
-6. **모바일(≤767px)**: 햄버거·pill 탭
-7. **데스크톱(≥768px)**: 호버 확장, 볼드 라벨, 라우트 전환
+6. **People 로테이팅 캐러셀**: 일반 카드는 투명 blur + header 수준 shadow, hover 카드는 더 강한 blur, 확대 카드는 흰색 표면
+7. **모바일(≤767px)**: 햄버거·pill 탭
+8. **데스크톱(≥768px)**: 호버 확장, 볼드 라벨, 라우트 전환
 
 ## 사용 방법
 
@@ -191,6 +195,7 @@ npm run start
 - 캐러셀 데이터: `app/components/landing-carousel/slides.ts`
 - 헤더·오브: `Header.tsx`, `globals.css` `.desktop-header`
 - Liquid Glass: `useLiquidGlass.ts`, `app/styles/liquid-glass.css`
+- People 로테이팅 캐러셀: `app/components/people-carousel/PeopleRotatingCarousel.tsx`, `app/styles/people-carousel.css`
 - Agent 규칙: `.cursor/rules/` (`project-rules.mdc`)
 
 ## 프로젝트 구조
