@@ -118,6 +118,22 @@ export const getDisplacementFilter = (options: DisplacementOptions) => {
     chromaticAberration = 0,
   } = options;
 
+  if (strength <= 0 && chromaticAberration <= 0) {
+    const filter =
+      "data:image/svg+xml;utf8," +
+      encodeURIComponent(`<svg height="${height}" width="${width}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <filter id="displace" color-interpolation-filters="sRGB">
+            <feComponentTransfer in="SourceGraphic" />
+        </filter>
+    </defs>
+</svg>`) +
+      "#displace";
+
+    displacementFilterCache.set(key, filter);
+    return filter;
+  }
+
   const filter =
     "data:image/svg+xml;utf8," +
     encodeURIComponent(`<svg height="${height}" width="${width}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">

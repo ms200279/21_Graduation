@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -24,6 +26,10 @@ import {
   isPeopleCarouselScrollLockedByFooter,
   notifyPeopleCarouselProgrammaticStep,
 } from "./peopleCarouselFooter";
+import {
+  LANDING_INFO_LIQUID_GLASS_OPTIONS,
+  useLiquidGlass,
+} from "@/app/components/liquid-glass";
 
 import "@/app/styles/people-carousel.css";
 
@@ -56,6 +62,7 @@ const EXPAND_DURATION_MS = 520;
 const EXPAND_MORPH_TRANSFORM_END_COUNT = 4;
 /** Cards shown on the cylinder per batch (e.g. 1–11, then 12–22). */
 export const VISIBLE_CAROUSEL_SLOTS = 11;
+const GLASS_EFFECT_SLOT_COUNT = 4;
 
 type CardRect = {
   top: number;
@@ -253,6 +260,46 @@ function PeopleCarouselCardContent({ item }: { item: PeopleCarouselItem }) {
   );
 }
 
+type PeopleCarouselCardSurfaceProps = {
+  item: PeopleCarouselItem;
+  className: string;
+  style?: CSSProperties;
+  liquidGlassEnabled?: boolean;
+};
+
+const PeopleCarouselCardSurface = forwardRef<
+  HTMLDivElement,
+  PeopleCarouselCardSurfaceProps
+>(function PeopleCarouselCardSurface(
+  { item, className, style, liquidGlassEnabled = false },
+  forwardedRef,
+) {
+  const surfaceRef = useRef<HTMLDivElement>(null);
+
+  useImperativeHandle(
+    forwardedRef,
+    () => surfaceRef.current as HTMLDivElement,
+  );
+
+  useLiquidGlass(surfaceRef, {
+    ...LANDING_INFO_LIQUID_GLASS_OPTIONS,
+    blur: 10,
+    strength: 0,
+    chromaticAberration: 0,
+    saturate: 1,
+    brightness: 1,
+    radius: 20,
+    enabled: liquidGlassEnabled,
+    mountKey: liquidGlassEnabled,
+  });
+
+  return (
+    <div ref={surfaceRef} className={className} style={style}>
+      <PeopleCarouselCardContent item={item} />
+    </div>
+  );
+});
+
 function getCarouselRadius(
   cardHeightPx: number,
   cardWidthPx: number,
@@ -314,6 +361,24 @@ function getActiveSlotInBatch(rotation: number, batchSize: number) {
   const normalized = mod(rotation, 360);
 
   return Math.round(normalized / slotStep) % batchSize;
+}
+
+function isSlotInGlassEffectWindow(
+  slotIndex: number,
+  activeSlotIndex: number,
+  slotCount: number,
+) {
+  if (slotCount <= 0) {
+    return false;
+  }
+
+  const forwardDistance = mod(slotIndex - activeSlotIndex, slotCount);
+  const backwardDistance = mod(activeSlotIndex - slotIndex, slotCount);
+
+  return (
+    backwardDistance <= 1 ||
+    forwardDistance < GLASS_EFFECT_SLOT_COUNT - 1
+  );
 }
 
 function getCarouselStateFromItemPosition(
@@ -813,8 +878,6 @@ export default function PeopleRotatingCarousel({
 
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
-          setExpandOverlayReady(false);
-
           setExpandedCard((previous) =>
             previous?.pendingClose
               ? {
@@ -1631,6 +1694,11 @@ export default function PeopleRotatingCarousel({
         item,
         itemIndex,
         isActive: slotIndex === activeSlotInBatch,
+        isVisibleGlass: isSlotInGlassEffectWindow(
+          slotIndex,
+          zoneSlotInBatch,
+          VISIBLE_CAROUSEL_SLOTS,
+        ),
         isInZone: slotIndex === zoneSlotInBatch,
         angle: -slotIndex * slotAngleStep,
       };
@@ -1737,7 +1805,7 @@ export default function PeopleRotatingCarousel({
               className="people-carousel-stage"
               style={{ transform: `rotateX(${displayRotation}deg)` }}
             >
-              {visibleSlots.map(({ slotIndex, item, itemIndex, isActive, isInZone, angle }) => (
+              {visibleSlots.map(({ slotIndex, item, itemIndex, isActive, isVisibleGlass, isInZone, angle }) => (
                 <article
                   key={`${batchIndex}-${slotIndex}`}
                   ref={isInZone ? zoneCardRef : undefined}
@@ -1747,10 +1815,11 @@ export default function PeopleRotatingCarousel({
                   }}
                   aria-hidden={!isActive}
                 >
-                  <div
+                  <PeopleCarouselCardSurface
                     ref={isInZone ? zoneCardSurfaceRef : undefined}
                     className={[
                       "people-carousel-card__surface",
+                      isVisibleGlass ? "people-carousel-card__surface--visible-glass" : "",
                       isInZone ? "people-carousel-card__surface--in-zone" : "",
                       isInZone && isZoneHovered
                         ? "people-carousel-card__surface--in-zone-hovered"
@@ -1758,7 +1827,7 @@ export default function PeopleRotatingCarousel({
                       isInZone &&
                       expandedCard?.itemIndex === itemIndex &&
                       expandOverlayReady &&
-                      !expandedCard?.isClosing
+                      !expandCloseHandoff
                         ? "people-carousel-card__surface--source-hidden"
                         : "",
                     ]
@@ -1772,9 +1841,9 @@ export default function PeopleRotatingCarousel({
                           } as CSSProperties)
                         : undefined
                     }
-                  >
-                    <PeopleCarouselCardContent item={item} />
-                  </div>
+                    item={item}
+                    liquidGlassEnabled={isVisibleGlass}
+                  />
                 </article>
               ))}
             </div>
@@ -1956,7 +2025,7 @@ export default function PeopleRotatingCarousel({
                             : "none",
                         }}
                       >
-                        <div
+                        <PeopleCarouselCardSurface
                           ref={expandSurfaceRef}
                           className={[
                             "people-carousel-card__surface",
@@ -1978,9 +2047,9 @@ export default function PeopleRotatingCarousel({
                                 } as CSSProperties)
                               : undefined
                           }
-                        >
-                          <PeopleCarouselCardContent item={expandedCard.item} />
-                        </div>
+                          item={expandedCard.item}
+                          liquidGlassEnabled={expandIsClosing}
+                        />
                       </article>
                     </div>
                   </div>
