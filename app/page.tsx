@@ -4,7 +4,7 @@ import LandingFooter from "./components/LandingFooter";
 import { LandingCarousel } from "./components/landing-carousel";
 
 const HERO_BACKGROUND_SRC = "/images/bg.webm";
-const CONCEPT_BACKGROUND_SRC = "/images/bg2.mp4";
+const CONCEPT_BACKGROUND_SRC = "/images/bg2.webm";
 
 export default function LandingPage() {
   return (
