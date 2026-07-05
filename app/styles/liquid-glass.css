@@ -58,8 +58,8 @@
   overflow: hidden;
   border-radius: inherit;
   background: transparent;
-  -webkit-backdrop-filter: blur(22px) saturate(1.08);
-  backdrop-filter: blur(22px) saturate(1.08);
+  -webkit-backdrop-filter: blur(36px) saturate(1.12);
+  backdrop-filter: blur(36px) saturate(1.12);
   padding: var(--carousel-card-padding-top) 0 40px;
 }
 
