@@ -31,6 +31,10 @@ const navItems = [
   { label: "Credits", href: "/creditspage" },
 ];
 
+function isNavItemPath(itemHref: string, pathname: string) {
+  return pathname === itemHref || pathname.startsWith(`${itemHref}/`);
+}
+
 const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
 const MOBILE_PAGE_PILL_HORIZONTAL_PADDING = 28;
 
@@ -230,7 +234,9 @@ export default function Header() {
   }, [isMobile]);
 
   const isLandingPage = pathname === "/";
-  const currentItemIndex = navItems.findIndex((item) => item.href === pathname);
+  const currentItemIndex = navItems.findIndex((item) =>
+    isNavItemPath(item.href, pathname),
+  );
   const currentItem = currentItemIndex >= 0 ? navItems[currentItemIndex] : null;
   const isForwardShrinking = activeTransition?.phase === "forward";
   const isReturnAbsorbed = activeTransition?.phase === "return";
@@ -1357,7 +1363,7 @@ export default function Header() {
                 transitionEaseClassName,
                 "text-[14px] md:text-[18px] lg:text-[20px]",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
-                item.href === pathname
+                isNavItemPath(item.href, pathname)
                   ? "font-bold text-systemNavy"
                   : inactiveNavLabelClassName,
                 (isLandingPage && !isLandingScrollCollapsed) || isMobileExpanded

@@ -1,0 +1,1071 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+import "@/app/styles/credits-scene.css";
+import CreditContentOverlay from "./CreditContentOverlay";
+import {
+  CREDIT_FRAGMENT_POLYGONS,
+  CREDIT_GEOMETRY_MAP,
+  creditFragments,
+  getCreditFragmentById,
+  type CreditFragmentData,
+  type CreditFragmentId,
+  type FragmentPoint,
+} from "./creditData";
+
+type ScenePhase = "IDLE" | "SELECTING" | "SELECTED" | "CLOSING";
+type FragmentRuntime = ReturnType<typeof createFragment>;
+type CreditSceneProps = {
+  initialFragmentId?: CreditFragmentId | null;
+};
+
+const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
+const SCENE_TRANSITION_DURATION_MS = 920;
+const navyColor = new THREE.Color("#203c60");
+const PANEL_DEPTH = 0.12;
+const PANEL_BEVEL_SIZE = 0.025;
+const PANEL_BEVEL_THICKNESS = 0.018;
+const PANEL_CORNER_RADIUS = 0.16;
+const ASSEMBLED_POSITION = new THREE.Vector3(0, 0, 0);
+const SEAM = 0.085;
+const SIDE_FRAGMENT_SEAM_OFFSET = 0.075;
+const PANEL_BASE_ROTATION = new THREE.Euler(
+  THREE.MathUtils.degToRad(-1.2),
+  THREE.MathUtils.degToRad(0.8),
+  0,
+);
+
+function createLiquidSurfaceTexture() {
+  const size = 64;
+  const data = new Uint8Array(size * size * 4);
+
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const nx = x / size;
+      const ny = y / size;
+      const wave =
+        Math.sin(nx * Math.PI * 4 + Math.sin(ny * Math.PI * 2) * 0.8) * 30 +
+        Math.cos(ny * Math.PI * 6 - nx * Math.PI * 2) * 20 +
+        Math.sin((nx + ny) * Math.PI * 4) * 10;
+      const value = THREE.MathUtils.clamp(Math.round(128 + wave), 0, 255);
+      const offset = (y * size + x) * 4;
+
+      data[offset] = value;
+      data[offset + 1] = value;
+      data[offset + 2] = value;
+      data[offset + 3] = 255;
+    }
+  }
+
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(1.35, 0.85);
+  texture.colorSpace = THREE.NoColorSpace;
+  texture.needsUpdate = true;
+
+  return texture;
+}
+
+function createLiquidBackdropTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    return new THREE.Texture();
+  }
+
+  const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, "#f7fafc");
+  gradient.addColorStop(0.48, "#e7eef5");
+  gradient.addColorStop(1, "#f3f7fa");
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const glow = context.createRadialGradient(168, 156, 0, 168, 156, 280);
+  glow.addColorStop(0, "rgba(32, 60, 96, 0.18)");
+  glow.addColorStop(1, "rgba(32, 60, 96, 0)");
+  context.fillStyle = glow;
+  context.fillRect(0, 0, canvas.width, canvas.height);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+
+  return texture;
+}
+
+function isPointInsidePolygon(
+  x: number,
+  y: number,
+  polygon: readonly FragmentPoint[],
+) {
+  let inside = false;
+
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
+    const [x1, y1] = polygon[index];
+    const [x2, y2] = polygon[previous];
+    const crossesEdge = y1 > y !== y2 > y;
+
+    if (crossesEdge && x < ((x2 - x1) * (y - y1)) / (y2 - y1) + x1) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+function findLabelPosition(
+  polygon: readonly FragmentPoint[],
+  width: number,
+  height: number,
+  fallbackX: number,
+  fallbackY: number,
+  corner: "top-left" | "top-right" | "bottom-right",
+) {
+  const bounds = polygon.reduce(
+    (result, [x, y]) => ({
+      minX: Math.min(result.minX, x),
+      maxX: Math.max(result.maxX, x),
+      minY: Math.min(result.minY, y),
+      maxY: Math.max(result.maxY, y),
+    }),
+    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
+  );
+  const padding = 0.13;
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+  const minX = bounds.minX + halfWidth + padding;
+  const maxX = bounds.maxX - halfWidth - padding;
+  const minY = bounds.minY + halfHeight + padding;
+  const maxY = bounds.maxY - halfHeight - padding;
+  const steps = 36;
+  let bestPosition: THREE.Vector2 | null = null;
+  let bestScore = -Infinity;
+
+  for (let yIndex = 0; yIndex <= steps; yIndex += 1) {
+    const y = THREE.MathUtils.lerp(minY, maxY, yIndex / steps);
+
+    for (let xIndex = 0; xIndex <= steps; xIndex += 1) {
+      const x = THREE.MathUtils.lerp(minX, maxX, xIndex / steps);
+      const samplePoints = [
+        [x - halfWidth, y - halfHeight],
+        [x, y - halfHeight],
+        [x + halfWidth, y - halfHeight],
+        [x - halfWidth, y],
+        [x, y],
+        [x + halfWidth, y],
+        [x - halfWidth, y + halfHeight],
+        [x, y + halfHeight],
+        [x + halfWidth, y + halfHeight],
+      ] as const;
+
+      if (!samplePoints.every(([sampleX, sampleY]) =>
+        isPointInsidePolygon(sampleX, sampleY, polygon),
+      )) {
+        continue;
+      }
+
+      const score =
+        corner === "top-left"
+          ? -x + y * 0.82
+          : corner === "top-right"
+            ? x + y * 0.82
+            : x - y * 0.82;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestPosition = new THREE.Vector2(x, y);
+      }
+    }
+  }
+
+  return bestPosition ?? new THREE.Vector2(fallbackX, fallbackY);
+}
+
+function createFragmentLabel(
+  title: string,
+  polygon: readonly FragmentPoint[],
+  centroidX: number,
+  centroidY: number,
+  corner: "top-left" | "top-right" | "bottom-right",
+) {
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  const fontSize = 36;
+  const horizontalPadding = 20;
+  const verticalPadding = 12;
+
+  if (!context) {
+    return null;
+  }
+
+  context.font = `600 ${fontSize}px Pretendard, sans-serif`;
+  const textWidth = Math.ceil(context.measureText(title).width);
+  canvas.width = textWidth + horizontalPadding * 2;
+  canvas.height = fontSize + verticalPadding * 2;
+  context.font = `600 ${fontSize}px Pretendard, sans-serif`;
+  context.textAlign = "left";
+  context.textBaseline = "middle";
+  context.fillStyle = "rgba(32, 60, 96, 0.92)";
+  context.fillText(title, horizontalPadding, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+
+  const labelHeight = 0.25;
+  const labelWidth = labelHeight * (canvas.width / canvas.height);
+  const labelPosition = findLabelPosition(
+    polygon,
+    labelWidth,
+    labelHeight,
+    centroidX,
+    centroidY,
+    corner,
+  );
+  const geometry = new THREE.PlaneGeometry(labelWidth, labelHeight);
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    opacity: 0.82,
+    depthWrite: false,
+    toneMapped: false,
+    side: THREE.DoubleSide,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+
+  mesh.position.set(
+    labelPosition.x - centroidX,
+    labelPosition.y - centroidY,
+    0.1,
+  );
+  mesh.renderOrder = 3;
+
+  return { mesh, material, geometry, texture };
+}
+
+function getPolygonCentroid(points: readonly FragmentPoint[]) {
+  let x = 0;
+  let y = 0;
+
+  for (const point of points) {
+    x += point[0];
+    y += point[1];
+  }
+
+  x /= points.length;
+  y /= points.length;
+
+  return [x, y] as const;
+}
+
+function createCreditFragmentGeometry(points: readonly FragmentPoint[]) {
+  const shape = new THREE.Shape();
+  const corners = points.map(([x, y], index) => {
+    const [previousX, previousY] = points[(index - 1 + points.length) % points.length];
+    const [nextX, nextY] = points[(index + 1) % points.length];
+    const previousDistance = Math.hypot(previousX - x, previousY - y);
+    const nextDistance = Math.hypot(nextX - x, nextY - y);
+    const radius = Math.min(
+      PANEL_CORNER_RADIUS,
+      previousDistance * 0.24,
+      nextDistance * 0.24,
+    );
+
+    return {
+      vertex: new THREE.Vector2(x, y),
+      entry: new THREE.Vector2(
+        x + ((previousX - x) / previousDistance) * radius,
+        y + ((previousY - y) / previousDistance) * radius,
+      ),
+      exit: new THREE.Vector2(
+        x + ((nextX - x) / nextDistance) * radius,
+        y + ((nextY - y) / nextDistance) * radius,
+      ),
+    };
+  });
+
+  shape.moveTo(corners[0].entry.x, corners[0].entry.y);
+  corners.forEach((corner, index) => {
+    const nextCorner = corners[(index + 1) % corners.length];
+
+    shape.quadraticCurveTo(
+      corner.vertex.x,
+      corner.vertex.y,
+      corner.exit.x,
+      corner.exit.y,
+    );
+    shape.lineTo(nextCorner.entry.x, nextCorner.entry.y);
+  });
+  shape.closePath();
+
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: PANEL_DEPTH,
+    bevelEnabled: true,
+    bevelThickness: PANEL_BEVEL_THICKNESS,
+    bevelSize: PANEL_BEVEL_SIZE,
+    bevelOffset: 0,
+    bevelSegments: 3,
+    curveSegments: 8,
+    steps: 1,
+  });
+
+  geometry.translate(0, 0, -PANEL_DEPTH / 2);
+  geometry.computeVertexNormals();
+
+  return geometry;
+}
+
+function createFragment(
+  data: CreditFragmentData,
+  liquidSurfaceTexture: THREE.Texture,
+  backgroundTexture: THREE.Texture,
+  liquidResolution: THREE.Vector2,
+  liquidCoverTransform: THREE.Vector4,
+) {
+  const polygon = CREDIT_FRAGMENT_POLYGONS[CREDIT_GEOMETRY_MAP[data.id]];
+  const geometry = createCreditFragmentGeometry(polygon);
+  const [centroidX, centroidY] = getPolygonCentroid(polygon);
+  const polygonBounds = polygon.reduce(
+    (bounds, [x, y]) => ({
+      minX: Math.min(bounds.minX, x),
+      maxX: Math.max(bounds.maxX, x),
+      minY: Math.min(bounds.minY, y),
+      maxY: Math.max(bounds.maxY, y),
+    }),
+    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
+  );
+  const seamDirection = new THREE.Vector2(centroidX, centroidY);
+
+  if (seamDirection.lengthSq() > 0) {
+    seamDirection.normalize().multiplyScalar(SEAM);
+  }
+
+  if (data.id === "01") {
+    seamDirection.x -= SIDE_FRAGMENT_SEAM_OFFSET;
+  } else if (data.id === "04") {
+    seamDirection.x += SIDE_FRAGMENT_SEAM_OFFSET;
+  }
+
+  const material = new THREE.MeshPhysicalMaterial({
+    color: navyColor.clone(),
+    emissive: navyColor,
+    emissiveIntensity: 0.01,
+    roughness: 0.12,
+    metalness: 0,
+    transmission: 0.86,
+    thickness: 0.62,
+    ior: 1.42,
+    clearcoat: 0.46,
+    clearcoatRoughness: 0.14,
+    specularIntensity: 0.68,
+    specularColor: new THREE.Color("#ffffff"),
+    attenuationColor: navyColor.clone(),
+    attenuationDistance: 3.6,
+    envMapIntensity: 0.58,
+    bumpMap: liquidSurfaceTexture,
+    bumpScale: 0.045 + data.seed * 0.002,
+    transparent: true,
+    opacity: 0.74,
+    depthWrite: false,
+    side: THREE.FrontSide,
+  });
+  const liquidUniforms = {
+    backdrop: { value: backgroundTexture },
+    resolution: { value: liquidResolution },
+    coverTransform: { value: liquidCoverTransform },
+    time: { value: 0 },
+    hover: { value: 0 },
+    seed: { value: data.seed },
+  };
+
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uLiquidBackdrop = liquidUniforms.backdrop;
+    shader.uniforms.uLiquidResolution = liquidUniforms.resolution;
+    shader.uniforms.uLiquidCoverTransform = liquidUniforms.coverTransform;
+    shader.uniforms.uLiquidTime = liquidUniforms.time;
+    shader.uniforms.uLiquidHover = liquidUniforms.hover;
+    shader.uniforms.uLiquidSeed = liquidUniforms.seed;
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "void main() {",
+        `uniform sampler2D uLiquidBackdrop;
+uniform vec2 uLiquidResolution;
+uniform vec4 uLiquidCoverTransform;
+uniform float uLiquidTime;
+uniform float uLiquidHover;
+uniform float uLiquidSeed;
+
+vec3 sampleLiquidBackdrop(vec2 screenUv, vec2 offset) {
+  vec2 uv = (screenUv + offset) * uLiquidCoverTransform.xy +
+    uLiquidCoverTransform.zw;
+  return texture2D(uLiquidBackdrop, clamp(uv, vec2(0.001), vec2(0.999))).rgb;
+}
+
+void main() {`,
+      )
+      .replace(
+        "#include <opaque_fragment>",
+        `#include <opaque_fragment>
+
+vec2 liquidScreenUv = gl_FragCoord.xy / max(uLiquidResolution, vec2(1.0));
+float liquidPhase = uLiquidTime * 0.28 + uLiquidSeed * 2.4;
+vec2 liquidFlow = vec2(
+  sin(liquidScreenUv.y * 21.0 + liquidPhase) +
+    sin((liquidScreenUv.x + liquidScreenUv.y) * 15.0 - liquidPhase * 0.72),
+  cos(liquidScreenUv.x * 19.0 - liquidPhase * 0.84) +
+    cos((liquidScreenUv.x - liquidScreenUv.y) * 17.0 + liquidPhase * 0.58)
+) * 0.5;
+float liquidEdge = pow(1.0 - clamp(abs(normal.z), 0.0, 1.0), 1.35);
+vec2 liquidDistortion = liquidFlow * (0.0065 + uLiquidHover * 0.0035) +
+  normal.xy * (0.014 + liquidEdge * 0.012 + uLiquidHover * 0.006);
+float liquidBlur = 0.0012 + liquidEdge * 0.0018;
+vec3 liquidRefracted = sampleLiquidBackdrop(liquidScreenUv, liquidDistortion) * 0.44;
+liquidRefracted += sampleLiquidBackdrop(
+  liquidScreenUv,
+  liquidDistortion + vec2(liquidBlur, 0.0)
+) * 0.14;
+liquidRefracted += sampleLiquidBackdrop(
+  liquidScreenUv,
+  liquidDistortion - vec2(liquidBlur, 0.0)
+) * 0.14;
+liquidRefracted += sampleLiquidBackdrop(
+  liquidScreenUv,
+  liquidDistortion + vec2(0.0, liquidBlur)
+) * 0.14;
+liquidRefracted += sampleLiquidBackdrop(
+  liquidScreenUv,
+  liquidDistortion - vec2(0.0, liquidBlur)
+) * 0.14;
+liquidRefracted = mix(liquidRefracted, vec3(0.125, 0.235, 0.376), 0.2);
+float liquidMix = clamp(0.58 + liquidEdge * 0.24 + uLiquidHover * 0.08, 0.0, 0.9);
+gl_FragColor.rgb = mix(gl_FragColor.rgb, liquidRefracted, liquidMix);`,
+      );
+  };
+  material.customProgramCacheKey = () => "credits-liquid-glass-v1";
+  const mesh = new THREE.Mesh(geometry, material);
+  const group = new THREE.Group();
+  const hoverPivot = new THREE.Group();
+  const baseRotation = new THREE.Euler(
+    data.rotation[0],
+    data.rotation[1],
+    data.rotation[2],
+  );
+  const label = createFragmentLabel(
+    data.title,
+    polygon,
+    centroidX,
+    centroidY,
+    data.id === "02"
+      ? "top-left"
+      : data.id === "03"
+        ? "top-right"
+        : "bottom-right",
+  );
+
+  mesh.renderOrder = 2;
+  hoverPivot.position.set(centroidX, centroidY, 0);
+  mesh.position.set(-centroidX, -centroidY, 0);
+  mesh.userData.fragmentId = data.id;
+  hoverPivot.add(mesh);
+
+  if (label) {
+    hoverPivot.add(label.mesh);
+  }
+
+  group.add(hoverPivot);
+  group.scale.setScalar(data.scale);
+  group.rotation.copy(baseRotation);
+
+  return {
+    data,
+    group,
+    hoverPivot,
+    mesh,
+    material,
+    label,
+    liquidUniforms,
+    baseRotation,
+    centroid: new THREE.Vector3(centroidX, centroidY, 0),
+    polygonBounds,
+    seamOffset: new THREE.Vector3(seamDirection.x, seamDirection.y, 0),
+    basePosition: new THREE.Vector3(),
+    targetPosition: new THREE.Vector3(),
+    targetRotation: new THREE.Euler(),
+    targetScaleVector: new THREE.Vector3(),
+  };
+}
+
+function setSelectedTarget(
+  target: THREE.Vector3,
+  fragment: FragmentRuntime,
+  isMobile: boolean,
+) {
+  const selectedScale =
+    fragment.data.selectedScale * (isMobile ? 0.58 : 0.72);
+  const isLeftFragment = fragment.centroid.x <= 0;
+  const horizontalEdge = isMobile ? 2.35 : 4.55;
+  const topEdge = isMobile ? 1.58 : 1.9;
+  const anchorX = isLeftFragment
+    ? -horizontalEdge - fragment.polygonBounds.minX * selectedScale
+    : horizontalEdge - fragment.polygonBounds.maxX * selectedScale;
+  const anchorY = topEdge - fragment.polygonBounds.maxY * selectedScale;
+
+  target.set(anchorX, anchorY, 0.95);
+}
+
+function setOffscreenTarget(target: THREE.Vector3, fragment: FragmentRuntime) {
+  const direction = new THREE.Vector2(fragment.centroid.x, fragment.centroid.y);
+
+  if (direction.lengthSq() < 0.01) {
+    direction.set(0, -1);
+  } else {
+    direction.normalize();
+  }
+
+  const anchorX = direction.x * 9.5;
+  const anchorY = direction.y * 7;
+
+  target.set(
+    anchorX - fragment.centroid.x,
+    anchorY - fragment.centroid.y,
+    -0.7,
+  );
+}
+
+export default function CreditScene({
+  initialFragmentId = null,
+}: CreditSceneProps) {
+  const router = useRouter();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const phaseRef = useRef<ScenePhase>(
+    initialFragmentId ? "SELECTED" : "IDLE",
+  );
+  const selectedIdRef = useRef<CreditFragmentId | null>(initialFragmentId);
+  const hoveredIdRef = useRef<CreditFragmentId | null>(null);
+  const pointerRef = useRef(new THREE.Vector2(0, 0));
+  const pointerTargetRef = useRef(new THREE.Vector2(0, 0));
+  const isMobileRef = useRef(false);
+  const reducedMotionRef = useRef(false);
+  const transitionStartedAtRef = useRef<number | null>(null);
+  const routeFragmentIdRef = useRef<CreditFragmentId | null>(initialFragmentId);
+  const mountedFragmentIdRef = useRef(initialFragmentId);
+  const selectFragmentRef = useRef<(id: CreditFragmentId) => void>(() => {});
+  const closeFragmentRef = useRef<() => void>(() => {});
+  const [selectedId, setSelectedId] = useState<CreditFragmentId | null>(
+    initialFragmentId,
+  );
+  const [contentVisible, setContentVisible] = useState(Boolean(initialFragmentId));
+
+  const selectFragment = useCallback((id: CreditFragmentId) => {
+    if (phaseRef.current !== "IDLE") {
+      return;
+    }
+
+    selectedIdRef.current = id;
+    phaseRef.current = "SELECTING";
+    transitionStartedAtRef.current = performance.now();
+    setSelectedId(id);
+    setContentVisible(false);
+
+    const fragment = getCreditFragmentById(id);
+
+    if (!fragment) {
+      return;
+    }
+
+    router.push(`/creditspage/${fragment.slug}`, { scroll: false });
+  }, [router]);
+
+  const closeFragment = useCallback(() => {
+    if (!selectedIdRef.current || phaseRef.current === "CLOSING") {
+      return;
+    }
+
+    phaseRef.current = "CLOSING";
+    transitionStartedAtRef.current = performance.now();
+    setContentVisible(false);
+    router.push("/creditspage", { scroll: false });
+  }, [router]);
+
+  useEffect(() => {
+    selectFragmentRef.current = selectFragment;
+    closeFragmentRef.current = closeFragment;
+  }, [selectFragment, closeFragment]);
+
+  useEffect(() => {
+    routeFragmentIdRef.current = initialFragmentId;
+    hoveredIdRef.current = null;
+
+    const isActiveSelectionRoute =
+      initialFragmentId !== null &&
+      selectedIdRef.current === initialFragmentId &&
+      phaseRef.current === "SELECTING";
+    const isActiveClosingRoute =
+      initialFragmentId === null && phaseRef.current === "CLOSING";
+
+    if (isActiveSelectionRoute || isActiveClosingRoute) {
+      return;
+    }
+
+    selectedIdRef.current = initialFragmentId;
+    phaseRef.current = initialFragmentId ? "SELECTED" : "IDLE";
+    transitionStartedAtRef.current = null;
+
+    const contentFrame = window.requestAnimationFrame(() => {
+      setSelectedId(initialFragmentId);
+      setContentVisible(Boolean(initialFragmentId));
+    });
+
+    return () => {
+      window.cancelAnimationFrame(contentFrame);
+    };
+  }, [initialFragmentId]);
+
+  useEffect(() => {
+    creditFragments.forEach((fragment) => {
+      router.prefetch(`/creditspage/${fragment.slug}`);
+    });
+  }, [router]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeFragmentRef.current();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    const renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      powerPreference: "high-performance",
+    });
+    const scene = new THREE.Scene();
+    const liquidSurfaceTexture = createLiquidSurfaceTexture();
+    const backgroundTexture = createLiquidBackdropTexture();
+    const liquidResolution = new THREE.Vector2(1, 1);
+    const liquidCoverTransform = new THREE.Vector4(1, 1, 0, 0);
+    const roomEnvironment = new RoomEnvironment();
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    const environmentMap = pmremGenerator.fromScene(roomEnvironment, 0.04).texture;
+
+    roomEnvironment.dispose();
+    backgroundTexture.colorSpace = THREE.SRGBColorSpace;
+    scene.environment = environmentMap;
+    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+    const sceneRoot = new THREE.Group();
+    sceneRoot.rotation.copy(PANEL_BASE_ROTATION);
+    const raycaster = new THREE.Raycaster();
+    const rayPointer = new THREE.Vector2(10, 10);
+    const clock = new THREE.Clock();
+    const mobileQuery = window.matchMedia(MOBILE_MEDIA_QUERY);
+    const reducedMotionQuery = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    );
+    const fragments = creditFragments.map((fragment) =>
+      createFragment(
+        fragment,
+        liquidSurfaceTexture,
+        backgroundTexture,
+        liquidResolution,
+        liquidCoverTransform,
+      ),
+    );
+    let animationFrame = 0;
+
+    const updateEnvironmentFlags = () => {
+      isMobileRef.current = mobileQuery.matches;
+      reducedMotionRef.current = reducedMotionQuery.matches;
+    };
+
+    const resize = () => {
+      const rect = container.getBoundingClientRect();
+
+      const width = Math.max(1, rect.width);
+      const height = Math.max(1, rect.height);
+      camera.aspect = width / height;
+      camera.position.set(0, 0, isMobileRef.current ? 17.4 : 11.8);
+      camera.updateProjectionMatrix();
+      renderer.transmissionResolutionScale = isMobileRef.current ? 0.5 : 0.75;
+      renderer.setSize(width, height, false);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.getDrawingBufferSize(liquidResolution);
+    };
+
+    const updateHoverFromPointer = () => {
+      if (phaseRef.current !== "IDLE") {
+        hoveredIdRef.current = null;
+        renderer.domElement.style.cursor = "";
+        return;
+      }
+
+      raycaster.setFromCamera(rayPointer, camera);
+
+      const intersects = raycaster.intersectObjects(
+        fragments.map((fragment) => fragment.mesh),
+        false,
+      );
+      const hoveredId = intersects[0]?.object.userData.fragmentId as
+        | CreditFragmentId
+        | undefined;
+
+      hoveredIdRef.current = hoveredId ?? null;
+      renderer.domElement.style.cursor = hoveredId ? "pointer" : "";
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+
+      pointerTargetRef.current.set(x, y);
+      rayPointer.set(x, y);
+      updateHoverFromPointer();
+    };
+
+    const handlePointerLeave = () => {
+      pointerTargetRef.current.set(0, 0);
+      rayPointer.set(10, 10);
+      hoveredIdRef.current = null;
+      renderer.domElement.style.cursor = "";
+    };
+
+    const handleClick = () => {
+      if (phaseRef.current === "IDLE" && hoveredIdRef.current) {
+        pointerTargetRef.current.set(0, 0);
+        rayPointer.set(10, 10);
+        selectFragmentRef.current(hoveredIdRef.current);
+      }
+    };
+    const handleMobileQueryChange = () => {
+      updateEnvironmentFlags();
+      resize();
+    };
+
+    updateEnvironmentFlags();
+
+    const mountedFragmentId = mountedFragmentIdRef.current;
+
+    fragments.forEach((fragment) => {
+      if (mountedFragmentId) {
+        if (fragment.data.id === mountedFragmentId) {
+          setSelectedTarget(fragment.group.position, fragment, isMobileRef.current);
+          fragment.group.scale.setScalar(
+            fragment.data.selectedScale * (isMobileRef.current ? 0.58 : 0.72),
+          );
+          fragment.group.rotation.set(0.025, -0.025, 0.008);
+          fragment.material.opacity = 0.8;
+          if (fragment.label) fragment.label.material.opacity = 0.88;
+        } else {
+          setOffscreenTarget(fragment.group.position, fragment);
+          fragment.group.scale.setScalar(fragment.data.scale * 0.68);
+          fragment.material.opacity = 0;
+          if (fragment.label) fragment.label.material.opacity = 0;
+        }
+      } else if (!reducedMotionRef.current) {
+        setOffscreenTarget(fragment.group.position, fragment);
+        fragment.group.scale.setScalar(fragment.data.scale * 0.78);
+        fragment.material.opacity = 0.05;
+        if (fragment.label) fragment.label.material.opacity = 0.05;
+      }
+    });
+
+    renderer.setClearColor(0xffffff, 0);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.domElement.className = "credits-webgl-canvas";
+    container.appendChild(renderer.domElement);
+
+    scene.add(sceneRoot);
+    scene.fog = new THREE.Fog("#ffffff", 18, 32);
+    sceneRoot.add(...fragments.map((fragment) => fragment.group));
+
+    const ambientLight = new THREE.AmbientLight("#ffffff", 0.72);
+    const keyLight = new THREE.DirectionalLight("#ffffff", 1.7);
+    const rimLight = new THREE.DirectionalLight("#dcecff", 0.9);
+    const fillLight = new THREE.PointLight("#f5f9ff", 0.4, 8);
+
+    keyLight.position.set(-2.8, 3.4, 5.2);
+    rimLight.position.set(3.4, 1.8, -2.8);
+    fillLight.position.set(1.9, -1.2, 3.4);
+    scene.add(ambientLight, keyLight, rimLight, fillLight);
+
+    resize();
+
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(container);
+    mobileQuery.addEventListener("change", handleMobileQueryChange);
+    reducedMotionQuery.addEventListener("change", updateEnvironmentFlags);
+    renderer.domElement.addEventListener("pointermove", handlePointerMove);
+    renderer.domElement.addEventListener("pointerleave", handlePointerLeave);
+    renderer.domElement.addEventListener("click", handleClick);
+
+    const animate = () => {
+      const delta = Math.min(clock.getDelta(), 0.05);
+      const elapsed = clock.elapsedTime;
+      const reducedMotion = reducedMotionRef.current;
+      const isMobile = isMobileRef.current;
+      const selectedIdValue = selectedIdRef.current;
+      const isSelectedMode =
+        phaseRef.current === "SELECTING" || phaseRef.current === "SELECTED";
+      const transitionDuration = reducedMotion
+        ? 80
+        : SCENE_TRANSITION_DURATION_MS;
+      const transitionComplete =
+        transitionStartedAtRef.current !== null &&
+        performance.now() - transitionStartedAtRef.current >= transitionDuration;
+      const transitionDampRate =
+        phaseRef.current === "SELECTING" || phaseRef.current === "CLOSING"
+          ? 6.4
+          : 3.8;
+      const damp = transitionComplete
+        ? 1
+        : reducedMotion
+        ? 0.34
+        : 1 - Math.exp(-delta * transitionDampRate);
+      const pointerDamp = reducedMotion ? 0.08 : 1 - Math.exp(-delta * 4.2);
+      const clusterFloatX = reducedMotion ? 0 : Math.cos(elapsed * 0.16) * 0.018;
+      const clusterFloatY = reducedMotion ? 0 : Math.sin(elapsed * 0.19) * 0.026;
+      const scenePointerX = isSelectedMode ? 0 : pointerRef.current.x;
+      const scenePointerY = isSelectedMode ? 0 : pointerRef.current.y;
+      const clusterTiltZ =
+        reducedMotion || isSelectedMode ? 0 : Math.sin(elapsed * 0.14) * 0.012;
+
+      if (!reducedMotion) {
+        liquidSurfaceTexture.offset.x = (elapsed * 0.008) % 1;
+        liquidSurfaceTexture.offset.y =
+          (1 + Math.sin(elapsed * 0.09) * 0.025) % 1;
+      }
+
+      pointerRef.current.lerp(pointerTargetRef.current, pointerDamp);
+      sceneRoot.rotation.y = THREE.MathUtils.lerp(
+        sceneRoot.rotation.y,
+        PANEL_BASE_ROTATION.y + (reducedMotion ? 0 : scenePointerX * 0.018),
+        damp,
+      );
+      sceneRoot.rotation.x = THREE.MathUtils.lerp(
+        sceneRoot.rotation.x,
+        PANEL_BASE_ROTATION.x + (reducedMotion ? 0 : -scenePointerY * 0.012),
+        damp,
+      );
+      sceneRoot.rotation.z = THREE.MathUtils.lerp(
+        sceneRoot.rotation.z,
+        PANEL_BASE_ROTATION.z + clusterTiltZ,
+        damp,
+      );
+      camera.position.x = THREE.MathUtils.lerp(
+        camera.position.x,
+        reducedMotion ? 0 : scenePointerX * 0.08,
+        damp,
+      );
+      camera.position.y = THREE.MathUtils.lerp(
+        camera.position.y,
+        reducedMotion ? 0 : scenePointerY * 0.06,
+        damp,
+      );
+      camera.lookAt(0, 0, 0);
+
+      fragments.forEach((fragment: FragmentRuntime, index) => {
+        const isSelected = selectedIdValue === fragment.data.id;
+        const isHovered = hoveredIdRef.current === fragment.data.id;
+        const basePosition = fragment.basePosition
+          .copy(ASSEMBLED_POSITION)
+          .add(fragment.seamOffset);
+        const targetPosition = fragment.targetPosition;
+        const targetRotation = fragment.targetRotation;
+        let targetScale = fragment.data.scale;
+        let targetOpacity = 0.72;
+        let targetLabelOpacity = 0.82;
+        let targetEmissive = isHovered ? 0.068 : 0.012;
+
+        if (isSelectedMode && isSelected) {
+          setSelectedTarget(targetPosition, fragment, isMobile);
+          targetScale =
+            fragment.data.selectedScale * (isMobile ? 0.58 : 0.72);
+          targetOpacity = 0.8;
+          targetLabelOpacity = 0.88;
+          targetEmissive = 0.052;
+          targetRotation.set(0.025, -0.025, 0.008);
+        } else if (isSelectedMode) {
+          setOffscreenTarget(targetPosition, fragment);
+          targetScale = fragment.data.scale * 0.68;
+          targetOpacity = 0;
+          targetLabelOpacity = 0;
+          targetRotation.set(
+            fragment.baseRotation.x + (index < 2 ? 0.08 : -0.08),
+            fragment.baseRotation.y + (index % 2 === 0 ? 0.12 : -0.12),
+            fragment.baseRotation.z + (index < 2 ? 0.04 : -0.04),
+          );
+        } else {
+          const floatA = Math.sin(elapsed * (0.22 + index * 0.01) + fragment.data.seed);
+          const floatB = Math.cos(elapsed * (0.18 + index * 0.008) - fragment.data.seed);
+          const floatC = Math.sin(elapsed * 0.12 + fragment.data.seed * 1.7);
+          const depthFactor = 1 + Math.abs(basePosition.z) * 0.16;
+
+          targetPosition.copy(basePosition);
+          targetPosition.x += clusterFloatX + (reducedMotion ? 0 : floatB * 0.008);
+          targetPosition.y += clusterFloatY + (reducedMotion ? 0 : floatA * 0.01);
+          targetPosition.z += reducedMotion ? 0 : floatC * 0.006;
+          targetPosition.x += reducedMotion ? 0 : pointerRef.current.x * 0.028 * depthFactor;
+          targetPosition.y += reducedMotion ? 0 : pointerRef.current.y * 0.018 * depthFactor;
+          targetPosition.z += isHovered ? 0.075 : 0;
+          targetScale = fragment.data.scale * (isHovered ? 1.045 : 1);
+          targetRotation.set(
+            fragment.baseRotation.x + (reducedMotion ? 0 : floatA * 0.008),
+            fragment.baseRotation.y + (reducedMotion ? 0 : floatB * 0.01),
+            fragment.baseRotation.z + (reducedMotion ? 0 : floatC * 0.006),
+          );
+        }
+
+        fragment.group.position.lerp(targetPosition, damp);
+        fragment.group.scale.lerp(
+          fragment.targetScaleVector.set(targetScale, targetScale, targetScale),
+          damp,
+        );
+        fragment.group.rotation.x = THREE.MathUtils.lerp(
+          fragment.group.rotation.x,
+          targetRotation.x,
+          damp,
+        );
+        fragment.group.rotation.y = THREE.MathUtils.lerp(
+          fragment.group.rotation.y,
+          targetRotation.y,
+          damp,
+        );
+        fragment.group.rotation.z = THREE.MathUtils.lerp(
+          fragment.group.rotation.z,
+          targetRotation.z,
+          damp,
+        );
+        const hoverTiltX =
+          isHovered && !isSelectedMode && !reducedMotion
+            ? -pointerRef.current.y * 0.25
+            : 0;
+        const hoverTiltY =
+          isHovered && !isSelectedMode && !reducedMotion
+            ? pointerRef.current.x * 0.3
+            : 0;
+        fragment.hoverPivot.rotation.x = THREE.MathUtils.lerp(
+          fragment.hoverPivot.rotation.x,
+          hoverTiltX,
+          damp,
+        );
+        fragment.hoverPivot.rotation.y = THREE.MathUtils.lerp(
+          fragment.hoverPivot.rotation.y,
+          hoverTiltY,
+          damp,
+        );
+        fragment.material.opacity = THREE.MathUtils.lerp(
+          fragment.material.opacity,
+          targetOpacity,
+          damp,
+        );
+        fragment.material.emissiveIntensity = THREE.MathUtils.lerp(
+          fragment.material.emissiveIntensity,
+          targetEmissive,
+          damp,
+        );
+        if (fragment.label) {
+          fragment.label.material.opacity = THREE.MathUtils.lerp(
+            fragment.label.material.opacity,
+            targetLabelOpacity,
+            damp,
+          );
+        }
+        fragment.liquidUniforms.time.value = reducedMotion ? 0 : elapsed;
+        fragment.liquidUniforms.hover.value = THREE.MathUtils.lerp(
+          fragment.liquidUniforms.hover.value,
+          isHovered && !isSelectedMode ? 1 : 0,
+          damp,
+        );
+      });
+
+      if (transitionComplete) {
+        transitionStartedAtRef.current = null;
+
+        if (phaseRef.current === "SELECTING") {
+          phaseRef.current = "SELECTED";
+
+          if (routeFragmentIdRef.current === selectedIdRef.current) {
+            setContentVisible(true);
+          }
+        } else if (phaseRef.current === "CLOSING") {
+          phaseRef.current = "IDLE";
+          selectedIdRef.current = null;
+          setSelectedId(null);
+        }
+      }
+
+      renderer.render(scene, camera);
+      animationFrame = window.requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      resizeObserver.disconnect();
+      renderer.domElement.removeEventListener("pointermove", handlePointerMove);
+      renderer.domElement.removeEventListener("pointerleave", handlePointerLeave);
+      renderer.domElement.removeEventListener("click", handleClick);
+      mobileQuery.removeEventListener("change", handleMobileQueryChange);
+      reducedMotionQuery.removeEventListener("change", updateEnvironmentFlags);
+      renderer.domElement.remove();
+      fragments.forEach((fragment) => {
+        fragment.mesh.geometry.dispose();
+        fragment.material.dispose();
+        fragment.label?.geometry.dispose();
+        fragment.label?.material.dispose();
+        fragment.label?.texture.dispose();
+      });
+      scene.environment = null;
+      scene.background = null;
+      liquidSurfaceTexture.dispose();
+      backgroundTexture.dispose();
+      environmentMap.dispose();
+      pmremGenerator.dispose();
+      renderer.dispose();
+    };
+  }, []);
+
+  return (
+    <section
+      className={[
+        "credits-scene",
+        initialFragmentId ? "credits-scene--detail" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      aria-label="Credits"
+    >
+      <div ref={containerRef} className="credits-scene__canvas-wrap" />
+      <CreditContentOverlay
+        selectedId={selectedId}
+        isVisible={contentVisible}
+        onClose={closeFragment}
+      />
+    </section>
+  );
+}
