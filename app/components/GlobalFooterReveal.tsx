@@ -56,6 +56,13 @@ function isDocumentScrollAtBottom(threshold = SCROLL_BOTTOM_THRESHOLD_PX) {
   return scrollTop >= maxScrollTop - threshold;
 }
 
+function isCreditContentScrollTarget(target: EventTarget | null) {
+  return (
+    target instanceof Element &&
+    target.closest(".credits-content-article__description") !== null
+  );
+}
+
 export default function GlobalFooterReveal() {
   const pathname = usePathname();
   const isLandingPage = pathname === "/";
@@ -231,6 +238,10 @@ export default function GlobalFooterReveal() {
     };
 
     const handleWheel = (event: WheelEvent) => {
+      if (isCreditContentScrollTarget(event.target)) {
+        return;
+      }
+
       const deltaY = normalizeWheelDelta(event);
 
       if (shouldBlockPageScroll()) {
@@ -332,6 +343,11 @@ export default function GlobalFooterReveal() {
     };
 
     const handleTouchEnd = (event: TouchEvent) => {
+      if (isCreditContentScrollTarget(event.target)) {
+        touchStartYRef.current = null;
+        return;
+      }
+
       if (footerAnimatingRef.current || isScrollLocked()) {
         touchStartYRef.current = null;
         return;
