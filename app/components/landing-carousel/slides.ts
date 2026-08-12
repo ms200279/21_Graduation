@@ -25,7 +25,7 @@ export const CONCEPT_CAROUSEL_SLIDES: LandingCarouselSlide[] = [
     title: "Typography",
     headingImage: "/icons/typo.svg",
     paragraphs: [
-      "21대 졸업전시의 메인 단어인 ‘sensibility’의 감각의 연결을 형상화 한 타이포 제작",
+      "타이포그래피는 서로 분리된 정보가 아닌 감각을 통해 연결되는 하나의 흐름을 표현한다. \n글자를 관통하는 수평의 연결선은 사람과 사회, 기술을 잇는 보이지 않는 관계를 상징하며, 작은 감각들이 모여 새로운 가능성을 발견하는 과정을 담아낸다. \n부드럽고 유기적인 형태는 끊임없이 변화에 반응하는 감각성을 나타내며, 미세한 신호를 포착해 미래를 향해 나아가는 <sensibility>의 시선을 시각적으로 드러낸다.",
     ],
   },
   {
@@ -33,7 +33,7 @@ export const CONCEPT_CAROUSEL_SLIDES: LandingCarouselSlide[] = [
     title: "Symbol",
     headingSymbols: ["navy", "black", "outlined"],
     paragraphs: [
-      "해파리의 촉수와 감각의 흐름을 나타내는 데이터를 형상화한 심볼",
+      "심볼은 해파리 촉수에서 착안하여, 주변의 미세한 변화와 가능성을 감지하는 감각의 흐름을 데이터의 형태로 재해석 한 것이다. \n유기적으로 이어지는 선은 감각이 정보를 받아들이고 연결되는 과정을, \n독립적으로 배치된 점은 감지를 통해 발견되는 새로운 가능성과 시작의 순간을 의미한다. \n이는 <sensibility>가 바라보는 미래의 움직임과 가능성을 상징한다.",
     ],
   },
   {
