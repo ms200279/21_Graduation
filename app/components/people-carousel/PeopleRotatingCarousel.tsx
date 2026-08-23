@@ -26,11 +26,6 @@ import {
   isPeopleCarouselScrollLockedByFooter,
   notifyPeopleCarouselProgrammaticStep,
 } from "./peopleCarouselFooter";
-import {
-  LANDING_INFO_LIQUID_GLASS_OPTIONS,
-  useLiquidGlass,
-} from "@/app/components/liquid-glass";
-
 import "@/app/styles/people-carousel.css";
 
 const CARD_GAP_PX = 0;
@@ -59,6 +54,7 @@ const ZONE_HOVER_LIFT_PX = 22;
 const EXPANDED_CARD_WIDTH_PX = 1080;
 const EXPANDED_CARD_HEIGHT_PX = 600;
 const EXPAND_DURATION_MS = 520;
+const CAROUSEL_ENTRY_DURATION_MS = 1650;
 const EXPAND_MORPH_TRANSFORM_END_COUNT = 4;
 /** Cards shown on the cylinder per batch (e.g. 1–11, then 12–22). */
 export const VISIBLE_CAROUSEL_SLOTS = 11;
@@ -97,6 +93,8 @@ type ExpandedCardState = {
   /** Waiting for hover settle before collapse. */
   pendingClose: boolean;
 };
+
+type CarouselEntryPhase = "before" | "entering" | "complete";
 
 function captureExpandRestPose(
   stageElement: HTMLElement | null,
@@ -264,14 +262,13 @@ type PeopleCarouselCardSurfaceProps = {
   item: PeopleCarouselItem;
   className: string;
   style?: CSSProperties;
-  liquidGlassEnabled?: boolean;
 };
 
 const PeopleCarouselCardSurface = forwardRef<
   HTMLDivElement,
   PeopleCarouselCardSurfaceProps
 >(function PeopleCarouselCardSurface(
-  { item, className, style, liquidGlassEnabled = false },
+  { item, className, style },
   forwardedRef,
 ) {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -280,18 +277,6 @@ const PeopleCarouselCardSurface = forwardRef<
     forwardedRef,
     () => surfaceRef.current as HTMLDivElement,
   );
-
-  useLiquidGlass(surfaceRef, {
-    ...LANDING_INFO_LIQUID_GLASS_OPTIONS,
-    blur: 10,
-    strength: 0,
-    chromaticAberration: 0,
-    saturate: 1,
-    brightness: 1,
-    radius: 20,
-    enabled: liquidGlassEnabled,
-    mountKey: liquidGlassEnabled,
-  });
 
   return (
     <div ref={surfaceRef} className={className} style={style}>
@@ -403,10 +388,10 @@ function getCarouselStateFromItemPosition(
     return { itemIndex, batchIndex, rotation };
   }
 
-  const batchIndex = Math.floor(clampedPosition / batchSize);
+  const itemIndex = Math.round(clampedPosition);
+  const batchIndex = Math.floor(itemIndex / batchSize);
   const slotFloat = clampedPosition - batchIndex * batchSize;
   const rotation = slotFloat * (360 / batchSize);
-  const itemIndex = Math.round(clampedPosition);
 
   return { itemIndex, batchIndex, rotation };
 }
@@ -461,10 +446,14 @@ export default function PeopleRotatingCarousel({
   const carouselScrollIdleRef = useRef(true);
   const lastFooterHandoffWheelScrollYRef = useRef<number | null>(null);
   const programmaticStepRef = useRef(false);
+  const programmaticTargetIndexRef = useRef<number | null>(null);
 
   const [rotation, setRotation] = useState(0);
   const [batchIndex, setBatchIndex] = useState(0);
   const [carouselRadius, setCarouselRadius] = useState(MIN_CAROUSEL_RADIUS_PX);
+  const [entryPhase, setEntryPhase] = useState<CarouselEntryPhase>(
+    initialMemberSlug ? "complete" : "before",
+  );
 
   const batchCount = useMemo(
     () => getBatchCount(items.length, VISIBLE_CAROUSEL_SLOTS),
@@ -587,6 +576,42 @@ export default function PeopleRotatingCarousel({
       height: cardRect.height,
     });
   }, []);
+
+  useEffect(() => {
+    if (initialMemberSlug) {
+      return;
+    }
+
+    let enterFrame = 0;
+    let settleFrame = 0;
+    let measureFrame = 0;
+    let settleTimer: number | null = null;
+
+    enterFrame = window.requestAnimationFrame(() => {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setEntryPhase("complete");
+        measureFrame = window.requestAnimationFrame(updateZoneHitRect);
+        return;
+      }
+
+      settleFrame = window.requestAnimationFrame(() => {
+        setEntryPhase("entering");
+        settleTimer = window.setTimeout(() => {
+          setEntryPhase("complete");
+          measureFrame = window.requestAnimationFrame(updateZoneHitRect);
+        }, CAROUSEL_ENTRY_DURATION_MS);
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(enterFrame);
+      window.cancelAnimationFrame(settleFrame);
+      window.cancelAnimationFrame(measureFrame);
+      if (settleTimer) {
+        window.clearTimeout(settleTimer);
+      }
+    };
+  }, [initialMemberSlug, updateZoneHitRect]);
 
   useLayoutEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -1408,6 +1433,19 @@ export default function PeopleRotatingCarousel({
         return;
       }
 
+      if (programmaticTargetIndexRef.current !== null) {
+        const { batchIndex: nextBatchIndex, rotation: nextRotation } =
+          getCarouselStateFromItemPosition(
+            programmaticTargetIndexRef.current,
+            items.length,
+            VISIBLE_CAROUSEL_SLOTS,
+            true,
+          );
+
+        applyCarouselState(nextBatchIndex, nextRotation);
+        return;
+      }
+
       const { trackTop, loopHeight } = getScrollMetrics(track);
 
       if (loopHeight <= 0) {
@@ -1527,6 +1565,7 @@ export default function PeopleRotatingCarousel({
       }
 
       programmaticStepRef.current = true;
+      programmaticTargetIndexRef.current = targetIndex;
       lastFooterHandoffWheelScrollYRef.current = null;
 
       if (direction === -1) {
@@ -1596,6 +1635,7 @@ export default function PeopleRotatingCarousel({
 
       if (programmaticStepRef.current) {
         programmaticStepRef.current = false;
+        programmaticTargetIndexRef.current = null;
         lastFooterHandoffWheelScrollYRef.current = null;
         return;
       }
@@ -1641,6 +1681,7 @@ export default function PeopleRotatingCarousel({
 
       carouselScrollIdleRef.current = true;
       programmaticStepRef.current = false;
+      programmaticTargetIndexRef.current = null;
       lastFooterHandoffWheelScrollYRef.current = null;
       cancelSnapAnimation();
     };
@@ -1797,59 +1838,90 @@ export default function PeopleRotatingCarousel({
           style={{ perspective: `${carouselPerspective}px` }}
         >
           <div
-            className="people-carousel-rig"
-            style={{ transform: getCarouselRigTransform() }}
+            className={[
+              "people-carousel-entry",
+              `people-carousel-entry--${entryPhase}`,
+            ].join(" ")}
           >
             <div
-              ref={stageRef}
-              className="people-carousel-stage"
-              style={{ transform: `rotateX(${displayRotation}deg)` }}
+              className="people-carousel-rig"
+              style={{ transform: getCarouselRigTransform() }}
             >
-              {visibleSlots.map(({ slotIndex, item, itemIndex, isActive, isVisibleGlass, isInZone, angle }) => (
-                <article
-                  key={`${batchIndex}-${slotIndex}`}
-                  ref={isInZone ? zoneCardRef : undefined}
-                  className="people-carousel-card"
-                  style={{
-                    transform: `rotateX(${angle}deg) translateZ(${carouselRadius}px)`,
-                  }}
-                  aria-hidden={!isActive}
-                >
-                  <PeopleCarouselCardSurface
-                    ref={isInZone ? zoneCardSurfaceRef : undefined}
-                    className={[
-                      "people-carousel-card__surface",
-                      isVisibleGlass ? "people-carousel-card__surface--visible-glass" : "",
-                      isInZone ? "people-carousel-card__surface--in-zone" : "",
-                      isInZone && isZoneHovered
-                        ? "people-carousel-card__surface--in-zone-hovered"
-                        : "",
-                      isInZone &&
-                      expandedCard?.itemIndex === itemIndex &&
-                      expandOverlayReady &&
-                      !expandCloseHandoff
-                        ? "people-carousel-card__surface--source-hidden"
-                        : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    style={
-                      isInZone
-                        ? ({
-                            "--zone-hover-stand-deg": `${ZONE_HOVER_STAND_DEG}deg`,
-                            "--zone-hover-lift-px": `${ZONE_HOVER_LIFT_PX}px`,
-                          } as CSSProperties)
-                        : undefined
-                    }
-                    item={item}
-                    liquidGlassEnabled={isVisibleGlass}
-                  />
-                </article>
-              ))}
+              <div
+                ref={stageRef}
+                className="people-carousel-stage"
+                style={{ transform: `rotateX(${displayRotation}deg)` }}
+              >
+                {visibleSlots.map(({ slotIndex, item, itemIndex, isActive, isVisibleGlass, isInZone, angle }, entryIndex) => (
+                  <article
+                    key={`${batchIndex}-${slotIndex}`}
+                    ref={isInZone ? zoneCardRef : undefined}
+                    className="people-carousel-card"
+                    style={{
+                      transform: `rotateX(${angle}deg) translateZ(${carouselRadius}px)`,
+                    }}
+                    aria-hidden={!isActive}
+                  >
+                    <div
+                      className={[
+                        "people-carousel-card-entry",
+                        isVisibleGlass
+                          ? "people-carousel-card-entry--animated"
+                          : "people-carousel-card-entry--deferred",
+                      ].join(" ")}
+                      style={
+                        {
+                          "--people-entry-delay": `${entryIndex * 65}ms`,
+                        } as CSSProperties
+                      }
+                    >
+                      <div
+                        className={[
+                          "people-carousel-card-tilt",
+                          isInZone && isZoneHovered
+                            ? "people-carousel-card-tilt--hovered"
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        style={
+                          isInZone
+                            ? ({
+                                "--zone-hover-stand-deg": `${ZONE_HOVER_STAND_DEG}deg`,
+                                "--zone-hover-lift-px": `${ZONE_HOVER_LIFT_PX}px`,
+                              } as CSSProperties)
+                            : undefined
+                        }
+                      >
+                        <PeopleCarouselCardSurface
+                          ref={isInZone ? zoneCardSurfaceRef : undefined}
+                          className={[
+                            "people-carousel-card__surface",
+                            isVisibleGlass ? "people-carousel-card__surface--visible-glass" : "",
+                            isInZone ? "people-carousel-card__surface--in-zone" : "",
+                            isInZone && isZoneHovered
+                              ? "people-carousel-card__surface--in-zone-hovered"
+                              : "",
+                            isInZone &&
+                            expandedCard?.itemIndex === itemIndex &&
+                            expandOverlayReady &&
+                            !expandCloseHandoff
+                              ? "people-carousel-card__surface--source-hidden"
+                              : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                          item={item}
+                        />
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
             </div>
           </div>
 
-          {zoneHitRect && !expandedCard ? (
+          {zoneHitRect && !expandedCard && entryPhase === "complete" ? (
             <button
               type="button"
               className="people-carousel-zone-hit"
@@ -2036,6 +2108,9 @@ export default function PeopleRotatingCarousel({
                             expandIsOpen
                               ? "people-carousel-expand__surface--open"
                               : "",
+                            expandIsClosing
+                              ? "people-carousel-card__surface--visible-glass"
+                              : "",
                           ]
                             .filter(Boolean)
                             .join(" ")}
@@ -2048,7 +2123,6 @@ export default function PeopleRotatingCarousel({
                               : undefined
                           }
                           item={expandedCard.item}
-                          liquidGlassEnabled={expandIsClosing}
                         />
                       </article>
                     </div>
