@@ -764,7 +764,6 @@ export default function CreditScene({
     sceneRoot.rotation.copy(PANEL_BASE_ROTATION);
     const raycaster = new THREE.Raycaster();
     const rayPointer = new THREE.Vector2(10, 10);
-    const clock = new THREE.Clock();
     const mobileQuery = window.matchMedia(MOBILE_MEDIA_QUERY);
     const reducedMotionQuery = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
@@ -907,9 +906,23 @@ export default function CreditScene({
     renderer.domElement.addEventListener("pointerleave", handlePointerLeave);
     renderer.domElement.addEventListener("click", handleClick);
 
-    const animate = () => {
-      const delta = Math.min(clock.getDelta(), 0.05);
-      const elapsed = clock.elapsedTime;
+    let previousFrameTime: number | null = null;
+    let elapsed = 0;
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        previousFrameTime = null;
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    const animate = (timestamp: number) => {
+      const rawDelta =
+        previousFrameTime === null ? 0 : (timestamp - previousFrameTime) / 1000;
+      previousFrameTime = timestamp;
+      const delta = Math.min(Math.max(rawDelta, 0), 0.05);
+      elapsed += delta;
       const reducedMotion = reducedMotionRef.current;
       const isMobile = isMobileRef.current;
       const selectedIdValue = selectedIdRef.current;
@@ -1114,10 +1127,11 @@ export default function CreditScene({
       animationFrame = window.requestAnimationFrame(animate);
     };
 
-    animate();
+    animationFrame = window.requestAnimationFrame(animate);
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       resizeObserver.disconnect();
       renderer.domElement.removeEventListener("pointermove", handlePointerMove);
       renderer.domElement.removeEventListener("pointerleave", handlePointerLeave);
