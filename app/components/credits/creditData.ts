@@ -68,6 +68,10 @@ export type CreditFragmentData = {
   slug: string;
   title: string;
   description: string[];
+  organization?: {
+    title: string;
+    members: { role: string; name: string }[];
+  }[];
   scale: number;
   selectedScale: number;
   rotation: [number, number, number];
@@ -118,8 +122,46 @@ export const creditFragments: CreditFragmentData[] = [
     id: "03",
     slug: "message",
     title: "졸업 전시 준비 위원회",
-    description: [
-      "Words and editorial structure connecting individual works into one flow.",
+    description: [],
+    organization: [
+      {
+        title: "위원장단",
+        members: [
+          { role: "위원장", name: "이새연" },
+          { role: "부위원장", name: "송민철" },
+        ],
+      },
+      {
+        title: "총무팀",
+        members: [{ role: "팀장", name: "김은서" }],
+      },
+      {
+        title: "기획팀",
+        members: [
+          { role: "팀장", name: "김세훈" },
+          { role: "팀원", name: "김지효" },
+          { role: "팀원", name: "채종은" },
+        ],
+      },
+      {
+        title: "디자인팀",
+        members: [
+          { role: "팀장", name: "박민수" },
+          { role: "팀원", name: "김지윤" },
+          { role: "팀원", name: "조희연" },
+        ],
+      },
+      {
+        title: "홍보팀",
+        members: [
+          { role: "팀장", name: "신채희" },
+          { role: "팀원", name: "조세빈" },
+        ],
+      },
+      {
+        title: "웹사이트팀",
+        members: [{ role: "팀장", name: "김민석" }],
+      },
     ],
     scale: 1,
     selectedScale: 1.07,
@@ -132,7 +174,12 @@ export const creditFragments: CreditFragmentData[] = [
     slug: "support",
     title: "웹사이트 제작후기",
     description: [
-      "Operational help, technical support, and production assistance.",
+      "안녕하세요, 제21회 졸업전시위원회의 웹사이트 기획, 디자인, 구현을 담당한 웹사이트 팀 김민석입니다.",
+      "비전공 분야에 대한 막연한 걱정으로부터 시작해서 10개월간 전담한 웹사이트가 온전히 마침표를 찍을 수 있게 되어 다행입니다.",
+      "산업디자인 전공으로 미디어 디자인에 대한 경험과 코딩 구현 능력이 부족함을 알았던 탓에 뛰어난 사이트를 만들자는 마음보다는 마침표를 찍어보자는 마음으로 시작했던 프로젝트가 성공적으로 마무리되어 다행이고 기쁜 마음입니다.",
+      "‘sensibility’라는 컨셉에 맞춰 사용자 경험적인 부분에 집중해서 프로젝트에 임했습니다. 최대한 모든 사용자가 간접적으로나마 전시를 경험하고, 또 모든 졸업 예정자들의 작품이 다 같이 빛나길 바라는 마음을 어떻게 구현할지 많이 고민했습니다. 개개인의 노고가 담긴 작품들 하나하나를 최대한 사용자들에게 온전히 전달하고, 그 과정에서 어떤 상호작용이 감상에 몰입이 될지 고민하고 탐구하며 풀어나간 웹사이트입니다.",
+      "제가 고민하고 구현한 이 웹사이트를 하나의 감각으로 전달할 기회가 되어 영광입니다. 앞으로 저마다의 감각을 찾아 나갈 모든 졸업 예정자분들과, 고생하신 21대 졸업 전시 준비 위원회 구성원분들, 교내 교수진분들에게 좋은 일만 가득하길 바라며 제작 후기 마치겠습니다.",
+      "감사합니다.",
     ],
     scale: 1,
     selectedScale: 1.06,

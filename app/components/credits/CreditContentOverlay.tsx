@@ -46,9 +46,30 @@ export default function CreditContentOverlay({
               {selectedFragment.title}
             </h1>
             <div className="credits-content-article__description">
-              {selectedFragment.description.map((paragraph) => (
-                <p key={paragraph}>{paragraph}</p>
-              ))}
+              {selectedFragment.organization ? (
+                <div className="credits-content-organization">
+                  {selectedFragment.organization.map((group) => (
+                    <section
+                      className="credits-content-organization__group"
+                      key={group.title}
+                    >
+                      <h2>{group.title}</h2>
+                      <dl>
+                        {group.members.map((member) => (
+                          <div key={`${member.role}-${member.name}`}>
+                            <dt>{member.role}</dt>
+                            <dd>{member.name}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                selectedFragment.description.map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))
+              )}
             </div>
           </article>
         ) : null}
