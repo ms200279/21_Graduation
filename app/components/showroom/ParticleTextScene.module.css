@@ -1,0 +1,188 @@
+.scene {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  min-height: 32rem;
+  overflow: hidden;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.inputWrap {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  bottom: clamp(2.25rem, 7vh, 5rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 32rem) minmax(0, 1fr);
+  align-items: end;
+  gap: 2rem;
+  width: min(72rem, calc(100vw - 4rem));
+  opacity: 0;
+  filter: blur(8px);
+  pointer-events: none;
+  transform: translate3d(-50%, 14px, 0);
+  transition:
+    opacity 560ms ease,
+    filter 560ms ease,
+    transform 560ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.inputWrapVisible {
+  opacity: 1;
+  filter: blur(0);
+  pointer-events: auto;
+  transform: translate3d(-50%, 0, 0);
+}
+
+.inputForm {
+  grid-column: 2;
+  width: 100%;
+}
+
+.inputGuide {
+  grid-column: 3;
+  margin: 0 0 0.7rem;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.55;
+  letter-spacing: 0;
+}
+
+.inputGuide p {
+  margin: 0;
+}
+
+.particleDescription {
+  position: absolute;
+  z-index: 1;
+  top: 57%;
+  right: clamp(2rem, 6vw, 7rem);
+  display: grid;
+  gap: 0.45rem;
+  width: min(22rem, 28vw);
+  animation: sense-description-in 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.particleDescription strong {
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.particleDescription span {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.particleDescription p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+@keyframes sense-description-in {
+  from {
+    opacity: 0;
+    filter: blur(7px);
+    transform: translate3d(0, 12px, 0);
+  }
+
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.input {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 0;
+  outline: 0;
+  background: transparent;
+  padding: 0.65rem 0.25rem 0.75rem;
+  color: #ffffff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-align: center;
+  letter-spacing: 0;
+  caret-color: #ffffff;
+  transition: border-color 220ms ease;
+}
+
+.input:hover,
+.input:focus-visible {
+  border-bottom-color: rgba(255, 255, 255, 0.9);
+}
+
+@media (max-width: 767px) {
+  .scene {
+    min-height: 28rem;
+  }
+
+  .inputWrap {
+    bottom: max(2rem, env(safe-area-inset-bottom));
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.9rem;
+    width: min(32rem, calc(100vw - 3rem));
+  }
+
+  .inputForm,
+  .inputGuide {
+    grid-column: 1;
+  }
+
+  .inputGuide {
+    margin: 0;
+    text-align: center;
+  }
+
+  .particleDescription {
+    top: 57%;
+    right: 1.5rem;
+    left: 1.5rem;
+    width: auto;
+    text-align: center;
+  }
+
+  .particleDescription strong {
+    font-size: 1.0625rem;
+  }
+
+  .particleDescription span {
+    font-size: 0.9375rem;
+  }
+
+  .particleDescription p {
+    font-size: 0.875rem;
+  }
+
+  .input {
+    font-size: 0.9375rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inputWrap {
+    filter: none;
+    transform: translate3d(-50%, 0, 0);
+    transition: opacity 200ms ease;
+  }
+
+  .particleDescription {
+    animation: none;
+  }
+}

@@ -20,8 +20,8 @@ export default function LandingFooter() {
             src={TYPO_LOGO_PATH}
             alt=""
             aria-hidden="true"
-            width={133}
-            height={31}
+            width={1874}
+            height={401}
             unoptimized
             className="landing-footer__logo"
           />

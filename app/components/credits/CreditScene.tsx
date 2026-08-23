@@ -25,7 +25,13 @@ type CreditSceneProps = {
 
 const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
 const SCENE_TRANSITION_DURATION_MS = 920;
-const navyColor = new THREE.Color("#203c60");
+const CREDIT_FRAGMENT_TEXTURE_PATHS: Record<CreditFragmentId, string> = {
+  "01": "/images/cti1.png",
+  "02": "/images/cti2.png",
+  "03": "/images/cti3.png",
+  "04": "/images/cti4.png",
+  "05": "/images/cti5.png",
+};
 const PANEL_DEPTH = 0.12;
 const PANEL_BEVEL_SIZE = 0.025;
 const PANEL_BEVEL_THICKNESS = 0.018;
@@ -321,6 +327,33 @@ function createCreditFragmentGeometry(points: readonly FragmentPoint[]) {
 
   geometry.translate(0, 0, -PANEL_DEPTH / 2);
   geometry.computeVertexNormals();
+  geometry.computeBoundingBox();
+
+  const bounds = geometry.boundingBox;
+  const positions = geometry.getAttribute("position");
+  const uvs = geometry.getAttribute("uv");
+
+  if (bounds && uvs) {
+    const width = Math.max(bounds.max.x - bounds.min.x, Number.EPSILON);
+    const height = Math.max(bounds.max.y - bounds.min.y, Number.EPSILON);
+    const fragmentAspect = width / height;
+    const imageAspect = 16 / 9;
+    const uScale = fragmentAspect < imageAspect ? fragmentAspect / imageAspect : 1;
+    const vScale = fragmentAspect > imageAspect ? imageAspect / fragmentAspect : 1;
+
+    for (let index = 0; index < positions.count; index += 1) {
+      const normalizedX = (positions.getX(index) - bounds.min.x) / width;
+      const normalizedY = (positions.getY(index) - bounds.min.y) / height;
+
+      uvs.setXY(
+        index,
+        0.5 + (normalizedX - 0.5) * uScale,
+        0.5 + (normalizedY - 0.5) * vScale,
+      );
+    }
+
+    uvs.needsUpdate = true;
+  }
 
   return geometry;
 }
@@ -331,6 +364,7 @@ function createFragment(
   backgroundTexture: THREE.Texture,
   liquidResolution: THREE.Vector2,
   liquidCoverTransform: THREE.Vector4,
+  fragmentTexture: THREE.Texture,
 ) {
   const polygon = CREDIT_FRAGMENT_POLYGONS[CREDIT_GEOMETRY_MAP[data.id]];
   const geometry = createCreditFragmentGeometry(polygon);
@@ -357,25 +391,26 @@ function createFragment(
   }
 
   const material = new THREE.MeshPhysicalMaterial({
-    color: navyColor.clone(),
-    emissive: navyColor,
-    emissiveIntensity: 0.01,
-    roughness: 0.12,
+    color: new THREE.Color("#ffffff"),
+    map: fragmentTexture,
+    emissive: new THREE.Color("#000000"),
+    emissiveIntensity: 0,
+    roughness: 0.22,
     metalness: 0,
-    transmission: 0.86,
-    thickness: 0.62,
+    transmission: 0.34,
+    thickness: 0.38,
     ior: 1.42,
-    clearcoat: 0.46,
-    clearcoatRoughness: 0.14,
-    specularIntensity: 0.68,
+    clearcoat: 0.18,
+    clearcoatRoughness: 0.24,
+    specularIntensity: 0.07,
     specularColor: new THREE.Color("#ffffff"),
-    attenuationColor: navyColor.clone(),
+    attenuationColor: new THREE.Color("#ffffff"),
     attenuationDistance: 3.6,
-    envMapIntensity: 0.58,
+    envMapIntensity: 0.05,
     bumpMap: liquidSurfaceTexture,
     bumpScale: 0.045 + data.seed * 0.002,
     transparent: true,
-    opacity: 0.74,
+    opacity: 0.76,
     depthWrite: false,
     side: THREE.FrontSide,
   });
@@ -385,6 +420,7 @@ function createFragment(
     coverTransform: { value: liquidCoverTransform },
     time: { value: 0 },
     hover: { value: 0 },
+    colorAmount: { value: 0 },
     seed: { value: data.seed },
   };
 
@@ -394,6 +430,7 @@ function createFragment(
     shader.uniforms.uLiquidCoverTransform = liquidUniforms.coverTransform;
     shader.uniforms.uLiquidTime = liquidUniforms.time;
     shader.uniforms.uLiquidHover = liquidUniforms.hover;
+    shader.uniforms.uLiquidColorAmount = liquidUniforms.colorAmount;
     shader.uniforms.uLiquidSeed = liquidUniforms.seed;
     shader.fragmentShader = shader.fragmentShader
       .replace(
@@ -403,6 +440,7 @@ uniform vec2 uLiquidResolution;
 uniform vec4 uLiquidCoverTransform;
 uniform float uLiquidTime;
 uniform float uLiquidHover;
+uniform float uLiquidColorAmount;
 uniform float uLiquidSeed;
 
 vec3 sampleLiquidBackdrop(vec2 screenUv, vec2 offset) {
@@ -426,32 +464,67 @@ vec2 liquidFlow = vec2(
     cos((liquidScreenUv.x - liquidScreenUv.y) * 17.0 + liquidPhase * 0.58)
 ) * 0.5;
 float liquidEdge = pow(1.0 - clamp(abs(normal.z), 0.0, 1.0), 1.35);
-vec2 liquidDistortion = liquidFlow * (0.0065 + uLiquidHover * 0.0035) +
-  normal.xy * (0.014 + liquidEdge * 0.012 + uLiquidHover * 0.006);
-float liquidBlur = 0.0012 + liquidEdge * 0.0018;
-vec3 liquidRefracted = sampleLiquidBackdrop(liquidScreenUv, liquidDistortion) * 0.44;
-liquidRefracted += sampleLiquidBackdrop(
-  liquidScreenUv,
-  liquidDistortion + vec2(liquidBlur, 0.0)
-) * 0.14;
-liquidRefracted += sampleLiquidBackdrop(
-  liquidScreenUv,
-  liquidDistortion - vec2(liquidBlur, 0.0)
-) * 0.14;
-liquidRefracted += sampleLiquidBackdrop(
-  liquidScreenUv,
-  liquidDistortion + vec2(0.0, liquidBlur)
-) * 0.14;
-liquidRefracted += sampleLiquidBackdrop(
-  liquidScreenUv,
-  liquidDistortion - vec2(0.0, liquidBlur)
-) * 0.14;
-liquidRefracted = mix(liquidRefracted, vec3(0.125, 0.235, 0.376), 0.2);
-float liquidMix = clamp(0.58 + liquidEdge * 0.24 + uLiquidHover * 0.08, 0.0, 0.9);
-gl_FragColor.rgb = mix(gl_FragColor.rgb, liquidRefracted, liquidMix);`,
+vec2 liquidDistortion = (
+  liquidFlow * (0.005 + uLiquidHover * 0.0025) +
+  normal.xy * (0.016 + uLiquidHover * 0.007)
+) * liquidEdge;
+vec2 liquidChromaAxis = length(normal.xy) > 0.001
+  ? normalize(normal.xy)
+  : vec2(1.0, 0.0);
+float liquidChromaSpread = liquidEdge * (0.0035 + uLiquidHover * 0.0025);
+vec3 liquidRefracted = vec3(
+  sampleLiquidBackdrop(
+    liquidScreenUv,
+    liquidDistortion + liquidChromaAxis * liquidChromaSpread
+  ).r,
+  sampleLiquidBackdrop(liquidScreenUv, liquidDistortion).g,
+  sampleLiquidBackdrop(
+    liquidScreenUv,
+    liquidDistortion - liquidChromaAxis * liquidChromaSpread
+  ).b
+);
+liquidRefracted = mix(
+  liquidRefracted,
+  vec3(0.125, 0.235, 0.376),
+  0.07
+);
+float liquidMix = clamp(
+  liquidEdge * (0.46 + uLiquidHover * 0.16),
+  0.0,
+  0.68
+);
+#ifdef USE_MAP
+  vec2 liquidImageUv = clamp(
+    vMapUv + liquidDistortion * 0.32,
+    vec2(0.001),
+    vec2(0.999)
+  );
+  vec2 liquidImageChroma = liquidChromaAxis * liquidChromaSpread * 0.72;
+  vec3 liquidImageRefracted = vec3(
+    texture2D(map, clamp(liquidImageUv + liquidImageChroma, vec2(0.001), vec2(0.999))).r,
+    texture2D(map, liquidImageUv).g,
+    texture2D(map, clamp(liquidImageUv - liquidImageChroma, vec2(0.001), vec2(0.999))).b
+  );
+  float liquidImageMix = clamp(
+    liquidEdge * (0.42 + uLiquidHover * 0.14),
+    0.0,
+    0.58
+  );
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, liquidImageRefracted, liquidImageMix);
+#endif
+gl_FragColor.rgb = mix(gl_FragColor.rgb, liquidRefracted, liquidMix);
+float liquidLuminance = dot(
+  gl_FragColor.rgb,
+  vec3(0.2126, 0.7152, 0.0722)
+);
+gl_FragColor.rgb = mix(
+  vec3(liquidLuminance),
+  gl_FragColor.rgb,
+  uLiquidColorAmount
+);`,
       );
   };
-  material.customProgramCacheKey = () => "credits-liquid-glass-v1";
+  material.customProgramCacheKey = () => "credits-liquid-glass-v3";
   const mesh = new THREE.Mesh(geometry, material);
   const group = new THREE.Group();
   const hoverPivot = new THREE.Group();
@@ -666,6 +739,17 @@ export default function CreditScene({
     const scene = new THREE.Scene();
     const liquidSurfaceTexture = createLiquidSurfaceTexture();
     const backgroundTexture = createLiquidBackdropTexture();
+    const textureLoader = new THREE.TextureLoader();
+    const fragmentTextures = {} as Record<CreditFragmentId, THREE.Texture>;
+
+    creditFragments.forEach((fragment) => {
+      const texture = textureLoader.load(
+        CREDIT_FRAGMENT_TEXTURE_PATHS[fragment.id],
+      );
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+      fragmentTextures[fragment.id] = texture;
+    });
     const liquidResolution = new THREE.Vector2(1, 1);
     const liquidCoverTransform = new THREE.Vector4(1, 1, 0, 0);
     const roomEnvironment = new RoomEnvironment();
@@ -692,6 +776,7 @@ export default function CreditScene({
         backgroundTexture,
         liquidResolution,
         liquidCoverTransform,
+        fragmentTextures[fragment.id],
       ),
     );
     let animationFrame = 0;
@@ -802,14 +887,14 @@ export default function CreditScene({
     scene.fog = new THREE.Fog("#ffffff", 18, 32);
     sceneRoot.add(...fragments.map((fragment) => fragment.group));
 
-    const ambientLight = new THREE.AmbientLight("#ffffff", 0.72);
-    const keyLight = new THREE.DirectionalLight("#ffffff", 1.7);
-    const rimLight = new THREE.DirectionalLight("#dcecff", 0.9);
-    const fillLight = new THREE.PointLight("#f5f9ff", 0.4, 8);
+    const ambientLight = new THREE.AmbientLight("#ffffff", 0.44);
+    const keyLight = new THREE.DirectionalLight("#ffffff", 0.18);
+    const rimLight = new THREE.DirectionalLight("#dcecff", 0.07);
+    const fillLight = new THREE.PointLight("#f5f9ff", 0.03, 8);
 
-    keyLight.position.set(-2.8, 3.4, 5.2);
-    rimLight.position.set(3.4, 1.8, -2.8);
-    fillLight.position.set(1.9, -1.2, 3.4);
+    keyLight.position.set(-4.8, 1.2, 4.4);
+    rimLight.position.set(4.2, -0.4, -3.2);
+    fillLight.position.set(2.6, -1.8, 3.2);
     scene.add(ambientLight, keyLight, rimLight, fillLight);
 
     resize();
@@ -896,17 +981,15 @@ export default function CreditScene({
         const targetPosition = fragment.targetPosition;
         const targetRotation = fragment.targetRotation;
         let targetScale = fragment.data.scale;
-        let targetOpacity = 0.72;
+        let targetOpacity = 0.76;
         let targetLabelOpacity = 0.82;
-        let targetEmissive = isHovered ? 0.068 : 0.012;
 
         if (isSelectedMode && isSelected) {
           setSelectedTarget(targetPosition, fragment, isMobile);
           targetScale =
             fragment.data.selectedScale * (isMobile ? 0.58 : 0.72);
-          targetOpacity = 0.8;
+          targetOpacity = 0.82;
           targetLabelOpacity = 0.88;
-          targetEmissive = 0.052;
           targetRotation.set(0.025, -0.025, 0.008);
         } else if (isSelectedMode) {
           setOffscreenTarget(targetPosition, fragment);
@@ -961,11 +1044,11 @@ export default function CreditScene({
         );
         const hoverTiltX =
           isHovered && !isSelectedMode && !reducedMotion
-            ? -pointerRef.current.y * 0.25
+            ? -pointerRef.current.y * 0.38
             : 0;
         const hoverTiltY =
           isHovered && !isSelectedMode && !reducedMotion
-            ? pointerRef.current.x * 0.3
+            ? pointerRef.current.x * 0.46
             : 0;
         fragment.hoverPivot.rotation.x = THREE.MathUtils.lerp(
           fragment.hoverPivot.rotation.x,
@@ -982,11 +1065,6 @@ export default function CreditScene({
           targetOpacity,
           damp,
         );
-        fragment.material.emissiveIntensity = THREE.MathUtils.lerp(
-          fragment.material.emissiveIntensity,
-          targetEmissive,
-          damp,
-        );
         if (fragment.label) {
           fragment.label.material.opacity = THREE.MathUtils.lerp(
             fragment.label.material.opacity,
@@ -998,6 +1076,20 @@ export default function CreditScene({
         fragment.liquidUniforms.hover.value = THREE.MathUtils.lerp(
           fragment.liquidUniforms.hover.value,
           isHovered && !isSelectedMode ? 1 : 0,
+          damp,
+        );
+        const targetColorAmount = isMobile
+          ? 1
+          : isSelectedMode
+            ? isSelected
+              ? 1
+              : 0
+            : isHovered
+              ? 1
+              : 0;
+        fragment.liquidUniforms.colorAmount.value = THREE.MathUtils.lerp(
+          fragment.liquidUniforms.colorAmount.value,
+          targetColorAmount,
           damp,
         );
       });
@@ -1044,6 +1136,7 @@ export default function CreditScene({
       scene.background = null;
       liquidSurfaceTexture.dispose();
       backgroundTexture.dispose();
+      Object.values(fragmentTextures).forEach((texture) => texture.dispose());
       environmentMap.dispose();
       pmremGenerator.dispose();
       renderer.dispose();

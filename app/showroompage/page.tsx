@@ -1,3 +1,5 @@
+import ParticleTextScene from "../components/showroom/ParticleTextScene";
+
 export default function ShowroomPage() {
-  return <main className="min-h-screen" />;
+  return <ParticleTextScene />;
 }

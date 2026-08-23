@@ -35,6 +35,8 @@ function readCopyAlignedLeft() {
 export default function TypoLogoButton() {
   const pathname = usePathname();
   const router = useRouter();
+  const isShowroomPage =
+    pathname === "/showroompage" || pathname.startsWith("/showroompage/");
   const isMobileHeaderExpanded = useSyncExternalStore(
     subscribeToMobileHeaderExpanded,
     getMobileHeaderExpandedSnapshot,
@@ -95,6 +97,7 @@ export default function TypoLogoButton() {
       className={[
         "typo-logo-button desktop-header",
         isMobileHeaderExpanded ? "typo-logo-button--blurred" : "",
+        isShowroomPage ? "typo-logo-button--showroom" : "",
         "flex items-center justify-start",
         "touch-manipulation focus-visible:outline focus-visible:outline-2",
         "focus-visible:outline-offset-4 focus-visible:outline-black",
@@ -109,10 +112,12 @@ export default function TypoLogoButton() {
         src={typoLogoPath}
         alt=""
         aria-hidden="true"
-        width={133}
-        height={31}
+        width={1874}
+        height={401}
+        loading="eager"
         unoptimized
-        className="object-contain object-left"
+        className="object-contain object-left transition-[filter] duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
+        style={isShowroomPage ? { filter: "brightness(0) invert(1)" } : undefined}
       />
     </button>
   );

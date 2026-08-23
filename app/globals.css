@@ -311,6 +311,10 @@ body.landing-fullpage-active {
     0 10px 32px rgba(0, 0, 0, 0.11);
 }
 
+.landing-header-orb.liquid-glass-surface {
+  background: rgba(250, 252, 255, 0.08);
+}
+
 @media (min-width: 768px) {
   .landing-hero {
     --landing-hero-action-height: 40px;
@@ -402,6 +406,33 @@ body.landing-fullpage-active {
   );
   transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
+}
+
+.site-page-shell-frame {
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+}
+
+.site-page-shell-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--color-systemBlack);
+  opacity: 0;
+  transition: opacity 700ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: opacity;
+}
+
+.site-page-shell-frame--showroom .site-page-shell-backdrop {
+  opacity: 1;
+}
+
+.site-page-shell-content {
+  position: relative;
+  z-index: 1;
+  min-height: inherit;
 }
 
 .site-page-shell {
@@ -685,7 +716,7 @@ body.landing-fullpage-active {
   --typo-logo-viewport-top: 16px;
   --typo-logo-block-height: 44px;
   --typo-logo-height: calc(var(--typo-logo-block-height) * 0.5);
-  --typo-logo-width: calc(var(--typo-logo-height) * 133.2 / 30.75);
+  --typo-logo-width: calc(var(--typo-logo-height) * 1873.95 / 400.98);
   position: fixed;
   z-index: 40;
   height: var(--typo-logo-height);
@@ -711,11 +742,16 @@ body.landing-fullpage-active {
   object-position: left center;
 }
 
+.typo-logo-button--showroom:focus-visible {
+  outline-color: #ffffff;
+}
+
 @media (max-width: 767px) {
   .typo-logo-button.typo-logo-button--blurred {
     filter: blur(8px);
     opacity: 0.55;
   }
+
 }
 
 @media (min-width: 768px) {
@@ -723,6 +759,6 @@ body.landing-fullpage-active {
     --typo-logo-viewport-top: 10px;
     --typo-logo-block-height: var(--header-height);
     --typo-logo-height: calc(var(--header-height) * 0.5);
-    --typo-logo-width: calc(var(--typo-logo-height) * 133.2 / 30.75);
+    --typo-logo-width: calc(var(--typo-logo-height) * 1873.95 / 400.98);
   }
 }
