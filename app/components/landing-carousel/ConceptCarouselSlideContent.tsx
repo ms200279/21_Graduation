@@ -5,7 +5,7 @@ import { memo } from "react";
 import SymbolCarouselIcons from "./SymbolCarouselIcons";
 import type { LandingCarouselSlide } from "./slides";
 
-const TYPO_HEADING_WIDTH = 266;
+const TYPO_HEADING_WIDTH = 290;
 const TYPO_HEADING_HEIGHT = 62;
 
 type ConceptCarouselSlideContentProps = {
@@ -28,6 +28,7 @@ function ConceptCarouselSlideContent({
             aria-hidden="true"
             width={TYPO_HEADING_WIDTH}
             height={TYPO_HEADING_HEIGHT}
+            loading={slide.id === "typography" ? "eager" : "lazy"}
             unoptimized
             className="landing-carousel__slide-heading-image"
           />
