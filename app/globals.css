@@ -15,6 +15,15 @@ body {
 
 body {
   color: var(--color-systemBlack);
+  font-family: var(--font-pretendard), "Pretendard", sans-serif;
+  font-synthesis: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
 html {

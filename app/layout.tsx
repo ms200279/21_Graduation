@@ -24,8 +24,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${pretendard.variable} font-sans antialiased`}>
+    <html lang="ko">
+      <body
+        className={`${pretendard.className} ${pretendard.variable} antialiased`}
+      >
         <TypoLogoButton />
         <Header />
         <SitePageShell>{children}</SitePageShell>

@@ -296,6 +296,8 @@ export default function ParticleTextScene() {
     let hasStarted = false;
     let currentText = INITIAL_TEXT;
     let textBounds: TextBounds | null = null;
+    let fontsReady = false;
+    let isDisposed = false;
     const pointer = {
       x: 0,
       y: 0,
@@ -304,7 +306,7 @@ export default function ParticleTextScene() {
       lastMovedAt: 0,
       active: false,
     };
-    const fontFamily = window.getComputedStyle(document.body).fontFamily;
+    let fontFamily = window.getComputedStyle(document.body).fontFamily;
 
     const resizeCanvas = () => {
       const rect = canvas.getBoundingClientRect();
@@ -319,12 +321,17 @@ export default function ParticleTextScene() {
       sampleCanvas.height = height;
 
       if (hasStarted) {
-        morphTextRef.current(currentText, reducedMotionQuery.matches);
+        morphTextRef.current(currentText, false);
       }
     };
 
     const morphText = (text: string, immediate = false) => {
       currentText = text;
+
+      if (!fontsReady) {
+        return;
+      }
+
       const targets = shufflePoints(
         text === "해파리"
           ? sampleJellyfishPixels(sampleContext, width, height)
@@ -392,8 +399,32 @@ export default function ParticleTextScene() {
 
     morphTextRef.current = morphText;
 
+    const prepareFont = async () => {
+      fontFamily = window.getComputedStyle(document.body).fontFamily;
+
+      try {
+        await document.fonts.load(`600 16px ${fontFamily}`, "가Aa");
+        await document.fonts.ready;
+      } catch {
+        // Keep the scene usable if the bundled font cannot be loaded.
+      } finally {
+        if (isDisposed) {
+          return;
+        }
+
+        fontsReady = true;
+        fontFamily = window.getComputedStyle(document.body).fontFamily;
+
+        if (hasStarted) {
+          morphText(currentText, false);
+        }
+      }
+    };
+
+    void prepareFont();
+
     const handlePointerMove = (event: PointerEvent) => {
-      if (event.pointerType === "touch" || reducedMotionQuery.matches) {
+      if (event.pointerType === "touch") {
         return;
       }
 
@@ -434,51 +465,62 @@ export default function ParticleTextScene() {
       const pointerIsMoving =
         pointer.active && performance.now() - pointer.lastMovedAt < 90;
       const animationTime = performance.now() * 0.018;
+      const motionScale = reducedMotionQuery.matches ? 0.4 : 1;
 
       particles.forEach((particle) => {
-        if (!reducedMotionQuery.matches) {
-          particle.velocityX += (particle.targetX - particle.x) * 0.014;
-          particle.velocityY += (particle.targetY - particle.y) * 0.014;
+        particle.velocityX +=
+          (particle.targetX - particle.x) *
+          0.014 *
+          (0.65 + motionScale * 0.35);
+        particle.velocityY +=
+          (particle.targetY - particle.y) *
+          0.014 *
+          (0.65 + motionScale * 0.35);
 
-          if (pointerIsMoving) {
-            const deltaX = particle.x - pointer.x;
-            const deltaY = particle.y - pointer.y;
-            const distanceSquared = deltaX * deltaX + deltaY * deltaY;
-            const influenceRadius = 45;
+        if (pointerIsMoving) {
+          const deltaX = particle.x - pointer.x;
+          const deltaY = particle.y - pointer.y;
+          const distanceSquared = deltaX * deltaX + deltaY * deltaY;
+          const influenceRadius = 45;
 
-            if (
-              distanceSquared > 0 &&
-              distanceSquared < influenceRadius * influenceRadius
-            ) {
-              const distance = Math.sqrt(distanceSquared);
-              const influence = 1 - distance / influenceRadius;
-              const pointerSpeed = Math.min(
-                1,
-                Math.hypot(pointer.velocityX, pointer.velocityY) / 14,
-              );
-              const particleDirection = Math.sin(particle.phase + animationTime);
-              const tangentX = -deltaY / distance;
-              const tangentY = deltaX / distance;
+          if (
+            distanceSquared > 0 &&
+            distanceSquared < influenceRadius * influenceRadius
+          ) {
+            const distance = Math.sqrt(distanceSquared);
+            const influence = 1 - distance / influenceRadius;
+            const pointerSpeed = Math.min(
+              1,
+              Math.hypot(pointer.velocityX, pointer.velocityY) / 14,
+            );
+            const particleDirection = Math.sin(particle.phase + animationTime);
+            const tangentX = -deltaY / distance;
+            const tangentY = deltaX / distance;
 
-              particle.velocityX +=
-                pointer.velocityX * influence * 0.01 +
-                tangentX * particleDirection * influence * pointerSpeed * 2;
-              particle.velocityY +=
-                pointer.velocityY * influence * 0.01 +
-                tangentY * particleDirection * influence * pointerSpeed * 2;
-            }
+            particle.velocityX +=
+              pointer.velocityX * influence * 0.01 * motionScale +
+              tangentX *
+                particleDirection *
+                influence *
+                pointerSpeed *
+                2 *
+                motionScale;
+            particle.velocityY +=
+              pointer.velocityY * influence * 0.01 * motionScale +
+              tangentY *
+                particleDirection *
+                influence *
+                pointerSpeed *
+                2 *
+                motionScale;
           }
-
-          particle.velocityX *= 0.76;
-          particle.velocityY *= 0.76;
-          particle.x += particle.velocityX;
-          particle.y += particle.velocityY;
-          particle.alpha += (particle.targetAlpha - particle.alpha) * 0.045;
-        } else {
-          particle.x = particle.targetX;
-          particle.y = particle.targetY;
-          particle.alpha = particle.targetAlpha;
         }
+
+        particle.velocityX *= 0.76;
+        particle.velocityY *= 0.76;
+        particle.x += particle.velocityX;
+        particle.y += particle.velocityY;
+        particle.alpha += (particle.targetAlpha - particle.alpha) * 0.045;
 
         if (particle.alpha < 0.01) {
           return;
@@ -501,7 +543,7 @@ export default function ParticleTextScene() {
 
     const introTimer = window.setTimeout(() => {
       hasStarted = true;
-      morphText(INITIAL_TEXT, reducedMotionQuery.matches);
+      morphText(INITIAL_TEXT, false);
     }, BACKGROUND_TRANSITION_MS);
 
     const inputTimer = window.setTimeout(
@@ -516,6 +558,7 @@ export default function ParticleTextScene() {
     resizeObserver.observe(canvas);
 
     return () => {
+      isDisposed = true;
       window.clearTimeout(introTimer);
       window.clearTimeout(inputTimer);
       window.cancelAnimationFrame(animationFrame);
