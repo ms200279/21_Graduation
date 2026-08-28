@@ -538,12 +538,3 @@
   letter-spacing: -0.01em;
   opacity: 0.82;
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .people-carousel-card-entry--animated,
-  .people-carousel-card-entry--deferred {
-    left: 0;
-    opacity: 1;
-    transition: none;
-  }
-}
