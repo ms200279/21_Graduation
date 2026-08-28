@@ -2,6 +2,7 @@
   --projects-cylinder-card-width: clamp(212px, 19.5vw, 316px);
   --projects-cylinder-gap: clamp(0.875rem, 1.55vw, 1.625rem);
   --projects-cylinder-shadow-room: clamp(1.75rem, 4vh, 3rem);
+  --projects-cylinder-desktop-lift: 0rem;
   display: flex;
   min-height: calc(100dvh - var(--header-height, 46px));
   width: 100%;
@@ -9,7 +10,10 @@
   justify-content: flex-end;
   gap: clamp(0rem, 0.15vh, 0.125rem);
   padding: clamp(2.25rem, 6vh, 4rem) clamp(1rem, 3vw, 2rem)
-    calc(var(--projects-cylinder-shadow-room) + 0.75rem);
+    calc(
+      var(--projects-cylinder-shadow-room) + 0.75rem +
+        var(--projects-cylinder-desktop-lift)
+    );
   box-sizing: border-box;
   overflow: visible;
   overscroll-behavior: contain;
@@ -166,6 +170,16 @@
   font-size: clamp(1rem, 1.7vw, 1.625rem);
   font-weight: 600;
   line-height: 1;
+}
+
+@media (min-width: 1024px) {
+  .projects-cylinder-gallery {
+    --projects-cylinder-desktop-lift: clamp(
+      0rem,
+      calc(50dvh - 25rem),
+      7.5rem
+    );
+  }
 }
 
 @media (max-width: 1023px) {

@@ -58,7 +58,7 @@ const movingLabelClassName = [
   "pointer-events-none absolute left-1/2 top-1/2 z-10 leading-none font-bold text-systemNavy",
   "transition-[color,transform]",
   transitionEaseClassName,
-  "text-[14px] md:text-[18px] lg:text-[20px]",
+  "text-[14px] md:text-[20px]",
 ].join(" ");
 
 const siteLogoIconPath = "/icons/symbol.svg";
@@ -1331,7 +1331,7 @@ export default function Header() {
           <span
             className={[
               "pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2",
-              `text-[18px] font-bold leading-none transition-[color,transform] lg:text-[20px] ${isShowroomPage ? "text-white" : "text-systemNavy"}`,
+              `text-[20px] font-bold leading-none transition-[color,transform] ${isShowroomPage ? "text-white" : "text-systemNavy"}`,
               transitionEaseClassName,
               "md:group-hover:translate-x-[calc(-50%+var(--current-label-offset))]",
             ].join(" ")}
@@ -1375,7 +1375,7 @@ export default function Header() {
                 "max-lg:w-full lg:w-auto text-center leading-none touch-manipulation",
                 "transition-[color,opacity,transform,text-shadow]",
                 transitionEaseClassName,
-                "text-[14px] md:text-[18px] lg:text-[20px]",
+                "text-[14px] md:text-[20px]",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
                 isNavItemPath(item.href, pathname)
                   ? isShowroomPage
