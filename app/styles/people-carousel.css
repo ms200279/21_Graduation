@@ -1,5 +1,6 @@
 .people-page {
   --people-category-filter-top: calc(100vh / 6);
+  --people-carousel-desktop-lift: 0rem;
   min-height: 100dvh;
 }
 
@@ -174,7 +175,15 @@
   justify-content: flex-end;
   perspective-origin: 46% 54%;
   padding-top: clamp(0.5rem, 2vh, 1.25rem);
-  padding-bottom: clamp(3rem, 10vh, 5rem);
+  padding-bottom: calc(
+    clamp(3rem, 10vh, 5rem) + var(--people-carousel-desktop-lift)
+  );
+}
+
+@media (min-width: 1024px) {
+  .people-page {
+    --people-carousel-desktop-lift: clamp(0rem, calc(50dvh - 25rem), 7.5rem);
+  }
 }
 
 .people-carousel-zone-hit {
