@@ -172,6 +172,12 @@
   line-height: 1;
 }
 
+@media (min-width: 1536px) {
+  .projects-grid-gallery {
+    --projects-cylinder-card-width: clamp(360px, 23.5vw, 376px);
+  }
+}
+
 @media (min-width: 1024px) {
   .projects-cylinder-gallery {
     --projects-cylinder-desktop-lift: clamp(

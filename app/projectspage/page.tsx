@@ -95,7 +95,7 @@ export default function ProjectsPage() {
   const [viewMode, setViewMode] = useState<ProjectsViewMode>("cylinder");
 
   return (
-    <main className="projects-page mx-auto min-h-screen max-w-6xl bg-white">
+    <main className="projects-page mx-auto min-h-screen max-w-6xl bg-white 2xl:max-w-[100rem]">
       <ProjectsCategoryFilter
         isSticky={viewMode === "cylinder"}
         actionSlot={
