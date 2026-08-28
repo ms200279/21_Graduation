@@ -54,6 +54,7 @@ function getNearestSnapSection(scrollTop: number, offsets: number[]) {
 }
 
 const SCROLL_LOCK_MS = 500;
+const SECTION_SCROLL_DURATION_MS = 720;
 const FOOTER_REVEAL_MS = 420;
 const WHEEL_DELTA_THRESHOLD = 50;
 const TOUCH_SWIPE_THRESHOLD = 56;
@@ -319,6 +320,27 @@ export default function LandingScrollExperience({
       scrollLockedUntilRef.current = performance.now() + POST_SETTLE_LOCK_MS;
     };
 
+    let sectionScrollAnimationFrame = 0;
+    let previousScrollSnapType: string | null = null;
+
+    const restoreScrollSnap = () => {
+      if (previousScrollSnapType === null) {
+        return;
+      }
+
+      container.style.scrollSnapType = previousScrollSnapType;
+      previousScrollSnapType = null;
+    };
+
+    const cancelSectionScrollAnimation = () => {
+      if (sectionScrollAnimationFrame) {
+        cancelAnimationFrame(sectionScrollAnimationFrame);
+        sectionScrollAnimationFrame = 0;
+      }
+
+      restoreScrollSnap();
+    };
+
     const updateProgress = () => {
       const viewportHeight = container.clientHeight;
 
@@ -422,12 +444,54 @@ export default function LandingScrollExperience({
       isAnimatingRef.current = true;
       wheelGestureConsumedRef.current = true;
       touchGestureConsumedRef.current = true;
-      armScrollLock();
+      armScrollLock(SECTION_SCROLL_DURATION_MS + POST_SETTLE_LOCK_MS);
 
-      container.scrollTo({
-        top: getSnapOffsets(viewportHeight)[targetSection] ?? 0,
-        behavior,
-      });
+      const targetTop = getSnapOffsets(viewportHeight)[targetSection] ?? 0;
+      cancelSectionScrollAnimation();
+
+      if (behavior !== "smooth") {
+        container.scrollTo({ top: targetTop, behavior: "auto" });
+        return;
+      }
+
+      const startTop = container.scrollTop;
+      const distance = targetTop - startTop;
+
+      if (Math.abs(distance) < 1) {
+        container.scrollTop = targetTop;
+        handleScrollEnd();
+        return;
+      }
+
+      const startedAt = performance.now();
+      previousScrollSnapType = container.style.scrollSnapType;
+      container.style.scrollSnapType = "none";
+
+      const animateSectionScroll = (timestamp: number) => {
+        const progress = clamp(
+          (timestamp - startedAt) / SECTION_SCROLL_DURATION_MS,
+          0,
+          1,
+        );
+        const easedProgress =
+          progress < 0.5
+            ? 4 * progress * progress * progress
+            : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+        container.scrollTop = startTop + distance * easedProgress;
+
+        if (progress < 1) {
+          sectionScrollAnimationFrame = requestAnimationFrame(animateSectionScroll);
+          return;
+        }
+
+        sectionScrollAnimationFrame = 0;
+        restoreScrollSnap();
+        container.scrollTop = targetTop;
+        handleScrollEnd();
+      };
+
+      sectionScrollAnimationFrame = requestAnimationFrame(animateSectionScroll);
     };
 
     const scheduleProgressUpdate = () => {
@@ -620,6 +684,8 @@ export default function LandingScrollExperience({
       if (progressRafRef.current) {
         cancelAnimationFrame(progressRafRef.current);
       }
+
+      cancelSectionScrollAnimation();
 
       if (resizeRaf) {
         cancelAnimationFrame(resizeRaf);

@@ -183,6 +183,6 @@
   }
 
   .particleDescription {
-    animation: none;
+    animation-duration: 260ms;
   }
 }
