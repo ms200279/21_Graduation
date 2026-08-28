@@ -33,6 +33,8 @@ const CARD_GAP_PX = 0;
 const SCROLL_VH_PER_CARD = 12;
 const SNAP_DURATION_MS = 420;
 const SNAP_POSITION_TOLERANCE_PX = 4;
+const DISCRETE_WHEEL_DELTA_THRESHOLD_PX = 40;
+const WHEEL_GESTURE_RELEASE_MS = 120;
 /** Max distance (in member units) from a snap point to count as "in zone". */
 const ZONE_SNAP_THRESHOLD = 0.45;
 /** Last-member scroll fraction required before #99 zone snap (keeps #98 stable). */
@@ -322,6 +324,34 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+function normalizeWheelDelta(event: WheelEvent, delta: number) {
+  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+    return delta * 16;
+  }
+
+  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+    return delta * window.innerHeight;
+  }
+
+  return delta;
+}
+
+function isLikelyDiscreteMouseWheel(
+  event: WheelEvent,
+  deltaX: number,
+  deltaY: number,
+) {
+  if (event.deltaMode !== WheelEvent.DOM_DELTA_PIXEL) {
+    return true;
+  }
+
+  return (
+    Math.abs(deltaX) < 1 &&
+    Math.abs(deltaY) >= DISCRETE_WHEEL_DELTA_THRESHOLD_PX &&
+    Number.isInteger(event.deltaY)
+  );
+}
+
 function easeOutBack(t: number, overshoot = SNAP_EASE_OVERSHOOT) {
   const c3 = overshoot + 1;
 
@@ -443,6 +473,10 @@ export default function PeopleRotatingCarousel({
   const isClampingScrollRef = useRef(false);
   const isSnapAnimatingRef = useRef(false);
   const snapAnimFrameRef = useRef<number | null>(null);
+  const wheelGestureConsumedRef = useRef(false);
+  const wheelGestureReleaseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const carouselScrollIdleRef = useRef(true);
   const lastFooterHandoffWheelScrollYRef = useRef<number | null>(null);
   const programmaticStepRef = useRef(false);
@@ -588,12 +622,6 @@ export default function PeopleRotatingCarousel({
     let settleTimer: number | null = null;
 
     enterFrame = window.requestAnimationFrame(() => {
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        setEntryPhase("complete");
-        measureFrame = window.requestAnimationFrame(updateZoneHitRect);
-        return;
-      }
-
       settleFrame = window.requestAnimationFrame(() => {
         setEntryPhase("entering");
         settleTimer = window.setTimeout(() => {
@@ -1578,12 +1606,8 @@ export default function PeopleRotatingCarousel({
   );
 
   useEffect(() => {
-    const onWheel = () => {
-      if (
-        isPeopleCarouselScrollLockedByFooter() ||
-        isSnapAnimatingRef.current ||
-        expandedCard
-      ) {
+    const onWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || expandedCard) {
         return;
       }
 
@@ -1599,14 +1623,66 @@ export default function PeopleRotatingCarousel({
         return;
       }
 
-      const oneCardPx = loopHeight / (items.length - 1);
-      const handoffApproachY = trackTop + loopHeight - oneCardPx * 2;
+      const carouselEndY = trackTop + loopHeight;
+      const isWithinCarousel =
+        window.scrollY >= trackTop - SNAP_POSITION_TOLERANCE_PX &&
+        window.scrollY <= carouselEndY + SNAP_POSITION_TOLERANCE_PX;
 
-      if (window.scrollY < handoffApproachY) {
+      if (!isWithinCarousel) {
         return;
       }
 
-      lastFooterHandoffWheelScrollYRef.current = window.scrollY;
+      const deltaX = normalizeWheelDelta(event, event.deltaX);
+      const deltaY = normalizeWheelDelta(event, event.deltaY);
+
+      if (!isLikelyDiscreteMouseWheel(event, deltaX, deltaY)) {
+        const oneCardPx = loopHeight / (items.length - 1);
+        const handoffApproachY = carouselEndY - oneCardPx * 2;
+
+        if (window.scrollY >= handoffApproachY) {
+          lastFooterHandoffWheelScrollYRef.current = window.scrollY;
+        }
+
+        return;
+      }
+
+      if (wheelGestureReleaseTimerRef.current !== null) {
+        clearTimeout(wheelGestureReleaseTimerRef.current);
+      }
+
+      wheelGestureReleaseTimerRef.current = setTimeout(() => {
+        wheelGestureReleaseTimerRef.current = null;
+        wheelGestureConsumedRef.current = false;
+      }, WHEEL_GESTURE_RELEASE_MS);
+
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const direction: -1 | 1 = deltaY > 0 ? 1 : -1;
+      const targetIndex = zoneItemIndex + direction;
+
+      if (targetIndex < 0) {
+        return;
+      }
+
+      if (targetIndex >= items.length) {
+        lastFooterHandoffWheelScrollYRef.current = window.scrollY;
+        return;
+      }
+
+      if (
+        isPeopleCarouselScrollLockedByFooter() ||
+        isSnapAnimatingRef.current ||
+        wheelGestureConsumedRef.current
+      ) {
+        return;
+      }
+
+      wheelGestureConsumedRef.current = true;
+      stepCarousel(direction);
     };
 
     const onScroll = () => {
@@ -1662,7 +1738,7 @@ export default function PeopleRotatingCarousel({
     const initFrame = requestAnimationFrame(() => {
       updateRotationFromScroll();
     });
-    window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("scrollend", onScrollEnd);
     window.addEventListener("resize", onScroll);
@@ -1683,6 +1759,13 @@ export default function PeopleRotatingCarousel({
       programmaticStepRef.current = false;
       programmaticTargetIndexRef.current = null;
       lastFooterHandoffWheelScrollYRef.current = null;
+      wheelGestureConsumedRef.current = false;
+
+      if (wheelGestureReleaseTimerRef.current !== null) {
+        clearTimeout(wheelGestureReleaseTimerRef.current);
+        wheelGestureReleaseTimerRef.current = null;
+      }
+
       cancelSnapAnimation();
     };
   }, [
@@ -1690,7 +1773,9 @@ export default function PeopleRotatingCarousel({
     expandedCard,
     items.length,
     snapToZoneCard,
+    stepCarousel,
     updateRotationFromScroll,
+    zoneItemIndex,
   ]);
 
   const visibleSlots = useMemo(() => {
