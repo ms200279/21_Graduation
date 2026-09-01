@@ -4,6 +4,7 @@ import { SITE_NAV_ITEMS } from "@/app/utils/siteNavigation";
 
 const TYPO_LOGO_PATH = "/icons/typo.svg?placement=footer";
 const INSTAGRAM_URL = "https://www.instagram.com/tukd_grad/";
+const YOUTUBE_URL = "https://www.youtube.com/@tukd_grad";
 
 export default function LandingFooter() {
   return (
@@ -28,6 +29,17 @@ export default function LandingFooter() {
               Instagram :{" "}
               <a
                 href={INSTAGRAM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="landing-footer__link"
+              >
+                @tukd_grad
+              </a>
+            </p>
+            <p className="landing-footer__links-item">
+              YouTube :{" "}
+              <a
+                href={YOUTUBE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="landing-footer__link"
