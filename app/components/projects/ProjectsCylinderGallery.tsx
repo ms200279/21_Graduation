@@ -9,22 +9,28 @@ import {
 } from "react";
 
 import "@/app/styles/projects-cylinder-gallery.css";
-
-const PROJECT_CARD_COUNT = 77;
-const ROW_CARD_COUNT = 12;
-const ROTATION_SPEED_DEG = 0.028;
-const WHEEL_ROTATION_SCALE = 0.045;
-const WHEEL_SNAP_DELAY_MS = 140;
-const SNAP_ANIMATION_MS = 360;
-const BUTTON_INTERACTION_RELEASE_MS = SNAP_ANIMATION_MS + 80;
-const HOVER_SNAP_INTERVAL_MS = 500;
-const HOVER_MISS_LIMIT = 2;
-const VISIBLE_CARD_BACKWARD = 2;
-const VISIBLE_CARD_FORWARD = 3;
-
-type ProjectCard = {
-  id: number;
-};
+import {
+  BUTTON_INTERACTION_RELEASE_MS,
+  easeOutCubic,
+  getAllProjectCards,
+  getBackCycle,
+  getCenteredAngleDistance,
+  getCylinderRadius,
+  getNearestCardCenteredRotation,
+  getProjectDeck,
+  getSnappedRotation,
+  HOVER_MISS_LIMIT,
+  HOVER_SNAP_INTERVAL_MS,
+  INITIAL_LOWER_CARDS,
+  INITIAL_REMAINING_CARDS,
+  INITIAL_UPPER_CARDS,
+  isCardVisible,
+  ROTATION_SPEED_DEG,
+  SNAP_ANIMATION_MS,
+  type ProjectCard,
+  WHEEL_ROTATION_SCALE,
+  WHEEL_SNAP_DELAY_MS,
+} from "./projectsCylinderConfig";
 
 type ProjectsViewMode = "cylinder" | "grid";
 
@@ -39,73 +45,6 @@ type ProjectsCylinderGalleryProps = {
   viewMode?: ProjectsViewMode;
 };
 
-function getProjectDeck(seed: number) {
-  return Array.from({ length: PROJECT_CARD_COUNT }, (_, index) => index + 1)
-    .map((id) => ({
-      id,
-      sortKey: (id * 1103515245 + seed * 12345) >>> 0,
-    }))
-    .sort((left, right) => left.sortKey - right.sortKey)
-    .map(({ id }) => ({ id }));
-}
-
-function getAllProjectCards() {
-  return Array.from({ length: PROJECT_CARD_COUNT }, (_, index) => ({
-    id: index + 1,
-  }));
-}
-
-const INITIAL_PROJECT_DECK = getProjectDeck(1);
-const INITIAL_UPPER_CARDS = INITIAL_PROJECT_DECK.slice(0, ROW_CARD_COUNT);
-const INITIAL_LOWER_CARDS = INITIAL_PROJECT_DECK.slice(
-  ROW_CARD_COUNT,
-  ROW_CARD_COUNT * 2,
-);
-const INITIAL_REMAINING_CARDS = INITIAL_PROJECT_DECK.slice(
-  ROW_CARD_COUNT * 2,
-);
-
-function getCylinderRadius() {
-  return "calc((var(--projects-cylinder-card-width) + var(--projects-cylinder-gap)) / (2 * tan(15deg)) * 0.98)";
-}
-
-function getCenteredAngleDistance(angle: number) {
-  return ((angle + 180) % 360 + 360) % 360 - 180;
-}
-
-function getBackCycle(angle: number) {
-  return Math.floor((angle + 180) / 360);
-}
-
-function isCardVisible(distanceFromFront: number, cardAngle: number) {
-  return (
-    distanceFromFront >= -cardAngle * (VISIBLE_CARD_BACKWARD + 0.5) &&
-    distanceFromFront <= cardAngle * (VISIBLE_CARD_FORWARD + 0.5)
-  );
-}
-
-function getSnappedRotation(rotation: number, cardAngle: number) {
-  return Math.round(rotation / cardAngle) * cardAngle;
-}
-
-function getCardCenteredRotation(index: number, cardAngle: number) {
-  return -index * cardAngle;
-}
-
-function getNearestCardCenteredRotation(
-  index: number,
-  cardAngle: number,
-  currentRotation: number,
-) {
-  const baseRotation = getCardCenteredRotation(index, cardAngle);
-  const loopOffset = Math.round((currentRotation - baseRotation) / 360) * 360;
-
-  return baseRotation + loopOffset;
-}
-
-function easeOutCubic(t: number) {
-  return 1 - Math.pow(1 - t, 3);
-}
 
 function CylinderRow({
   cards,
@@ -580,49 +519,47 @@ function CylinderRow({
             transform: `translateX(-50%) rotateY(${rotation}deg)`,
           } as CSSProperties}
         >
-          {cards.map((card, index) => (
-            (() => {
-              const cardAngleValue = cardAngle * index;
-              const distanceFromFront = getCenteredAngleDistance(
-                cardAngleValue + rotation,
-              );
-              const isVisible = isCardVisible(distanceFromFront, cardAngle);
+          {cards.map((card, index) => {
+            const cardAngleValue = cardAngle * index;
+            const distanceFromFront = getCenteredAngleDistance(
+              cardAngleValue + rotation,
+            );
+            const isVisible = isCardVisible(distanceFromFront, cardAngle);
 
-              return (
-                <article
-                  key={card.id}
-                  className={[
-                    "projects-cylinder-card",
-                    isVisible ? "projects-cylinder-card--visible" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  style={{
-                    "--project-card-index": index,
-                    "--project-card-angle": `${cardAngleValue}deg`,
-                  } as CSSProperties}
-                  data-project-card-index={index}
-                  aria-hidden={!isVisible}
-                  onPointerEnter={(event) => {
-                    pointerPositionRef.current = {
-                      x: event.clientX,
-                      y: event.clientY,
-                    };
-                    isHoveredRef.current = true;
-                    hoverMissCountRef.current = 0;
-                    hoveredCardIndexRef.current = index;
-                    startHoverSnapTimer();
-                  }}
-                >
-                  <div className="projects-cylinder-card__visual">
-                    <span className="projects-cylinder-card__number">
-                      {String(card.id).padStart(2, "0")}
-                    </span>
-                  </div>
-                </article>
-              );
-            })()
-          ))}
+            return (
+              <article
+                key={card.id}
+                className={[
+                  "projects-cylinder-card",
+                  isVisible ? "projects-cylinder-card--visible" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                style={{
+                  "--project-card-index": index,
+                  "--project-card-angle": `${cardAngleValue}deg`,
+                } as CSSProperties}
+                data-project-card-index={index}
+                aria-hidden={!isVisible}
+                onPointerEnter={(event) => {
+                  pointerPositionRef.current = {
+                    x: event.clientX,
+                    y: event.clientY,
+                  };
+                  isHoveredRef.current = true;
+                  hoverMissCountRef.current = 0;
+                  hoveredCardIndexRef.current = index;
+                  startHoverSnapTimer();
+                }}
+              >
+                <div className="projects-cylinder-card__visual">
+                  <span className="projects-cylinder-card__number">
+                    {String(card.id).padStart(2, "0")}
+                  </span>
+                </div>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>

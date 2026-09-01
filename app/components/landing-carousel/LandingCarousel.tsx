@@ -9,6 +9,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { clamp } from "@/app/utils/numbers";
 import {
   CONCEPT_CAROUSEL_SLIDES,
   type LandingCarouselSlide,
@@ -40,10 +41,6 @@ const NAV_BUTTON_SIZE = 44;
 const NAV_BUTTON_GAP = 80;
 
 const CAROUSEL_VIEW_WIDTH = SLIDE_WIDTH + SLIDE_EDGE_FADE * 2;
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
 
 function computeTrackOffset(activeIndex: number, slideCount: number) {
   const centerOffset = SLIDE_EDGE_FADE;
