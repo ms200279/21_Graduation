@@ -19,11 +19,13 @@ body {
   font-synthesis: none;
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
+@layer base {
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
 }
 
 html {
@@ -332,6 +334,16 @@ body.landing-fullpage-active {
   box-shadow:
     inset 0 0 4px 0 rgba(250, 250, 250, 0.16),
     0 10px 32px rgba(0, 0, 0, 0.11);
+}
+
+.desktop-header [data-landing-nav-item] {
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.desktop-header [data-landing-nav-item][data-active] {
+  font-weight: 700;
 }
 
 .landing-header-orb.liquid-glass-surface {

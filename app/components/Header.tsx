@@ -54,11 +54,14 @@ const orbInsideTransform =
 const orbScrollCollapsedTransform = "translate(-50%, -50%)";
 const transitionEaseClassName =
   "duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]";
+const headerNavLabelSizeClassName = "text-[20px] leading-none";
+const headerNavLabelBoldClassName = "font-bold";
 const movingLabelClassName = [
-  "pointer-events-none absolute left-1/2 top-1/2 z-10 leading-none font-bold text-systemNavy",
+  "pointer-events-none absolute left-1/2 top-1/2 z-10 text-systemNavy",
   "transition-[color,transform]",
   transitionEaseClassName,
-  "text-[14px] md:text-[20px]",
+  headerNavLabelSizeClassName,
+  headerNavLabelBoldClassName,
 ].join(" ");
 
 const siteLogoIconPath = "/icons/symbol.svg";
@@ -1201,7 +1204,7 @@ export default function Header() {
         <span
           ref={mobilePillMeasureRef}
           aria-hidden="true"
-          className="pointer-events-none invisible absolute text-[14px] leading-none whitespace-nowrap"
+          className={`pointer-events-none invisible absolute whitespace-nowrap ${headerNavLabelSizeClassName} ${headerNavLabelBoldClassName}`}
         >
           {mobilePillMeasureLabel}
         </span>
@@ -1321,7 +1324,7 @@ export default function Header() {
 
         {showMobileCurrentLabel ? (
           <span
-            className={`pointer-events-none absolute inset-0 flex items-center justify-center text-[14px] font-bold leading-none transition-colors ${transitionEaseClassName} ${isShowroomPage ? "text-white" : "text-systemNavy"}`}
+            className={`pointer-events-none absolute inset-0 flex items-center justify-center transition-colors ${transitionEaseClassName} ${headerNavLabelSizeClassName} ${headerNavLabelBoldClassName} ${isShowroomPage ? "text-white" : "text-systemNavy"}`}
           >
             {currentItem.label}
           </span>
@@ -1331,8 +1334,10 @@ export default function Header() {
           <span
             className={[
               "pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2",
-              `text-[20px] font-bold leading-none transition-[color,transform] ${isShowroomPage ? "text-white" : "text-systemNavy"}`,
+              `transition-[color,transform] ${isShowroomPage ? "text-white" : "text-systemNavy"}`,
               transitionEaseClassName,
+              headerNavLabelSizeClassName,
+              headerNavLabelBoldClassName,
               "md:group-hover:translate-x-[calc(-50%+var(--current-label-offset))]",
             ].join(" ")}
             style={
@@ -1359,28 +1364,33 @@ export default function Header() {
               key={item.href}
               type="button"
               data-landing-nav-item=""
+              data-active={isNavItemPath(item.href, pathname) ? "" : undefined}
               onClick={(event) => handleNavClick(item, event.currentTarget)}
-              style={
-                isLandingPage && !isMobile
-                  ? ({
-                      transform: landingLabelsCollapsed
-                        ? `translateX(${-(navLabelViewportOffsets[index] ?? 0)}px)`
-                        : undefined,
-                      opacity: landingLabelsCollapsed ? 0 : undefined,
-                      transition: `transform ${labelMotionDuration}ms ${labelEase}, opacity ${labelMotionDuration}ms ${labelEase}`,
-                    } as CSSProperties)
-                  : undefined
-              }
+              style={{
+                fontWeight: isNavItemPath(item.href, pathname) ? 700 : 400,
+                transform:
+                  isLandingPage && !isMobile && landingLabelsCollapsed
+                    ? `translateX(${-(navLabelViewportOffsets[index] ?? 0)}px)`
+                    : undefined,
+                opacity:
+                  isLandingPage && !isMobile && landingLabelsCollapsed
+                    ? 0
+                    : undefined,
+                transition:
+                  isLandingPage && !isMobile
+                    ? `transform ${labelMotionDuration}ms ${labelEase}, opacity ${labelMotionDuration}ms ${labelEase}`
+                    : undefined,
+              }}
               className={[
-                "max-lg:w-full lg:w-auto text-center leading-none touch-manipulation",
+                "max-lg:w-full lg:w-auto text-center touch-manipulation",
                 "transition-[color,opacity,transform,text-shadow]",
                 transitionEaseClassName,
-                "text-[14px] md:text-[20px]",
+                headerNavLabelSizeClassName,
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
                 isNavItemPath(item.href, pathname)
                   ? isShowroomPage
-                    ? "font-bold text-white"
-                    : "font-bold text-systemNavy"
+                    ? "text-white"
+                    : "text-systemNavy"
                   : isShowroomPage
                     ? showroomInactiveNavLabelClassName
                     : inactiveNavLabelClassName,
@@ -1395,7 +1405,7 @@ export default function Header() {
                 !isLandingPage &&
                 !isMobile &&
                 currentItem?.href !== item.href
-                  ? "scale-x-95 opacity-0 md:group-hover:scale-x-100 md:group-hover:opacity-100"
+                  ? "opacity-0 md:group-hover:opacity-100"
                   : "",
                 !isLandingPage &&
                 isMobile &&
