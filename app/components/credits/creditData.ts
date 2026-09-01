@@ -132,10 +132,6 @@ export const creditFragments: CreditFragmentData[] = [
         ],
       },
       {
-        title: "총무팀",
-        members: [{ role: "팀장", name: "김은서" }],
-      },
-      {
         title: "기획팀",
         members: [
           { role: "팀장", name: "김세훈" },
@@ -152,15 +148,19 @@ export const creditFragments: CreditFragmentData[] = [
         ],
       },
       {
+        title: "웹사이트팀",
+        members: [{ role: "팀장", name: "김민석" }],
+      },
+      {
+        title: "총무팀",
+        members: [{ role: "팀장", name: "김은서" }],
+      },
+      {
         title: "홍보팀",
         members: [
           { role: "팀장", name: "신채희" },
           { role: "팀원", name: "조세빈" },
         ],
-      },
-      {
-        title: "웹사이트팀",
-        members: [{ role: "팀장", name: "김민석" }],
       },
     ],
     scale: 1,
