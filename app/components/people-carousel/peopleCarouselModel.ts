@@ -347,6 +347,48 @@ export function getScrollMetrics(track: HTMLElement) {
   return { trackTop, loopHeight };
 }
 
+export function getItemIndexFromScrollProgress(
+  progress: number,
+  maxItemIndex: number,
+) {
+  if (maxItemIndex <= 0) {
+    return 0;
+  }
+
+  return Math.round(clamp(progress, 0, 1) * maxItemIndex);
+}
+
+export function getScrollProgressForItemIndex(
+  itemIndex: number,
+  maxItemIndex: number,
+) {
+  if (maxItemIndex <= 0) {
+    return 0;
+  }
+
+  return clamp(itemIndex, 0, maxItemIndex) / maxItemIndex;
+}
+
+/** Rotation that places `itemIndex` at the rest zone (card #1 position). */
+export function getZoneRotationForItemIndex(
+  itemIndex: number,
+  batchSize: number,
+) {
+  if (batchSize <= 0) {
+    return 0;
+  }
+
+  return (mod(itemIndex, batchSize) * 360) / batchSize;
+}
+
+export function getSnappedCarouselStateForItemIndex(
+  itemIndex: number,
+  itemCount: number,
+  batchSize: number,
+) {
+  return getCarouselStateFromItemPosition(itemIndex, itemCount, batchSize, true);
+}
+
 export function resolveZoneSnapItemIndex(
   itemPositionFloat: number,
   maxItemIndex: number,
@@ -368,4 +410,21 @@ export function resolveZoneSnapItemIndex(
   }
 
   return targetIndex;
+}
+
+/** Item index currently aligned to the zone, or nearest snap for stepping. */
+export function resolveStepOriginItemIndex(
+  itemPositionFloat: number,
+  maxItemIndex: number,
+) {
+  const zoneSnapIndex = resolveZoneSnapItemIndex(
+    itemPositionFloat,
+    maxItemIndex,
+  );
+
+  if (zoneSnapIndex !== null) {
+    return zoneSnapIndex;
+  }
+
+  return Math.round(clamp(itemPositionFloat, 0, maxItemIndex));
 }

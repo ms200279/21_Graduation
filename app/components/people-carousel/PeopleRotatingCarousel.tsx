@@ -46,6 +46,9 @@ import {
   getExpandedTargetRect,
   getExpandedTargetRectFallback,
   getScrollMetrics,
+  getScrollProgressForItemIndex,
+  getSnappedCarouselStateForItemIndex,
+  resolveStepOriginItemIndex,
   INITIAL_ROTATION_OFFSET_DEG,
   isLikelyDiscreteMouseWheel,
   isSlotInGlassEffectWindow,
@@ -185,8 +188,8 @@ export default function PeopleRotatingCarousel({
 
   const displayRotation = rotation + INITIAL_ROTATION_OFFSET_DEG;
 
-  /** Slot aligned to the snap position (derived from scroll rotation, not display offset). */
-  const snapSlotInBatch = useMemo(() => {
+  /** Slot aligned to the rest zone where card #1 sits on first page load. */
+  const zoneSlotInBatch = useMemo(() => {
     if (VISIBLE_CAROUSEL_SLOTS <= 0 || slotAngleStep <= 0) {
       return 0;
     }
@@ -194,8 +197,6 @@ export default function PeopleRotatingCarousel({
     return mod(Math.round(rotation / slotAngleStep), VISIBLE_CAROUSEL_SLOTS);
   }, [rotation, slotAngleStep]);
 
-  /** Cylinder slot at the snap position — the interactive zone (card 1 position). */
-  const zoneSlotInBatch = snapSlotInBatch;
   const activeSlotInBatch = zoneSlotInBatch;
 
   const [isZoneHovered, setIsZoneHovered] = useState(false);
@@ -1054,74 +1055,170 @@ export default function PeopleRotatingCarousel({
     [applyCarouselState, items.length],
   );
 
+  const getScrollItemIndex = useCallback(() => {
+    const track = trackRef.current;
+
+    if (!track || items.length <= 1) {
+      return zoneItemIndex;
+    }
+
+    const { trackTop, loopHeight } = getScrollMetrics(track);
+
+    if (loopHeight <= 0) {
+      return zoneItemIndex;
+    }
+
+    const progress = clamp((window.scrollY - trackTop) / loopHeight, 0, 1);
+    const maxItemIndex = items.length - 1;
+
+    return resolveStepOriginItemIndex(progress * maxItemIndex, maxItemIndex);
+  }, [items.length, zoneItemIndex]);
+
+  const applySnappedItemIndexState = useCallback(
+    (itemIndex: number, trackTop: number, loopHeight: number) => {
+      const maxItemIndex = items.length - 1;
+      const clampedItemIndex = clamp(itemIndex, 0, maxItemIndex);
+      const progress = getScrollProgressForItemIndex(
+        clampedItemIndex,
+        maxItemIndex,
+      );
+      const scrollY = trackTop + progress * loopHeight;
+
+      window.scrollTo(0, scrollY);
+
+      const { batchIndex: nextBatchIndex, rotation: nextRotation } =
+        getSnappedCarouselStateForItemIndex(
+          clampedItemIndex,
+          items.length,
+          VISIBLE_CAROUSEL_SLOTS,
+        );
+
+      applyCarouselState(nextBatchIndex, nextRotation);
+    },
+    [applyCarouselState, items.length],
+  );
+
+  const applyCarouselStateFromItemPosition = useCallback(
+    (itemPosition: number, snap: boolean) => {
+      const { batchIndex: nextBatchIndex, rotation: nextRotation } =
+        getCarouselStateFromItemPosition(
+          itemPosition,
+          items.length,
+          VISIBLE_CAROUSEL_SLOTS,
+          snap,
+        );
+
+      applyCarouselState(nextBatchIndex, nextRotation);
+    },
+    [applyCarouselState, items.length],
+  );
+
+  const finishProgrammaticSnap = useCallback(() => {
+    programmaticStepRef.current = false;
+    programmaticTargetIndexRef.current = null;
+    lastFooterHandoffWheelScrollYRef.current = null;
+  }, []);
+
   const animateSnapToItemIndex = useCallback(
-    (targetItemIndex: number, trackTop: number, loopHeight: number) => {
-      const targetScrollY =
-        trackTop + (targetItemIndex / (items.length - 1)) * loopHeight;
+    (
+      targetItemIndex: number,
+      trackTop: number,
+      loopHeight: number,
+      options?: { useSnappedStart?: boolean },
+    ) => {
+      const maxItemIndex = items.length - 1;
+      const clampedTargetIndex = clamp(targetItemIndex, 0, maxItemIndex);
+      const targetProgress = getScrollProgressForItemIndex(
+        clampedTargetIndex,
+        maxItemIndex,
+      );
+      const targetScrollY = trackTop + targetProgress * loopHeight;
 
       if (Math.abs(window.scrollY - targetScrollY) <= SNAP_POSITION_TOLERANCE_PX) {
-        const { batchIndex: nextBatchIndex, rotation: nextRotation } =
-          getCarouselStateFromItemPosition(
-            targetItemIndex,
-            items.length,
-            VISIBLE_CAROUSEL_SLOTS,
-            true,
-          );
+        applySnappedItemIndexState(clampedTargetIndex, trackTop, loopHeight);
 
-        applyCarouselState(nextBatchIndex, nextRotation);
+        if (options?.useSnappedStart) {
+          finishProgrammaticSnap();
+        }
+
         return;
       }
 
-      const startProgress = clamp(
+      const actualStartProgress = clamp(
         (window.scrollY - trackTop) / loopHeight,
         0,
         1,
       );
+      const actualStartItemPosition = actualStartProgress * maxItemIndex;
 
       cancelSnapAnimation();
-
-      const targetProgress = targetItemIndex / (items.length - 1);
-      const animationStart = performance.now();
-
       isSnapAnimatingRef.current = true;
+
+      let startItemIndex = clamp(
+        Math.round(actualStartItemPosition),
+        0,
+        maxItemIndex,
+      );
+
+      if (options?.useSnappedStart) {
+        startItemIndex = resolveStepOriginItemIndex(
+          actualStartItemPosition,
+          maxItemIndex,
+        );
+
+        if (
+          Math.abs(
+            actualStartItemPosition -
+              getScrollProgressForItemIndex(startItemIndex, maxItemIndex) *
+                maxItemIndex,
+          ) > 0.001
+        ) {
+          applySnappedItemIndexState(startItemIndex, trackTop, loopHeight);
+        }
+      }
+
+      const animationStart = performance.now();
 
       const tick = (now: number) => {
         const elapsed = now - animationStart;
         const linearT = clamp(elapsed / SNAP_DURATION_MS, 0, 1);
-        const easedT = easeOutBack(linearT);
-        const nextProgress = clamp(
-          startProgress + (targetProgress - startProgress) * easedT,
-          0,
-          1,
-        );
+        const easedT =
+          linearT >= 1 ? 1 : Math.min(easeOutBack(linearT), 1);
+        const nextItemPosition =
+          startItemIndex + (clampedTargetIndex - startItemIndex) * easedT;
+        const nextProgress = clamp(nextItemPosition / maxItemIndex, 0, 1);
         const nextScrollY = trackTop + nextProgress * loopHeight;
 
         window.scrollTo(0, nextScrollY);
-        applyRotationFromScrollProgress(nextProgress);
+        applyCarouselStateFromItemPosition(
+          nextItemPosition,
+          linearT >= 1,
+        );
 
         if (linearT < 1) {
           snapAnimFrameRef.current = window.requestAnimationFrame(tick);
           return;
         }
 
-        window.scrollTo(0, targetScrollY);
+        applySnappedItemIndexState(clampedTargetIndex, trackTop, loopHeight);
 
-        const { batchIndex: nextBatchIndex, rotation: nextRotation } =
-          getCarouselStateFromItemPosition(
-            targetItemIndex,
-            items.length,
-            VISIBLE_CAROUSEL_SLOTS,
-            true,
-          );
-
-        applyCarouselState(nextBatchIndex, nextRotation);
         isSnapAnimatingRef.current = false;
         snapAnimFrameRef.current = null;
+
+        if (options?.useSnappedStart) {
+          finishProgrammaticSnap();
+        }
       };
 
       snapAnimFrameRef.current = window.requestAnimationFrame(tick);
     },
-    [applyCarouselState, applyRotationFromScrollProgress, cancelSnapAnimation, items.length],
+    [
+      applyCarouselStateFromItemPosition,
+      applySnappedItemIndexState,
+      cancelSnapAnimation,
+      finishProgrammaticSnap,
+      items.length,
+    ],
   );
 
   const updateRotationFromScroll = useCallback(() => {
@@ -1140,15 +1237,10 @@ export default function PeopleRotatingCarousel({
       }
 
       if (programmaticTargetIndexRef.current !== null) {
-        const { batchIndex: nextBatchIndex, rotation: nextRotation } =
-          getCarouselStateFromItemPosition(
-            programmaticTargetIndexRef.current,
-            items.length,
-            VISIBLE_CAROUSEL_SLOTS,
-            true,
-          );
-
-        applyCarouselState(nextBatchIndex, nextRotation);
+        applyCarouselStateFromItemPosition(
+          programmaticTargetIndexRef.current,
+          true,
+        );
         return;
       }
 
@@ -1187,12 +1279,25 @@ export default function PeopleRotatingCarousel({
       }
 
       const progress = clamp(scrolled / loopHeight, 0, 1);
+      const maxItemIndex = items.length - 1;
+      const itemPositionFloat = progress * maxItemIndex;
+
+      if (carouselScrollIdleRef.current) {
+        const snappedIndex =
+          resolveZoneSnapItemIndex(itemPositionFloat, maxItemIndex) ??
+          Math.round(itemPositionFloat);
+
+        applySnappedItemIndexState(snappedIndex, trackTop, loopHeight);
+        return;
+      }
 
       applyRotationFromScrollProgress(progress);
     },
     [
       applyCarouselState,
+      applyCarouselStateFromItemPosition,
       applyRotationFromScrollProgress,
+      applySnappedItemIndexState,
       batchCount,
       items.length,
     ],
@@ -1245,14 +1350,15 @@ export default function PeopleRotatingCarousel({
         return;
       }
 
-      const targetIndex = zoneItemIndex + direction;
+      const currentIndex = getScrollItemIndex();
+      const targetIndex = currentIndex + direction;
 
       if (targetIndex < 0 || targetIndex >= items.length) {
         return;
       }
 
       const leavingCarouselEnd =
-        direction === -1 && zoneItemIndex >= items.length - 1;
+        direction === -1 && currentIndex >= items.length - 1;
 
       if (isPeopleCarouselScrollLockedByFooter() && !leavingCarouselEnd) {
         return;
@@ -1278,9 +1384,11 @@ export default function PeopleRotatingCarousel({
         notifyPeopleCarouselProgrammaticStep(direction);
       }
 
-      animateSnapToItemIndex(targetIndex, trackTop, loopHeight);
+      animateSnapToItemIndex(targetIndex, trackTop, loopHeight, {
+        useSnappedStart: true,
+      });
     },
-    [animateSnapToItemIndex, expandedCard, items.length, zoneItemIndex],
+    [animateSnapToItemIndex, expandedCard, getScrollItemIndex, items.length],
   );
 
   useEffect(() => {
@@ -1340,7 +1448,8 @@ export default function PeopleRotatingCarousel({
       event.preventDefault();
 
       const direction: -1 | 1 = deltaY > 0 ? 1 : -1;
-      const targetIndex = zoneItemIndex + direction;
+      const currentIndex = getScrollItemIndex();
+      const targetIndex = currentIndex + direction;
 
       if (targetIndex < 0) {
         return;
@@ -1387,10 +1496,7 @@ export default function PeopleRotatingCarousel({
 
       carouselScrollIdleRef.current = true;
 
-      if (programmaticStepRef.current) {
-        programmaticStepRef.current = false;
-        programmaticTargetIndexRef.current = null;
-        lastFooterHandoffWheelScrollYRef.current = null;
+      if (isSnapAnimatingRef.current || programmaticStepRef.current) {
         return;
       }
 
@@ -1449,11 +1555,11 @@ export default function PeopleRotatingCarousel({
   }, [
     cancelSnapAnimation,
     expandedCard,
+    getScrollItemIndex,
     items.length,
     snapToZoneCard,
     stepCarousel,
     updateRotationFromScroll,
-    zoneItemIndex,
   ]);
 
   const visibleSlots = useMemo(() => {
