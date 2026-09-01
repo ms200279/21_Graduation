@@ -7,8 +7,10 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { useRouter } from "next/navigation";
 
 import "@/app/styles/projects-cylinder-gallery.css";
+import { getProjectDetailPath } from "./projectData";
 import {
   BUTTON_INTERACTION_RELEASE_MS,
   easeOutCubic,
@@ -39,6 +41,7 @@ type CylinderRowProps = {
   direction: 1 | -1;
   label: string;
   onCardRecycle: (index: number) => void;
+  onCardSelect: (id: number) => void;
 };
 
 type ProjectsCylinderGalleryProps = {
@@ -51,6 +54,7 @@ function CylinderRow({
   direction,
   label,
   onCardRecycle,
+  onCardSelect,
 }: CylinderRowProps) {
   const rowRef = useRef<HTMLElement>(null);
   const rotationRef = useRef(0);
@@ -364,6 +368,15 @@ function CylinderRow({
     };
 
     const handleWheel = (event: WheelEvent) => {
+      const isProjectDetailOpen =
+        document.documentElement.hasAttribute("data-project-detail-open") ||
+        (event.target instanceof Element &&
+          event.target.closest(".project-detail-layer") !== null);
+
+      if (isProjectDetailOpen) {
+        return;
+      }
+
       if (!isPointerInRowWheelZone(event)) {
         return;
       }
@@ -527,7 +540,8 @@ function CylinderRow({
             const isVisible = isCardVisible(distanceFromFront, cardAngle);
 
             return (
-              <article
+              <button
+                type="button"
                 key={card.id}
                 className={[
                   "projects-cylinder-card",
@@ -541,6 +555,9 @@ function CylinderRow({
                 } as CSSProperties}
                 data-project-card-index={index}
                 aria-hidden={!isVisible}
+                aria-label={`Open project ${String(card.id).padStart(2, "0")}`}
+                tabIndex={isVisible ? 0 : -1}
+                onClick={() => onCardSelect(card.id)}
                 onPointerEnter={(event) => {
                   pointerPositionRef.current = {
                     x: event.clientX,
@@ -557,7 +574,7 @@ function CylinderRow({
                     {String(card.id).padStart(2, "0")}
                   </span>
                 </div>
-              </article>
+              </button>
             );
           })}
         </div>
@@ -566,17 +583,27 @@ function CylinderRow({
   );
 }
 
-function ProjectsGridGallery() {
+function ProjectsGridGallery({
+  onCardSelect,
+}: {
+  onCardSelect: (id: number) => void;
+}) {
   const cards = getAllProjectCards();
 
   return (
     <section className="projects-grid-gallery" aria-label="Project grid">
       {cards.map((card) => (
-        <article key={card.id} className="projects-grid-card">
+        <button
+          key={card.id}
+          type="button"
+          className="projects-grid-card"
+          aria-label={`Open project ${String(card.id).padStart(2, "0")}`}
+          onClick={() => onCardSelect(card.id)}
+        >
           <span className="projects-grid-card__number">
             {String(card.id).padStart(2, "0")}
           </span>
-        </article>
+        </button>
       ))}
     </section>
   );
@@ -585,6 +612,7 @@ function ProjectsGridGallery() {
 export default function ProjectsCylinderGallery({
   viewMode = "cylinder",
 }: ProjectsCylinderGalleryProps) {
+  const router = useRouter();
   const deckSeedRef = useRef(1);
   const deckRef = useRef<ProjectCard[]>(INITIAL_REMAINING_CARDS);
   const activeRowsRef = useRef({
@@ -593,6 +621,12 @@ export default function ProjectsCylinderGallery({
   });
   const [upperCards, setUpperCards] = useState(INITIAL_UPPER_CARDS);
   const [lowerCards, setLowerCards] = useState(INITIAL_LOWER_CARDS);
+  const openProject = useCallback(
+    (id: number) => {
+      router.push(getProjectDetailPath(id), { scroll: false });
+    },
+    [router],
+  );
 
   const drawCard = useCallback((blockedCards: ProjectCard[]) => {
     const blockedIds = new Set(blockedCards.map((card) => card.id));
@@ -651,7 +685,7 @@ export default function ProjectsCylinderGallery({
   }, [drawCard]);
 
   if (viewMode === "grid") {
-    return <ProjectsGridGallery />;
+    return <ProjectsGridGallery onCardSelect={openProject} />;
   }
 
   return (
@@ -664,12 +698,14 @@ export default function ProjectsCylinderGallery({
         direction={1}
         label="Upper project carousel row"
         onCardRecycle={replaceUpperCard}
+        onCardSelect={openProject}
       />
       <CylinderRow
         cards={lowerCards}
         direction={-1}
         label="Lower project carousel row"
         onCardRecycle={replaceLowerCard}
+        onCardSelect={openProject}
       />
     </section>
   );

@@ -103,6 +103,9 @@
   width: var(--projects-cylinder-card-width);
   aspect-ratio: 16 / 9;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
+  border: 0;
   border-radius: clamp(0.75rem, 1.2vw, 1rem);
   background: #ffffff;
   color: var(--color-systemNavy);
@@ -117,6 +120,7 @@
   transform-style: preserve-3d;
   transition: opacity 0.18s ease;
   user-select: none;
+  cursor: pointer;
 }
 
 .projects-cylinder-card--visible {
@@ -154,6 +158,9 @@
 
 .projects-grid-card {
   display: grid;
+  margin: 0;
+  padding: 0;
+  border: 0;
   flex: 0 0 var(--projects-cylinder-card-width);
   width: var(--projects-cylinder-card-width);
   aspect-ratio: 16 / 9;
@@ -164,6 +171,7 @@
   box-shadow:
     0 6px 16px rgba(8, 16, 48, 0.08),
     inset 0 0 0 1px rgba(255, 255, 255, 0.36);
+  cursor: pointer;
 }
 
 .projects-grid-card__number {

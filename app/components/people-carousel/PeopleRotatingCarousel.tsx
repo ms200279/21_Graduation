@@ -71,10 +71,36 @@ import "@/app/styles/people-carousel.css";
 function PeopleCarouselCardContent({ item }: { item: PeopleCarouselItem }) {
   return (
     <>
-      {item.role ? (
-        <span className="people-carousel-card__role">{item.role}</span>
-      ) : null}
-      <span className="people-carousel-card__label">{item.name}</span>
+      <div className="people-carousel-card__compact-content">
+        {item.role ? (
+          <span className="people-carousel-card__role">{item.role}</span>
+        ) : null}
+        <span className="people-carousel-card__label">{item.name}</span>
+      </div>
+
+      <div className="people-carousel-card__profile">
+        <div
+          className="people-carousel-card__portrait"
+          style={
+            item.photoSrc
+              ? { backgroundImage: `url(${item.photoSrc})` }
+              : undefined
+          }
+          role={item.photoSrc ? "img" : undefined}
+          aria-label={item.photoSrc ? `${item.name} portrait` : undefined}
+        />
+        <div className="people-carousel-card__profile-copy">
+          <h2 className="people-carousel-card__profile-name">{item.name}</h2>
+          {item.role ? (
+            <p className="people-carousel-card__profile-affiliation">
+              {item.role}
+            </p>
+          ) : null}
+          {item.phone ? (
+            <p className="people-carousel-card__profile-phone">{item.phone}</p>
+          ) : null}
+        </div>
+      </div>
     </>
   );
 }

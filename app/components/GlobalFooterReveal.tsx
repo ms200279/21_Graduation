@@ -53,10 +53,12 @@ function isDocumentScrollAtBottom(threshold = SCROLL_BOTTOM_THRESHOLD_PX) {
   return scrollTop >= maxScrollTop - threshold;
 }
 
-function isCreditContentScrollTarget(target: EventTarget | null) {
+function isNestedContentScrollTarget(target: EventTarget | null) {
   return (
     target instanceof Element &&
-    target.closest(".credits-content-article__description") !== null
+    target.closest(
+      ".credits-content-article__description, .project-detail-scroll",
+    ) !== null
   );
 }
 
@@ -235,7 +237,7 @@ export default function GlobalFooterReveal() {
     };
 
     const handleWheel = (event: WheelEvent) => {
-      if (isCreditContentScrollTarget(event.target)) {
+      if (isNestedContentScrollTarget(event.target)) {
         return;
       }
 
@@ -340,7 +342,7 @@ export default function GlobalFooterReveal() {
     };
 
     const handleTouchEnd = (event: TouchEvent) => {
-      if (isCreditContentScrollTarget(event.target)) {
+      if (isNestedContentScrollTarget(event.target)) {
         touchStartYRef.current = null;
         return;
       }
