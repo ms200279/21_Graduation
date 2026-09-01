@@ -24,7 +24,9 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   background: rgba(32, 60, 96, 0.08);
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
-  animation: project-detail-backdrop-in 320ms ease-out both;
+  opacity: 0;
+  transition: opacity 320ms ease-out;
+  will-change: opacity;
 }
 
 .project-detail-panel {
@@ -37,17 +39,29 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   border-radius: 32px 32px 0 0;
   background: #ffffff;
   box-shadow: 0 -12px 36px rgba(8, 16, 48, 0.08);
-  animation: project-detail-panel-in 620ms cubic-bezier(0.22, 1, 0.36, 1)
-    both;
+  transform: translate3d(0, 100%, 0);
+  transition: transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.project-detail-layer--open .project-detail-backdrop {
+  opacity: 1;
+}
+
+.project-detail-layer--open .project-detail-panel {
+  transform: translate3d(0, 0, 0);
 }
 
 .project-detail-layer--closing .project-detail-backdrop {
-  animation: project-detail-backdrop-out 560ms ease-in both;
+  opacity: 0;
+  transition-duration: 560ms;
+  transition-timing-function: ease-in;
 }
 
 .project-detail-layer--closing .project-detail-panel {
-  animation: project-detail-panel-out 560ms cubic-bezier(0.64, 0, 0.78, 0)
-    both;
+  transform: translate3d(0, 100%, 0);
+  transition-duration: 560ms;
+  transition-timing-function: cubic-bezier(0.64, 0, 0.78, 0);
 }
 
 .project-detail-scroll {
@@ -343,42 +357,6 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   outline-offset: 3px;
 }
 
-@keyframes project-detail-backdrop-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes project-detail-panel-in {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
-  }
-}
-
-@keyframes project-detail-backdrop-out {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-@keyframes project-detail-panel-out {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(100%);
-  }
-}
-
 @media (min-width: 1024px) {
   .project-detail-layer {
     --project-detail-panel-top: 60px;
@@ -495,9 +473,26 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .project-detail-backdrop,
   .project-detail-panel {
-    animation-duration: 1ms;
+    transform: translate3d(0, 24px, 0);
+    transition-duration: 160ms;
+  }
+
+  .project-detail-backdrop {
+    transition-duration: 160ms;
+  }
+
+  .project-detail-layer--open .project-detail-panel {
+    transform: translate3d(0, 0, 0);
+  }
+
+  .project-detail-layer--closing .project-detail-panel {
+    transform: translate3d(0, 24px, 0);
+    transition-duration: 160ms;
+  }
+
+  .project-detail-layer--closing .project-detail-backdrop {
+    transition-duration: 160ms;
   }
 
   .project-detail-scroll {
