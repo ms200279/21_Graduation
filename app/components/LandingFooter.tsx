@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-const TYPO_LOGO_PATH = "/icons/typo.svg";
+const TYPO_LOGO_PATH = "/icons/typo.svg?placement=footer";
 const INSTAGRAM_URL = "https://www.instagram.com/tukd_grad/";
 
 const FOOTER_NAV_ITEMS = [
