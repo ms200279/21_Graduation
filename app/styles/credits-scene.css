@@ -198,7 +198,7 @@
 
 .credits-content-organization__group:first-child dl {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 2rem;
+  column-gap: 3rem;
 }
 
 .credits-content-organization__group dl > div {
