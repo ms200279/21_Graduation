@@ -23,6 +23,7 @@ type ProjectDetailProps = {
 };
 
 const PROJECT_DETAIL_CLOSE_DURATION_MS = 560;
+const PROJECT_DETAIL_REDUCED_MOTION_DURATION_MS = 160;
 const PROJECT_DETAIL_SECTION_COUNT = 7;
 
 type ProjectMediaProps = {
@@ -106,6 +107,7 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isClosingRef = useRef(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
   const [activeSectionIndex, setActiveSectionIndex] = useState(0);
   const closeProject = useCallback(() => {
@@ -118,7 +120,7 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
     const closeDuration = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches
-      ? 0
+      ? PROJECT_DETAIL_REDUCED_MOTION_DURATION_MS
       : PROJECT_DETAIL_CLOSE_DURATION_MS;
 
     closeTimerRef.current = setTimeout(() => {
@@ -129,6 +131,12 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
   useEffect(() => {
     document.documentElement.setAttribute("data-project-detail-open", "true");
     closeButtonRef.current?.focus({ preventScroll: true });
+    let openFrame = 0;
+    const initialFrame = window.requestAnimationFrame(() => {
+      openFrame = window.requestAnimationFrame(() => {
+        setIsOpen(true);
+      });
+    });
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -139,6 +147,9 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
+      window.cancelAnimationFrame(initialFrame);
+      window.cancelAnimationFrame(openFrame);
+
       if (closeTimerRef.current !== null) {
         clearTimeout(closeTimerRef.current);
       }
@@ -212,6 +223,7 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
     <div
       className={[
         "project-detail-layer",
+        isOpen ? "project-detail-layer--open" : "",
         isClosing ? "project-detail-layer--closing" : "",
       ]
         .filter(Boolean)
