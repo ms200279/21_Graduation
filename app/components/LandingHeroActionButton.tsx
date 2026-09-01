@@ -21,7 +21,7 @@ const SCHEDULE_DAYS = [
     date: "09.18 FRI",
     items: [
       { time: "13:00", label: "자유관람" },
-      { time: "15:00", label: "졸업생 홈커밍 행사" },
+      { time: "15:00", label: "졸업생 특강" },
       { time: "16:00", label: "개회식" },
       { time: "16:20", label: "졸업작품 우수작 시상" },
       { time: "16:30", label: "자유관람" },
@@ -31,7 +31,6 @@ const SCHEDULE_DAYS = [
     date: "09.19 SAT",
     items: [
       { time: "10:00", label: "자유관람" },
-      { time: "13:00", label: "취,창업 커리어 캠프" },
     ],
   },
   {

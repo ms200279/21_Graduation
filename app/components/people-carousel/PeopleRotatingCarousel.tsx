@@ -367,17 +367,6 @@ function getBatchCount(itemCount: number, batchSize: number) {
   return Math.ceil(itemCount / batchSize);
 }
 
-function getActiveSlotInBatch(rotation: number, batchSize: number) {
-  if (batchSize <= 0) {
-    return 0;
-  }
-
-  const slotStep = 360 / batchSize;
-  const normalized = mod(rotation, 360);
-
-  return Math.round(normalized / slotStep) % batchSize;
-}
-
 function isSlotInGlassEffectWindow(
   slotIndex: number,
   activeSlotIndex: number,
@@ -512,13 +501,9 @@ export default function PeopleRotatingCarousel({
     return mod(Math.round(rotation / slotAngleStep), VISIBLE_CAROUSEL_SLOTS);
   }, [rotation, slotAngleStep]);
 
-  const activeSlotInBatch = useMemo(
-    () => getActiveSlotInBatch(displayRotation, VISIBLE_CAROUSEL_SLOTS),
-    [displayRotation],
-  );
-
   /** Cylinder slot at the snap position — the interactive zone (card 1 position). */
   const zoneSlotInBatch = snapSlotInBatch;
+  const activeSlotInBatch = zoneSlotInBatch;
 
   const [isZoneHovered, setIsZoneHovered] = useState(false);
   const [expandedCard, setExpandedCard] = useState<ExpandedCardState | null>(null);
