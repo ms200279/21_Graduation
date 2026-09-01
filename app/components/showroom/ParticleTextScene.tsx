@@ -268,6 +268,7 @@ export default function ParticleTextScene() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const morphTextRef = useRef<(text: string, immediate?: boolean) => void>(() => {});
   const descriptionIdRef = useRef(0);
+  const hasFocusedInputRef = useRef(false);
   const [inputValue, setInputValue] = useState(INITIAL_TEXT);
   const [renderedText, setRenderedText] = useState(INITIAL_TEXT);
   const [isInputVisible, setIsInputVisible] = useState(false);
@@ -622,6 +623,13 @@ export default function ParticleTextScene() {
             maxLength={56}
             autoComplete="off"
             spellCheck="false"
+            onFocus={() => {
+              if (!hasFocusedInputRef.current && inputValue === INITIAL_TEXT) {
+                setInputValue("");
+              }
+
+              hasFocusedInputRef.current = true;
+            }}
             onChange={(event) => setInputValue(event.target.value)}
           />
         </form>

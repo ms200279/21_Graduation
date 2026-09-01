@@ -343,7 +343,9 @@ export default function LandingHeroActionButton() {
         <p className="landing-hero-action__section-text">
           09.18 FRI&nbsp;&nbsp;13:00 - 17:30
           <br />
-          09.19 SAT - 20 SUN&nbsp;&nbsp;10:00 - 17:30
+          09.19 SAT&nbsp;&nbsp;10:00 - 17:30
+          <br />
+          09.20 SUN&nbsp;&nbsp;10:00 - 17:00
         </p>
       </div>
     </div>
