@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { clamp } from "@/app/utils/numbers";
 
 export const LANDING_SCROLL_PROGRESS_EVENT = "landing-scroll-progress";
 export const LANDING_SCROLL_INTENT_EVENT = "landing-scroll-intent";
@@ -92,10 +93,6 @@ export function getLandingScrollDepthOnLeave() {
 
 export function clearLandingScrollDepthOnLeave() {
   landingScrollSectionProgressState.depthOnLeave = 0;
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
 }
 
 function dispatchLandingScrollIntent(direction: "up" | "down") {

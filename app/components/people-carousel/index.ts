@@ -3,7 +3,8 @@ export {
   PEOPLE_CATEGORY_OPTIONS,
   type PeopleCategoryId,
 } from "./PeopleCategoryFilter";
-export { default as PeopleRotatingCarousel, VISIBLE_CAROUSEL_SLOTS } from "./PeopleRotatingCarousel";
+export { default as PeopleRotatingCarousel } from "./PeopleRotatingCarousel";
+export { VISIBLE_CAROUSEL_SLOTS } from "./peopleCarouselModel";
 export { PEOPLE_CAROUSEL_ITEMS, type PeopleCarouselItem } from "./items";
 export {
   findMemberIndexBySlug,

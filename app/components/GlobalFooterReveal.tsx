@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 
+import { clamp } from "@/app/utils/numbers";
 import LandingFooter from "./LandingFooter";
 import {
   isPeopleCarouselAtScrollEnd,
@@ -29,10 +30,6 @@ const PEOPLE_FOOTER_ARM_COOLDOWN_MS = 320;
 const PEOPLE_FOOTER_DISMISS_SCROLL_LOCK_MS = 420;
 const TOUCH_SWIPE_THRESHOLD = 56;
 const SCROLL_BOTTOM_THRESHOLD_PX = 12;
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
 
 function normalizeWheelDelta(event: WheelEvent) {
   if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {

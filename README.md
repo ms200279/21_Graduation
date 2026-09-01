@@ -1,361 +1,252 @@
 # 21st Graduation Online Exhibition
 
-Tech University of Korea(TUK) 21st 졸업 전시를 온라인으로 아카이브·소개하는 **졸업 온라인 전시 웹사이트**입니다.
-
-## 개요
-
-**Next.js App Router** 기반 프론트엔드 프로젝트입니다. 랜딩(`/`)에는 **Hero · Concept Carousel · Media · Footer** 풀페이지 스크롤과 Liquid Glass UI가 구현되어 있고, Projects / People 서브 페이지에는 전시 작품·참여자 탐색을 위한 인터랙티브 캐러셀 UI가 적용되어 있습니다.
-
-| 항목 | 내용 |
-|------|------|
-| 패키지 이름 | `21stgraduation` |
-| 현재 버전 | `0.1.0` |
-| 저장소 | [https://github.com/ms200279/21_Graduation](https://github.com/ms200279/21_Graduation) |
-| 사이트 타이틀 | `sensibility` (`layout.tsx` metadata) |
-| UI 언어 | 영문·한국어 혼용 |
-
-### 해결하려는 문제
-
-- 오프라인 졸업 전시를 **지속 가능한 웹 아카이브**로 남긴다.
-- 전시 컨셉·일정·소개·작품 인덱스를 **한 사이트에서 일관된 UX**로 제공한다.
-- 이후 백엔드 연동 시 **인증·업로드·데이터 관리**를 같은 앱에서 확장할 수 있게 한다.
-
-## 주요 기능
-
-### 라우트
-
-| 경로 | 상태 | 설명 |
-|------|------|------|
-| `/` | 구현됨 | Hero · Concept Carousel · Media · Footer 스냅 스크롤 |
-| `/projectspage` | 구현 중 | Projects 카테고리 필터, 실린더/그리드 작품 갤러리 |
-| `/peoplepage` | 구현 중 | People 배경 이미지, 로테이팅 캐러셀, 상단 가독성 그라디언트 |
-| `/showroompage` | 본문 준비 중 | Showroom |
-| `/creditspage` | 본문 준비 중 | Credits |
-
-### 랜딩 페이지 (`app/page.tsx`)
-
-| 섹션 | 파일 | 설명 |
-|------|------|------|
-| 스크롤 컨테이너 | `LandingScrollExperience.tsx` | Hero ↔ Concept ↔ Media 스냅 + Media에서 Footer 패널 reveal |
-| Hero | `page.tsx`, `LandingHeroActionButton.tsx` | `/images/bg.webm` 루프 비디오, 전시 일정·장소 카피, **Schedule / Info** Liquid Glass 버튼 |
-| Concept | `landing-carousel/LandingCarousel.tsx` | 4슬라이드 Concept 캐러셀 (`slides.ts` 데이터) |
-| Media | `page.tsx` | 흰색 풀뷰포트 플레이스홀더 (콘텐츠 추후) |
-| Footer | `LandingFooter.tsx` | 브랜드·Instagram·섹션 링크·저작권 |
-
-**섹션 스크롤 순서**
-
-1. **Hero** (`scrollProgress` 0)
-2. **Concept** — 캐러셀 (`scrollProgress` 1)
-3. **Media** — 미디어 영역 (`scrollProgress` 2)
-4. **Footer** — Media 섹션에서 추가 스크롤 시 뷰포트 **40%** 높이로 스냅 reveal (`LANDING_FOOTER_VIEWPORT_RATIO`)
-
-**Concept 캐러셀 슬라이드** (`slides.ts` → `CONCEPT_CAROUSEL_SLIDES`)
-
-| id | title | 내용 요약 |
-|----|-------|-----------|
-| `concept` | Concept | `'Sensibility'` — 전시 컨셉 카피 (한국어) |
-| `typography` | Typography | 타이포 이미지 (`/icons/typo.svg`) + 설명 |
-| `symbol` | Symbol | Navy / Black / Outlined 심볼 아이콘 + 설명 |
-| `senses` | Senses | 제목만 (본문 추후) |
-
-슬라이드 UI: `ConceptCarouselSlideContent.tsx`, `SymbolCarouselIcons.tsx`
-
-- Concept 캐러셀 카드 표면은 흰색 박스가 아니라 투명한 backdrop blur 레이어로 처리한다.
-- 카드 외곽 shadow는 유지하되, 표면 자체의 흰색 배경·inset 하이라이트는 사용하지 않는다.
-
-**스크롤·헤더 연동 (랜딩, 데스크톱)**
-
-- `scrollProgress` **0–1**: Hero ↔ Concept — 헤더 **오브** 바깥↔안쪽 전환, 네비 접힘/펼침
-- `scrollProgress` **≥ 1**: Concept 이후 — Concept ↔ Media·Footer 이동 시 **헤더 전환 없이** 스크롤만
-- 스크롤 **업**: 헤더 즉시 펼침 / **다운**: 오브·네비 접힘
-- Concept·Media·Footer에서 **오브 클릭**: Hero(top)로 스크롤 + 필요 시 헤더 강제 펼침
-- 서브 페이지에서 **오브 클릭**: `/`로 이동
-
-### Projects 페이지 (`app/projectspage/page.tsx`)
-
-Projects 페이지는 카테고리 필터와 작품 갤러리 뷰 전환을 중심으로 구성되어 있습니다.
-
-| 구성 | 파일 | 설명 |
-|------|------|------|
-| 카테고리 필터 | `ProjectsCategoryFilter.tsx` | All / Product / Brand / AI / UI-UX / Graphic / Editorial / Craft 태그 |
-| 뷰 전환 | `projectspage/page.tsx` | 실린더 뷰 / 그리드 뷰 아이콘 토글 |
-| 작품 갤러리 | `ProjectsCylinderGallery.tsx` | 77개 작품 카드, 12슬롯 실린더 회전, 그리드 전환 |
-| 스타일 | `projects-category-filter.css`, `projects-cylinder-gallery.css` | 필터 위치, 뷰 토글, 실린더/그리드 카드 레이아웃 |
-
-- 실린더 뷰는 위아래 두 줄이 서로 반대 방향으로 천천히 회전한다.
-- 각 줄은 12개 슬롯을 유지하고, 화면 뒤쪽에서 카드 번호를 교체해 앞쪽에서 갑작스러운 변경이 보이지 않게 한다.
-- 줄 위에서 휠 스크롤 시 페이지 스크롤 대신 해당 줄의 회전이 작동한다.
-- 좌우 화살표 버튼은 한 칸씩 회전시키며, 회전 후 가까운 카드 위치로 스냅된다.
-- 그리드 뷰는 77개 작품을 흰색 16:9 카드로 표시하며, 데스크톱 기준 한 줄에 3개가 들어가도록 폭과 여백을 조정한다.
-
-### People 페이지 (`app/peoplepage/page.tsx`)
-
-People 페이지는 배경 이미지 위에 로테이팅 캐러셀을 배치하는 구조입니다.
-
-- 배경은 화면 중앙 기준으로 꽉 차게 출력한다.
-- 상단에는 텍스트·버튼 가독성을 위한 자연스러운 흰색 그라디언트 틴트를 둔다.
-- 로테이팅 캐러셀 일반 카드는 투명 blur + shadow, 확대 카드는 흰색 표면으로 구분한다.
-
-### 글로벌 UI
-
-| 구성 | 파일 | 설명 |
-|------|------|------|
-| 타이포 로고 | `TypoLogoButton.tsx` | `/icons/typo.svg`, Hero 카피 좌측 정렬, 랜딩 top 스크롤 |
-| 헤더 | `Header.tsx` | 반응형 네비 + Liquid Glass morph + 오브·스크롤 연동 |
-| Liquid Glass | `liquid-glass/useLiquidGlass.ts` | 헤더 nav·오브, Hero Action 버튼 backdrop-filter 굴절 |
-| Footer | `LandingFooter.tsx` | Instagram [@tukd_grad](https://www.instagram.com/tukd_grad/), Projects/People/Showroom/Credits 링크 |
-
-### 글로벌 헤더 (`Header.tsx` + `globals.css`)
-
-#### 모바일 (뷰포트 ≤ 767px)
-
-- `matchMedia("(max-width: 767px)")` 분기
-- 우측 상단 pill (`right-4 top-4`, `h-[44px]`)
-- **랜딩**: 햄버거 탭 → 메뉴 확장
-- **서브 페이지**: 현재 라벨 pill 탭 → 확장; 바깥 `pointerdown` 시 닫힘
-- 라벨 **`font-bold` + `text-systemNavy`**
-
-#### 데스크톱 (뷰포트 ≥ 768px)
-
-- 상단 중앙, `.desktop-header` CSS 변수 (`globals.css` 768 / 1024 / 1280px)
-- Liquid Glass nav + **심볼 오브** (`/icons/symbol.svg`) 클릭 가능
-- **랜딩**: [스크롤·헤더 연동](#랜딩-페이지-apppagetsx) 참고
-- **서브 페이지**: 축소 pill → `md:` 호버 확장; **`font-bold text-systemNavy`**
-- **1024px+(`lg:`)**: flex 가로 네비
-- 메뉴 클릭: 라벨 전환(700ms) 후 `router.push`
-
-### 반응형·브레이크포인트
-
-| 구분 | 기준 | 적용 위치 |
-|------|------|-----------|
-| JS 모바일 | `max-width: 767px` | `Header.tsx` |
-| Tailwind `md:` | `min-width: 768px` | 호버 확장, Hero·캐러셀 타이포 |
-| Tailwind `lg:` | `min-width: 1024px` | 데스크톱 flex 네비 |
-| `.desktop-header` 변수 | 768 / 1024 / 1280px | `globals.css` |
-
-### 백엔드·데이터 (미구현)
-
-`package.json`에 Supabase 클라이언트가 없고, 코드에 `process.env` 사용처가 없습니다.
+한국공학대학교 디자인공학부 제21회 졸업전시 **sensibility**의 온라인 전시 웹사이트입니다. 전시 정보, 작품과 참여자 아카이브, 인터랙티브 쇼룸, 크레딧을 하나의 Next.js App Router 애플리케이션으로 제공합니다.
 
 ## 기술 스택
 
-| 구분 | 기술 | 버전(참고) |
-|------|------|------------|
-| 프레임워크 | [Next.js](https://nextjs.org/) (App Router) | 16.1.6 |
-| UI | [React](https://react.dev/) | 19.2.3 |
-| 스타일 | [Tailwind CSS](https://tailwindcss.com/) | 4.x |
-| 언어 | TypeScript | 5.x |
-| 린트 | ESLint (`eslint-config-next`) | 9.x |
-| 폰트 | `next/font/local` — Pretendard Variable | `public/fonts/PretendardVariable.woff2` |
+| 구분 | 기술 |
+| --- | --- |
+| Framework | Next.js 16.3.0 (App Router) |
+| UI | React 19.2.3 |
+| Language | TypeScript 5, strict mode |
+| Styling | Tailwind CSS 4, CSS modules, global CSS |
+| 3D | Three.js 0.185 |
+| Font | Pretendard Variable (`next/font/local`) |
+| Validation | ESLint 9, Next.js production build |
+| Deployment | Vercel 연동 |
 
-## 데모 또는 스크린샷
+현재 Supabase 클라이언트, 인증, API route, 환경변수 의존성은 없습니다.
 
-로컬: `npm run dev` → [http://localhost:3000](http://localhost:3000)
+## 주요 라우트
 
-**확인 필요:** 프로덕션 URL, 스크린샷 자산
+| 경로 | 렌더링 | 설명 |
+| --- | --- | --- |
+| `/` | Static | Hero, 전시 정보, Concept 캐러셀, Media, Footer 스크롤 경험 |
+| `/projectspage` | Static | 77개 작품의 실린더/그리드 갤러리 |
+| `/peoplepage` | Static | 참여자 로테이팅 캐러셀 |
+| `/peoplepage/[memberId]` | Dynamic | 선택한 참여자 확대 상태 |
+| `/showroompage` | Static | 입력 문구로 변형되는 Canvas 파티클 타이포 |
+| `/creditspage` | Static | 5개 Three.js 크레딧 파편의 조립 상태 |
+| `/creditspage/[fragmentSlug]` | SSG | 선택한 크레딧 파편과 본문 |
+
+## 페이지별 기능
+
+### Landing
+
+- `/images/bg.webm`, `/images/bg2.webm` 비디오 배경
+- Hero, Concept, Media 사이의 풀페이지 스크롤과 Footer reveal
+- Schedule/Info Liquid Glass 패널
+- 토요일 `10:00-17:30`, 일요일 `10:00-17:00` 전시 시간 표시
+- Concept, Typography, Symbol, Senses 캐러셀
+- 스크롤 진행도와 연동되는 글로벌 Header/Orb 전환
+
+관련 파일:
+
+- `app/page.tsx`
+- `app/components/LandingScrollExperience.tsx`
+- `app/components/LandingHeroActionButton.tsx`
+- `app/components/landing-carousel/**`
+
+### Projects
+
+- 77개 작품 카드
+- 12개 슬롯으로 구성된 상하 실린더, 서로 반대 방향 자동 회전
+- 휠, 좌우 버튼, hover 기준 스냅
+- 화면 뒤쪽에서 카드를 교체하는 비중복 순환 덱
+- 실린더/그리드 보기 전환
+- 16:9 반응형 카드
+
+구성 분리:
+
+- `ProjectsCylinderGallery.tsx`: React 상태, 입력 이벤트, 렌더링
+- `projectsCylinderConfig.ts`: 카드 덱, 회전 상수, 각도/스냅 계산
+- `projects-cylinder-gallery.css`: 실린더와 그리드 레이아웃
+
+### People
+
+- `/images/ppbg.webm` 전체 화면 배경
+- 원통형 참여자 카드와 진입 stagger 애니메이션
+- zone 카드의 hover tilt와 클릭 확대
+- 휠 종류를 구분한 스크롤/스냅 처리
+- `/peoplepage/[memberId]` 라우트와 확대 상태 동기화
+- Footer reveal 구간의 스크롤 handoff
+
+구성 분리:
+
+- `PeopleRotatingCarousel.tsx`: React 상태, 이벤트, 렌더링
+- `peopleCarouselModel.ts`: 측정값 타입, 좌표/스냅 계산, 애니메이션 설정
+- `items.ts`: 참여자 데이터
+- `memberPaths.ts`: 참여자 URL 변환
+- `peopleCarouselFooter.ts`: Footer 스크롤 연동
+
+### Showroom
+
+- 검은 배경 위 Canvas 파티클 타이포
+- 초기 문구 `Flexibility through Sensibility.`
+- 첫 입력 focus 시 초기 문구 자동 삭제, Enter 제출 시 파티클 변형
+- 포인터 주변 파티클 반응
+- `해파리` 입력 시 해파리 실루엣 생성
+- 오감 키워드와 졸업전시 이스터에그 설명
+
+구성 분리:
+
+- `ParticleTextScene.tsx`: Canvas 수명주기와 입력 UI
+- `particleTextContent.ts`: 초기 문구, 감각 설명, 이스터에그 데이터
+- `ParticleTextScene.module.css`: Showroom 전용 스타일
+
+### Credits
+
+- 동일 평면에서 하나의 패널을 이루는 5개 polygon fragment
+- fragment별 이미지(`/images/cti1.png`-`cti5.png`)와 liquid glass shader
+- idle drift, pointer parallax, hover tilt
+- 선택 시 파편 이동과 route 전환, 본문 overlay 연결
+- ESC/닫기 복귀 및 reduced-motion 대응
+- 크레딧 본문과 조직도를 DOM으로 제공
+
+크레딧 데이터는 `creditData.ts`에 분리되어 있습니다. 조직도는 위원장단을 먼저 표시하고 `기획팀 → 디자인팀 → 웹사이트팀 → 총무팀 → 홍보팀` 순서로 구성합니다.
+
+## 공통 UI
+
+- `Header.tsx`: 데스크톱 hover, 모바일 touch, route transition
+- `TypoLogoButton.tsx`: 상단 타이포 로고와 랜딩 복귀
+- `GlobalFooterReveal.tsx`: 페이지별 Footer reveal 및 스크롤 잠금
+- `SitePageShell.tsx`: Showroom 진입/이탈 배경 전환
+- `liquid-glass/**`: SVG filter와 Liquid Glass hook
+- `app/utils/numbers.ts`: 공통 숫자 범위 제한 유틸리티
+
+## 반응형 기준
+
+| 범위 | 주요 동작 |
+| --- | --- |
+| `<= 767px` | 모바일 Header/touch UI, 축소된 3D composition, hover 비의존 동작 |
+| `>= 768px` | 데스크톱 Header hover, pointer parallax/tilt |
+| `>= 1024px` | 넓은 화면용 캐러셀과 Header 레이아웃 |
+| `>= 1536px` | 데스크톱 Projects 카드 크기 조정 |
+
+CSS의 `dvh`, `clamp()`, aspect ratio와 JavaScript의 `matchMedia`를 함께 사용합니다. 고정 형식의 카드와 Canvas는 viewport 변화 시 내부 크기와 카메라/좌표를 다시 계산합니다.
+
+## 성능과 접근성
+
+- Canvas 및 Three.js renderer pixel ratio를 제한합니다.
+- 애니메이션 루프는 React state의 프레임 단위 갱신을 피하고 ref/object property를 사용합니다.
+- `requestAnimationFrame`, timer, observer, event listener는 unmount 시 정리합니다.
+- Three.js geometry, material, texture, renderer를 dispose합니다.
+- `prefers-reduced-motion`에서 큰 이동과 idle motion을 축소합니다.
+- 실제 Credit 본문은 WebGL mesh가 아니라 DOM에 유지합니다.
+- icon-only button은 `aria-label`, 상태형 button은 `aria-pressed`를 사용합니다.
+
+## 프로젝트 구조
+
+```text
+app/
+├── components/
+│   ├── credits/
+│   ├── landing-carousel/
+│   ├── liquid-glass/
+│   ├── people-carousel/
+│   ├── projects/
+│   ├── showroom/
+│   ├── GlobalFooterReveal.tsx
+│   ├── Header.tsx
+│   ├── LandingScrollExperience.tsx
+│   └── SitePageShell.tsx
+├── creditspage/
+├── peoplepage/
+├── projectspage/
+├── showroompage/
+├── styles/
+├── utils/
+├── globals.css
+├── layout.tsx
+└── page.tsx
+public/
+├── fonts/
+├── icons/
+└── images/
+```
 
 ## 시작하기
 
 ### 요구사항
 
-- **Node.js** 20 LTS 권장 (`@types/node` ^20)
-- **npm**
+- Node.js 20 이상 권장
+- npm
 
-### 설치
+### 설치 및 실행
 
 ```bash
-git clone https://github.com/ms200279/21_Graduation.git
-cd 21_Graduation
 npm install
-```
-
-### 환경변수
-
-애플리케이션 코드에 **사용 중인 환경변수 없음.**
-
-### 개발 서버
-
-```bash
 npm run dev
 ```
 
-### 빌드
+기본 개발 주소는 [http://localhost:3000](http://localhost:3000)입니다.
+
+### 검증
 
 ```bash
+npm run lint
 npm run build
 npm run start
 ```
 
-### 테스트·품질 검사
+별도의 `npm test` 또는 E2E 스크립트는 아직 없습니다.
 
-| 명령어 | 설명 |
-|--------|------|
-| `npm run lint` | ESLint |
+## 수동 QA
 
-**확인 필요:** `npm test` — `package.json`에 없음
-
-### 수동 검증
-
-1. **랜딩 스냅**: Hero → Concept → Media, Media에서 Footer reveal(40vh)
-2. **Hero**: WebM 배경, Schedule/Info 확장·collapse, Liquid Glass
-3. **Concept 캐러셀**: 4슬라이드(Concept/Typography/Symbol/Senses), prev/next·dot, 투명 blur 카드 표면
-4. **Footer**: Instagram 링크, 섹션 네비 링크
-5. **헤더·오브**: Hero↔Concept 구간 morph; Concept 이후 오브 클릭 → Hero
-6. **People 로테이팅 캐러셀**: 일반 카드는 투명 blur + header 수준 shadow, hover 카드는 더 강한 blur, 확대 카드는 흰색 표면
-7. **Projects 실린더 갤러리**: 자동 회전, 줄 위 휠 회전, 좌우 버튼, 카드 번호 교체 타이밍
-8. **Projects 그리드 갤러리**: 뷰 전환, 데스크톱 3열 배치, 모바일 카드 축소
-9. **모바일(≤767px)**: 햄버거·pill 탭
-10. **데스크톱(≥768px)**: 호버 확장, 볼드 라벨, 라우트 전환
-
-## 사용 방법
-
-### 방문자
-
-1. Hero에서 전시 정보·Schedule/Info 확인
-2. 스크롤로 Concept 캐러셀·Media·Footer 탐색
-3. 헤더 또는 Footer 링크로 Projects / People / Showroom / Credits 이동
-
-### 개발자
-
-- 경로 별칭: `@/*` → 프로젝트 루트
-- 랜딩 스크롤: `LandingScrollExperience`, `scrollLandingFullpageTo`, `--landing-scroll-progress`
-- 캐러셀 데이터: `app/components/landing-carousel/slides.ts`
-- 헤더·오브: `Header.tsx`, `globals.css` `.desktop-header`
-- Liquid Glass: `useLiquidGlass.ts`, `app/styles/liquid-glass.css`
-- People 로테이팅 캐러셀: `app/components/people-carousel/PeopleRotatingCarousel.tsx`, `app/styles/people-carousel.css`
-- Projects 갤러리: `app/components/projects/ProjectsCylinderGallery.tsx`, `app/styles/projects-cylinder-gallery.css`
-- Agent 규칙: `.cursor/rules/` (`project-rules.mdc`)
-
-## 프로젝트 구조
-
-```
-21_Graduation/
-├── app/
-│   ├── components/
-│   │   ├── Header.tsx
-│   │   ├── TypoLogoButton.tsx
-│   │   ├── LandingScrollExperience.tsx   # Hero/Concept/Media/Footer 스냅
-│   │   ├── LandingHeroActionButton.tsx
-│   │   ├── LandingFooter.tsx
-│   │   ├── landing-carousel/
-│   │   │   ├── LandingCarousel.tsx
-│   │   │   ├── ConceptCarouselSlideContent.tsx
-│   │   │   ├── SymbolCarouselIcons.tsx
-│   │   │   ├── slides.ts                 # CONCEPT_CAROUSEL_SLIDES
-│   │   │   └── index.ts
-│   │   ├── people-carousel/
-│   │   │   ├── PeopleRotatingCarousel.tsx
-│   │   │   └── index.ts
-│   │   ├── projects/
-│   │   │   ├── ProjectsCategoryFilter.tsx
-│   │   │   ├── ProjectsCylinderGallery.tsx
-│   │   │   └── index.ts
-│   │   └── liquid-glass/
-│   │       ├── useLiquidGlass.ts
-│   │       ├── liquidGlassFilter.ts
-│   │       └── index.ts
-│   ├── styles/
-│   │   ├── liquid-glass.css
-│   │   ├── people-carousel.css
-│   │   ├── projects-category-filter.css
-│   │   └── projects-cylinder-gallery.css
-│   ├── creditspage/page.tsx
-│   ├── peoplepage/page.tsx
-│   ├── projectspage/page.tsx
-│   ├── showroompage/page.tsx
-│   ├── globals.css
-│   ├── icon.svg
-│   ├── layout.tsx
-│   └── page.tsx                          # Hero / Concept / Media + Footer
-├── public/
-│   ├── fonts/PretendardVariable.woff2
-│   ├── icons/symbol.svg
-│   ├── icons/typo.svg
-│   └── images/bg.webm
-├── .cursor/rules/
-├── next.config.ts
-├── postcss.config.mjs
-├── eslint.config.mjs
-├── tsconfig.json
-└── package.json
-```
-
-## 주요 명령어
-
-| 명령어 | 용도 |
-|--------|------|
-| `npm run dev` | 개발 서버 |
-| `npm run build` | 프로덕션 빌드 |
-| `npm run start` | 빌드 결과 실행 |
-| `npm run lint` | ESLint |
-
-## API 문서
-
-**해당 없음 (현재).**
-
-## 배포
-
-저장소에 `vercel.json`, CI 워크플로 없음. Build: `npm run build` / Start: `npm run start`.
-
-**확인 필요:** 배포 호스트·URL
+1. Hero에서 Concept/Media/Footer까지 스크롤하고 Header 전환을 확인합니다.
+2. Schedule/Info 패널과 모바일 Header touch 동작을 확인합니다.
+3. Projects 두 실린더의 자동 회전, 휠, 버튼, hover snap, 그리드 전환을 확인합니다.
+4. People 진입 애니메이션, zone snap, 확대/닫기, 동적 URL을 확인합니다.
+5. Showroom 초기 morph, 입력 제출, 오감 설명, 해파리 실루엣을 확인합니다.
+6. Credits hover/click/ESC, fragment route, 긴 본문 스크롤을 확인합니다.
+7. `<= 767px`, `768px`, `1024px`, `1536px` 전후 viewport를 확인합니다.
+8. reduced-motion 환경에서 콘텐츠 접근이 가능한지 확인합니다.
 
 ## 트러블슈팅
 
+### `Module not found`
+
+파일명의 대소문자와 barrel export(`index.ts`)를 확인한 뒤 `.next` 캐시를 제거하고 다시 빌드합니다.
+
 ```bash
-rm -rf node_modules .next && npm install && npm run build
-npm run dev -- -p 3001   # 포트 충돌
-npm run lint
+rm -rf .next
+npm run build
 ```
 
-## 로드맵
+### 타입 오류 `TS2304: Cannot find name ...`
 
-1. ~~랜딩 Hero · Concept Carousel · Media/Footer 스크롤~~ (구현됨)
-2. Media 섹션 콘텐츠, Senses 슬라이드 본문
-3. Projects / People / Showroom / Credits 페이지 퍼블리싱
-4. Supabase(또는 지정 백엔드) 연동
-5. 배포·CI·자동화 테스트
+리팩터링으로 유틸리티를 이동한 경우 export/import 누락 여부를 확인합니다. `npm run build`는 ESLint 이후 TypeScript 검사를 수행하므로 최종 검증에 반드시 포함합니다.
 
-## Agent 협업 (Cursor)
+### 개발 포트 충돌
 
-`.cursor/rules/project-rules.mdc` 및 각 Agent `.mdc` **세션 첫 프롬프트** 참고.
+```bash
+npm run dev -- -p 3001
+```
 
-- 작업마다 `main`에서 별도 브랜치
-- 커밋 형식: `type:short description` (`pm-agent.mdc`)
+포트 번호만으로 실행 중인 프로젝트를 판단하지 말고 터미널의 working directory와 Next.js 로그를 함께 확인합니다.
 
-## 기여 방법
+### 애니메이션이 즉시 완료되는 경우
 
-1. `main`에서 브랜치 생성
-2. 랜딩·헤더 변경 시 [수동 검증](#수동-검증) 수행
-3. `npm run lint` (라우팅·레이아웃 변경 시 `npm run build` 권장)
+운영체제의 reduced-motion 설정, `matchMedia("(prefers-reduced-motion: reduce)")`, 브라우저 탭 visibility를 확인합니다.
 
-| type | 용도 |
-|------|------|
-| `chore` | 설정, 의존성 |
-| `deploy` | 배포 |
-| `docs` | README, 가이드 |
-| `feat` | 기능 |
-| `hotfix` | 긴급 수정 |
-| `design` | UI·CSS |
-| `fix` | 버그 |
-| `style` | 포맷·오타 |
-| `refactor` | 리팩터 |
-| `rename` | 이동 |
-| `remove` | 삭제 |
+### WebGL 화면이 비어 있는 경우
 
-## 라이선스
+브라우저 WebGL 지원, Canvas 크기, texture 경로, renderer cleanup 시점을 확인합니다. Credits 정보는 WebGL 실패 시에도 DOM에 남도록 유지해야 합니다.
 
-**확인 필요:** `LICENSE` 없음
+## 데이터와 남은 작업
 
----
+- Projects와 People은 현재 로컬 데이터로 렌더링합니다.
+- Credit `Archive` 본문과 일부 작품/참여자 실제 데이터는 교체가 필요할 수 있습니다.
+- Landing Media 영역은 현재 콘텐츠 placeholder입니다.
+- Supabase, 인증, 업로드, 관리자 기능은 구현되지 않았습니다.
+- 자동화 테스트와 `LICENSE` 파일은 없습니다.
 
-## 확인 필요
+## 배포
 
-| 항목 | 현재 상태 |
-|------|-----------|
-| 프로덕션·스테이징 URL | 미기재 |
-| 배포 호스트·CI | 설정 없음 |
-| Media 섹션 콘텐츠 | `bg-white` 플레이스홀더 |
-| `senses` 슬라이드 본문 | `paragraphs: []` |
-| Supabase·인증·업로드 | 미구현 |
-| `npm test` / E2E | 미구현 |
-| `LICENSE` | 없음 |
+Vercel Git 연동을 사용하며 별도 `vercel.json`과 GitHub Actions workflow는 없습니다.
+
+```bash
+npm run build
+```
+
+프로덕션 반영 전 Vercel preview, 모바일/데스크톱 수동 QA, route transition을 확인합니다.
