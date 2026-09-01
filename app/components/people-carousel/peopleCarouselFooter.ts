@@ -74,10 +74,6 @@ export function correctPeopleFooterHandoffScroll(
   );
 }
 
-export function isPeoplePagePath(pathname: string) {
-  return pathname === "/peoplepage" || pathname.startsWith("/peoplepage/");
-}
-
 export function isPeopleCarouselScrollLockedByFooter() {
   return document.documentElement.hasAttribute(
     "data-people-carousel-scroll-lock",

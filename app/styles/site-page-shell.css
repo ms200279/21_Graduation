@@ -1,0 +1,54 @@
+.site-page-shell-frame {
+  position: relative;
+  isolation: isolate;
+  min-height: 100dvh;
+}
+
+.site-page-shell-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-color: var(--color-systemBlack);
+  opacity: 0;
+  transition: opacity 700ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: opacity;
+}
+
+.site-page-shell-frame--showroom .site-page-shell-backdrop {
+  opacity: 1;
+}
+
+.site-page-shell-content {
+  position: relative;
+  z-index: 1;
+  min-height: inherit;
+}
+
+.site-page-shell {
+  --site-footer-lift: calc(
+    -1 * var(--landing-footer-reveal, 0) * var(--landing-footer-ratio, 0.4) * 100dvh
+  );
+  transform: translate3d(0, var(--site-footer-lift), 0);
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+/*
+ * People page uses sticky carousel/filter layers. A transformed ancestor does not
+ * visually lift sticky descendants, so the footer appears to overlay the carousel.
+ * Lift those sticky layers directly instead of the shell wrapper.
+ */
+.site-page-shell:has(.people-page) {
+  transform: none;
+}
+
+.site-page-shell:has(.people-page) .people-category-filter,
+.site-page-shell:has(.people-page) .people-carousel-wrap {
+  --site-footer-lift: calc(
+    -1 * var(--landing-footer-reveal, 0) * var(--landing-footer-ratio, 0.4) * 100dvh
+  );
+  transform: translate3d(0, var(--site-footer-lift), 0);
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}

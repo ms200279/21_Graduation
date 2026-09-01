@@ -1,10 +1,8 @@
 "use client";
 
 import {
-  forwardRef,
   useCallback,
   useEffect,
-  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -12,13 +10,14 @@ import {
   type ReactNode,
   type CSSProperties,
 } from "react";
-import { createPortal } from "react-dom";
 
 import { clamp } from "@/app/utils/numbers";
+import { normalizeWheelDelta } from "@/app/utils/wheel";
 import type { PeopleCarouselItem } from "./items";
+import { PeopleCarouselCardSurface } from "./PeopleCarouselCard";
+import PeopleCarouselExpandedPortal from "./PeopleCarouselExpandedPortal";
 import {
   findMemberIndexBySlug,
-  getMemberPathFromIndex,
   parseMemberSlugFromPath,
 } from "./memberPaths";
 import {
@@ -38,7 +37,6 @@ import {
   EXPAND_MORPH_TRANSFORM_END_COUNT,
   getBatchCount,
   getCarouselPerspective,
-  getCarouselRadius,
   getCarouselRigTransform,
   getCarouselSlotTransform,
   getCarouselStateFromItemPosition,
@@ -46,13 +44,14 @@ import {
   getExpandedTargetRect,
   getExpandedTargetRectFallback,
   getScrollMetrics,
+  getScrollProgressForItemIndex,
+  getSnappedCarouselStateForItemIndex,
+  resolveStepOriginItemIndex,
   INITIAL_ROTATION_OFFSET_DEG,
   isLikelyDiscreteMouseWheel,
   isSlotInGlassEffectWindow,
   measureExpandAnchorMetrics,
-  MIN_CAROUSEL_RADIUS_PX,
   mod,
-  normalizeWheelDelta,
   resolveZoneSnapItemIndex,
   SCROLL_VH_PER_CARD,
   SNAP_DURATION_MS,
@@ -65,46 +64,13 @@ import {
   ZONE_HOVER_LIFT_PX,
   ZONE_HOVER_STAND_DEG,
 } from "./peopleCarouselModel";
+import { usePeopleCarouselMeasurements } from "./usePeopleCarouselMeasurements";
+import {
+  pushPeopleMemberUrl,
+  usePeopleCarouselRouteSync,
+} from "./usePeopleCarouselRouteSync";
+import { registerPeopleCarouselWheelSnapListeners } from "./peopleCarouselWheelSnapEvents";
 import "@/app/styles/people-carousel.css";
-
-
-function PeopleCarouselCardContent({ item }: { item: PeopleCarouselItem }) {
-  return (
-    <>
-      {item.role ? (
-        <span className="people-carousel-card__role">{item.role}</span>
-      ) : null}
-      <span className="people-carousel-card__label">{item.name}</span>
-    </>
-  );
-}
-
-type PeopleCarouselCardSurfaceProps = {
-  item: PeopleCarouselItem;
-  className: string;
-  style?: CSSProperties;
-};
-
-const PeopleCarouselCardSurface = forwardRef<
-  HTMLDivElement,
-  PeopleCarouselCardSurfaceProps
->(function PeopleCarouselCardSurface(
-  { item, className, style },
-  forwardedRef,
-) {
-  const surfaceRef = useRef<HTMLDivElement>(null);
-
-  useImperativeHandle(
-    forwardedRef,
-    () => surfaceRef.current as HTMLDivElement,
-  );
-
-  return (
-    <div ref={surfaceRef} className={className} style={style}>
-      <PeopleCarouselCardContent item={item} />
-    </div>
-  );
-});
 
 type PeopleRotatingCarouselProps = {
   items: PeopleCarouselItem[];
@@ -140,7 +106,6 @@ export default function PeopleRotatingCarousel({
 
   const [rotation, setRotation] = useState(0);
   const [batchIndex, setBatchIndex] = useState(0);
-  const [carouselRadius, setCarouselRadius] = useState(MIN_CAROUSEL_RADIUS_PX);
   const [entryPhase, setEntryPhase] = useState<CarouselEntryPhase>(
     initialMemberSlug ? "complete" : "before",
   );
@@ -159,8 +124,8 @@ export default function PeopleRotatingCarousel({
 
   const displayRotation = rotation + INITIAL_ROTATION_OFFSET_DEG;
 
-  /** Slot aligned to the snap position (derived from scroll rotation, not display offset). */
-  const snapSlotInBatch = useMemo(() => {
+  /** Slot aligned to the rest zone where card #1 sits on first page load. */
+  const zoneSlotInBatch = useMemo(() => {
     if (VISIBLE_CAROUSEL_SLOTS <= 0 || slotAngleStep <= 0) {
       return 0;
     }
@@ -168,9 +133,17 @@ export default function PeopleRotatingCarousel({
     return mod(Math.round(rotation / slotAngleStep), VISIBLE_CAROUSEL_SLOTS);
   }, [rotation, slotAngleStep]);
 
-  /** Cylinder slot at the snap position — the interactive zone (card 1 position). */
-  const zoneSlotInBatch = snapSlotInBatch;
   const activeSlotInBatch = zoneSlotInBatch;
+
+  const { carouselRadius, zoneHitRect, updateZoneHitRect } =
+    usePeopleCarouselMeasurements({
+      bodyRef,
+      stageRef,
+      zoneCardRef,
+      batchIndex,
+      displayRotation,
+      zoneSlotInBatch,
+    });
 
   const [isZoneHovered, setIsZoneHovered] = useState(false);
   const [expandedCard, setExpandedCard] = useState<ExpandedCardState | null>(null);
@@ -193,7 +166,6 @@ export default function PeopleRotatingCarousel({
   const [expandOverlayReady, setExpandOverlayReady] = useState(false);
   const pendingExpandSyncRef = useRef<number | null>(null);
   const isHistorySyncRef = useRef(false);
-  const pendingInitialSlugRef = useRef(initialMemberSlug ?? null);
   const expandOpenSessionRef = useRef<number | null>(null);
   const expandCloseReadyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
@@ -236,33 +208,6 @@ export default function PeopleRotatingCarousel({
     }
   }, []);
 
-  const [zoneHitRect, setZoneHitRect] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    height: number;
-  } | null>(null);
-
-  const updateZoneHitRect = useCallback(() => {
-    const zoneCard = zoneCardRef.current;
-    const body = bodyRef.current;
-
-    if (!zoneCard || !body) {
-      setZoneHitRect(null);
-      return;
-    }
-
-    const cardRect = zoneCard.getBoundingClientRect();
-    const bodyRect = body.getBoundingClientRect();
-
-    setZoneHitRect({
-      top: cardRect.top - bodyRect.top,
-      left: cardRect.left - bodyRect.left,
-      width: cardRect.width,
-      height: cardRect.height,
-    });
-  }, []);
-
   useEffect(() => {
     if (initialMemberSlug) {
       return;
@@ -293,22 +238,6 @@ export default function PeopleRotatingCarousel({
     };
   }, [initialMemberSlug, updateZoneHitRect]);
 
-  useLayoutEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      updateZoneHitRect();
-    });
-
-    return () => {
-      cancelAnimationFrame(frame);
-    };
-  }, [
-    batchIndex,
-    carouselRadius,
-    displayRotation,
-    updateZoneHitRect,
-    zoneSlotInBatch,
-  ]);
-
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       setIsZoneHovered(false);
@@ -318,16 +247,6 @@ export default function PeopleRotatingCarousel({
       cancelAnimationFrame(frame);
     };
   }, [zoneSlotInBatch, batchIndex]);
-
-  useEffect(() => {
-    window.addEventListener("scroll", updateZoneHitRect, { passive: true });
-    window.addEventListener("resize", updateZoneHitRect);
-
-    return () => {
-      window.removeEventListener("scroll", updateZoneHitRect);
-      window.removeEventListener("resize", updateZoneHitRect);
-    };
-  }, [updateZoneHitRect]);
 
   const activeIndex = Math.min(
     batchStartIndex + activeSlotInBatch,
@@ -340,34 +259,6 @@ export default function PeopleRotatingCarousel({
     () => getCarouselPerspective(carouselRadius),
     [carouselRadius],
   );
-
-  const updateCarouselRadius = useCallback(() => {
-    const stage = stageRef.current;
-
-    if (!stage) {
-      return;
-    }
-
-    setCarouselRadius(
-      getCarouselRadius(
-        stage.offsetHeight,
-        stage.offsetWidth,
-        VISIBLE_CAROUSEL_SLOTS,
-      ),
-    );
-  }, []);
-
-  useLayoutEffect(() => {
-    updateCarouselRadius();
-  }, [updateCarouselRadius]);
-
-  useEffect(() => {
-    window.addEventListener("resize", updateCarouselRadius);
-
-    return () => {
-      window.removeEventListener("resize", updateCarouselRadius);
-    };
-  }, [updateCarouselRadius]);
 
   const applyCarouselState = useCallback(
     (batchIndex: number, rotation: number) => {
@@ -406,21 +297,6 @@ export default function PeopleRotatingCarousel({
     },
     [applyCarouselState, items.length],
   );
-
-  const pushMemberUrl = useCallback((itemIndex: number) => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const nextPath = getMemberPathFromIndex(itemIndex);
-
-    if (window.location.pathname === nextPath) {
-      return;
-    }
-
-    isHistorySyncRef.current = true;
-    window.history.pushState({ peopleMember: nextPath }, "", nextPath);
-  }, []);
 
   const beginExpandedCardAtIndex = useCallback(
     (
@@ -566,6 +442,17 @@ export default function PeopleRotatingCarousel({
       scrollToItemIndex,
     ],
   );
+
+  const pushMemberUrl = useCallback((itemIndex: number) => {
+    pushPeopleMemberUrl(itemIndex, isHistorySyncRef);
+  }, []);
+
+  usePeopleCarouselRouteSync({
+    initialMemberSlug,
+    isHistorySyncRef,
+    closeExpandedCard,
+    openExpandedCardFromSlug,
+  });
 
   useLayoutEffect(() => {
     if (!expandedCard?.pendingClose || expandedCard.isClosing) {
@@ -968,41 +855,6 @@ export default function PeopleRotatingCarousel({
     };
   }, [expandedCard?.isClosing, expandedCard?.isOpen]);
 
-  useEffect(() => {
-    const onPopState = () => {
-      if (isHistorySyncRef.current) {
-        isHistorySyncRef.current = false;
-        return;
-      }
-
-      const slug = parseMemberSlugFromPath(window.location.pathname);
-
-      if (!slug) {
-        closeExpandedCard({ syncHistory: false });
-        return;
-      }
-
-      openExpandedCardFromSlug(slug, { syncHistory: false });
-    };
-
-    window.addEventListener("popstate", onPopState);
-
-    return () => {
-      window.removeEventListener("popstate", onPopState);
-    };
-  }, [closeExpandedCard, openExpandedCardFromSlug]);
-
-  useEffect(() => {
-    const slug = pendingInitialSlugRef.current;
-
-    if (!slug) {
-      return;
-    }
-
-    pendingInitialSlugRef.current = null;
-    openExpandedCardFromSlug(slug, { syncHistory: false });
-  }, [initialMemberSlug, openExpandedCardFromSlug]);
-
   const cancelSnapAnimation = useCallback(() => {
     if (snapAnimFrameRef.current !== null) {
       window.cancelAnimationFrame(snapAnimFrameRef.current);
@@ -1028,74 +880,170 @@ export default function PeopleRotatingCarousel({
     [applyCarouselState, items.length],
   );
 
+  const getScrollItemIndex = useCallback(() => {
+    const track = trackRef.current;
+
+    if (!track || items.length <= 1) {
+      return zoneItemIndex;
+    }
+
+    const { trackTop, loopHeight } = getScrollMetrics(track);
+
+    if (loopHeight <= 0) {
+      return zoneItemIndex;
+    }
+
+    const progress = clamp((window.scrollY - trackTop) / loopHeight, 0, 1);
+    const maxItemIndex = items.length - 1;
+
+    return resolveStepOriginItemIndex(progress * maxItemIndex, maxItemIndex);
+  }, [items.length, zoneItemIndex]);
+
+  const applySnappedItemIndexState = useCallback(
+    (itemIndex: number, trackTop: number, loopHeight: number) => {
+      const maxItemIndex = items.length - 1;
+      const clampedItemIndex = clamp(itemIndex, 0, maxItemIndex);
+      const progress = getScrollProgressForItemIndex(
+        clampedItemIndex,
+        maxItemIndex,
+      );
+      const scrollY = trackTop + progress * loopHeight;
+
+      window.scrollTo(0, scrollY);
+
+      const { batchIndex: nextBatchIndex, rotation: nextRotation } =
+        getSnappedCarouselStateForItemIndex(
+          clampedItemIndex,
+          items.length,
+          VISIBLE_CAROUSEL_SLOTS,
+        );
+
+      applyCarouselState(nextBatchIndex, nextRotation);
+    },
+    [applyCarouselState, items.length],
+  );
+
+  const applyCarouselStateFromItemPosition = useCallback(
+    (itemPosition: number, snap: boolean) => {
+      const { batchIndex: nextBatchIndex, rotation: nextRotation } =
+        getCarouselStateFromItemPosition(
+          itemPosition,
+          items.length,
+          VISIBLE_CAROUSEL_SLOTS,
+          snap,
+        );
+
+      applyCarouselState(nextBatchIndex, nextRotation);
+    },
+    [applyCarouselState, items.length],
+  );
+
+  const finishProgrammaticSnap = useCallback(() => {
+    programmaticStepRef.current = false;
+    programmaticTargetIndexRef.current = null;
+    lastFooterHandoffWheelScrollYRef.current = null;
+  }, []);
+
   const animateSnapToItemIndex = useCallback(
-    (targetItemIndex: number, trackTop: number, loopHeight: number) => {
-      const targetScrollY =
-        trackTop + (targetItemIndex / (items.length - 1)) * loopHeight;
+    (
+      targetItemIndex: number,
+      trackTop: number,
+      loopHeight: number,
+      options?: { useSnappedStart?: boolean },
+    ) => {
+      const maxItemIndex = items.length - 1;
+      const clampedTargetIndex = clamp(targetItemIndex, 0, maxItemIndex);
+      const targetProgress = getScrollProgressForItemIndex(
+        clampedTargetIndex,
+        maxItemIndex,
+      );
+      const targetScrollY = trackTop + targetProgress * loopHeight;
 
       if (Math.abs(window.scrollY - targetScrollY) <= SNAP_POSITION_TOLERANCE_PX) {
-        const { batchIndex: nextBatchIndex, rotation: nextRotation } =
-          getCarouselStateFromItemPosition(
-            targetItemIndex,
-            items.length,
-            VISIBLE_CAROUSEL_SLOTS,
-            true,
-          );
+        applySnappedItemIndexState(clampedTargetIndex, trackTop, loopHeight);
 
-        applyCarouselState(nextBatchIndex, nextRotation);
+        if (options?.useSnappedStart) {
+          finishProgrammaticSnap();
+        }
+
         return;
       }
 
-      const startProgress = clamp(
+      const actualStartProgress = clamp(
         (window.scrollY - trackTop) / loopHeight,
         0,
         1,
       );
+      const actualStartItemPosition = actualStartProgress * maxItemIndex;
 
       cancelSnapAnimation();
-
-      const targetProgress = targetItemIndex / (items.length - 1);
-      const animationStart = performance.now();
-
       isSnapAnimatingRef.current = true;
+
+      let startItemIndex = clamp(
+        Math.round(actualStartItemPosition),
+        0,
+        maxItemIndex,
+      );
+
+      if (options?.useSnappedStart) {
+        startItemIndex = resolveStepOriginItemIndex(
+          actualStartItemPosition,
+          maxItemIndex,
+        );
+
+        if (
+          Math.abs(
+            actualStartItemPosition -
+              getScrollProgressForItemIndex(startItemIndex, maxItemIndex) *
+                maxItemIndex,
+          ) > 0.001
+        ) {
+          applySnappedItemIndexState(startItemIndex, trackTop, loopHeight);
+        }
+      }
+
+      const animationStart = performance.now();
 
       const tick = (now: number) => {
         const elapsed = now - animationStart;
         const linearT = clamp(elapsed / SNAP_DURATION_MS, 0, 1);
-        const easedT = easeOutBack(linearT);
-        const nextProgress = clamp(
-          startProgress + (targetProgress - startProgress) * easedT,
-          0,
-          1,
-        );
+        const easedT =
+          linearT >= 1 ? 1 : Math.min(easeOutBack(linearT), 1);
+        const nextItemPosition =
+          startItemIndex + (clampedTargetIndex - startItemIndex) * easedT;
+        const nextProgress = clamp(nextItemPosition / maxItemIndex, 0, 1);
         const nextScrollY = trackTop + nextProgress * loopHeight;
 
         window.scrollTo(0, nextScrollY);
-        applyRotationFromScrollProgress(nextProgress);
+        applyCarouselStateFromItemPosition(
+          nextItemPosition,
+          linearT >= 1,
+        );
 
         if (linearT < 1) {
           snapAnimFrameRef.current = window.requestAnimationFrame(tick);
           return;
         }
 
-        window.scrollTo(0, targetScrollY);
+        applySnappedItemIndexState(clampedTargetIndex, trackTop, loopHeight);
 
-        const { batchIndex: nextBatchIndex, rotation: nextRotation } =
-          getCarouselStateFromItemPosition(
-            targetItemIndex,
-            items.length,
-            VISIBLE_CAROUSEL_SLOTS,
-            true,
-          );
-
-        applyCarouselState(nextBatchIndex, nextRotation);
         isSnapAnimatingRef.current = false;
         snapAnimFrameRef.current = null;
+
+        if (options?.useSnappedStart) {
+          finishProgrammaticSnap();
+        }
       };
 
       snapAnimFrameRef.current = window.requestAnimationFrame(tick);
     },
-    [applyCarouselState, applyRotationFromScrollProgress, cancelSnapAnimation, items.length],
+    [
+      applyCarouselStateFromItemPosition,
+      applySnappedItemIndexState,
+      cancelSnapAnimation,
+      finishProgrammaticSnap,
+      items.length,
+    ],
   );
 
   const updateRotationFromScroll = useCallback(() => {
@@ -1114,15 +1062,10 @@ export default function PeopleRotatingCarousel({
       }
 
       if (programmaticTargetIndexRef.current !== null) {
-        const { batchIndex: nextBatchIndex, rotation: nextRotation } =
-          getCarouselStateFromItemPosition(
-            programmaticTargetIndexRef.current,
-            items.length,
-            VISIBLE_CAROUSEL_SLOTS,
-            true,
-          );
-
-        applyCarouselState(nextBatchIndex, nextRotation);
+        applyCarouselStateFromItemPosition(
+          programmaticTargetIndexRef.current,
+          true,
+        );
         return;
       }
 
@@ -1161,12 +1104,25 @@ export default function PeopleRotatingCarousel({
       }
 
       const progress = clamp(scrolled / loopHeight, 0, 1);
+      const maxItemIndex = items.length - 1;
+      const itemPositionFloat = progress * maxItemIndex;
+
+      if (carouselScrollIdleRef.current) {
+        const snappedIndex =
+          resolveZoneSnapItemIndex(itemPositionFloat, maxItemIndex) ??
+          Math.round(itemPositionFloat);
+
+        applySnappedItemIndexState(snappedIndex, trackTop, loopHeight);
+        return;
+      }
 
       applyRotationFromScrollProgress(progress);
     },
     [
       applyCarouselState,
+      applyCarouselStateFromItemPosition,
       applyRotationFromScrollProgress,
+      applySnappedItemIndexState,
       batchCount,
       items.length,
     ],
@@ -1219,14 +1175,15 @@ export default function PeopleRotatingCarousel({
         return;
       }
 
-      const targetIndex = zoneItemIndex + direction;
+      const currentIndex = getScrollItemIndex();
+      const targetIndex = currentIndex + direction;
 
       if (targetIndex < 0 || targetIndex >= items.length) {
         return;
       }
 
       const leavingCarouselEnd =
-        direction === -1 && zoneItemIndex >= items.length - 1;
+        direction === -1 && currentIndex >= items.length - 1;
 
       if (isPeopleCarouselScrollLockedByFooter() && !leavingCarouselEnd) {
         return;
@@ -1252,9 +1209,11 @@ export default function PeopleRotatingCarousel({
         notifyPeopleCarouselProgrammaticStep(direction);
       }
 
-      animateSnapToItemIndex(targetIndex, trackTop, loopHeight);
+      animateSnapToItemIndex(targetIndex, trackTop, loopHeight, {
+        useSnappedStart: true,
+      });
     },
-    [animateSnapToItemIndex, expandedCard, items.length, zoneItemIndex],
+    [animateSnapToItemIndex, expandedCard, getScrollItemIndex, items.length],
   );
 
   useEffect(() => {
@@ -1314,7 +1273,8 @@ export default function PeopleRotatingCarousel({
       event.preventDefault();
 
       const direction: -1 | 1 = deltaY > 0 ? 1 : -1;
-      const targetIndex = zoneItemIndex + direction;
+      const currentIndex = getScrollItemIndex();
+      const targetIndex = currentIndex + direction;
 
       if (targetIndex < 0) {
         return;
@@ -1361,10 +1321,7 @@ export default function PeopleRotatingCarousel({
 
       carouselScrollIdleRef.current = true;
 
-      if (programmaticStepRef.current) {
-        programmaticStepRef.current = false;
-        programmaticTargetIndexRef.current = null;
-        lastFooterHandoffWheelScrollYRef.current = null;
+      if (isSnapAnimatingRef.current || programmaticStepRef.current) {
         return;
       }
 
@@ -1390,17 +1347,16 @@ export default function PeopleRotatingCarousel({
     const initFrame = requestAnimationFrame(() => {
       updateRotationFromScroll();
     });
-    window.addEventListener("wheel", onWheel, { passive: false });
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("scrollend", onScrollEnd);
-    window.addEventListener("resize", onScroll);
+    const removeWheelSnapListeners =
+      registerPeopleCarouselWheelSnapListeners({
+        onWheel,
+        onScroll,
+        onScrollEnd,
+      });
 
     return () => {
       cancelAnimationFrame(initFrame);
-      window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("scrollend", onScrollEnd);
-      window.removeEventListener("resize", onScroll);
+      removeWheelSnapListeners();
 
       if (frameRef.current !== null) {
         window.cancelAnimationFrame(frameRef.current);
@@ -1423,11 +1379,11 @@ export default function PeopleRotatingCarousel({
   }, [
     cancelSnapAnimation,
     expandedCard,
+    getScrollItemIndex,
     items.length,
     snapToZoneCard,
     stepCarousel,
     updateRotationFromScroll,
-    zoneItemIndex,
   ]);
 
   const visibleSlots = useMemo(() => {
@@ -1733,160 +1689,31 @@ export default function PeopleRotatingCarousel({
         ) : null}
       </div>
 
-      {expandedCard && bodyAnchorRect && expandAnchor && expandRestPose
-        ? createPortal(
-            <div
-              className={[
-                "people-carousel-expand",
-                "people-carousel-expand--visible",
-                expandIsOpen || expandIsClosing
-                  ? "people-carousel-expand--open"
-                  : "",
-                expandIsClosing ? "people-carousel-expand--closing" : "",
-                expandCloseHandoff ? "people-carousel-expand--handoff" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              <button
-                type="button"
-                className="people-carousel-expand__backdrop"
-                onClick={() => closeExpandedCard()}
-                aria-label="Close expanded card"
-              />
-              <div
-                ref={expand3dRootRef}
-                className="people-carousel-expand-3d-root"
-                style={{
-                  top: bodyAnchorRect.top,
-                  left: bodyAnchorRect.left,
-                  width: bodyAnchorRect.width,
-                  height: bodyAnchorRect.height,
-                  perspective: `${expandRestPose.carouselPerspective}px`,
-                }}
-                role="dialog"
-                aria-modal="true"
-                aria-label={expandedCard.item.name}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div
-                  ref={expandAlignRef}
-                  className={[
-                    "people-carousel-expand-align",
-                    expandShouldAnimate
-                      ? "people-carousel-expand-align--animate"
-                      : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  style={{
-                    transformOrigin: expandTransformOriginValue,
-                    transform: expandAlignTransform,
-                  }}
-                >
-                  <div
-                    className={[
-                      "people-carousel-rig",
-                      "people-carousel-expand-layer",
-                      expandShouldAnimate
-                        ? "people-carousel-expand-layer--animate"
-                        : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    style={{
-                      transform: expandUseCarouselPose
-                        ? expandCarouselRigTransform
-                        : "none",
-                    }}
-                  >
-                    <div
-                      className={[
-                        "people-carousel-stage",
-                        "people-carousel-expand-layer",
-                        expandShouldAnimate
-                          ? "people-carousel-expand-layer--animate"
-                          : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      style={{
-                        width: expandRestPose.stageWidth || undefined,
-                        height: expandRestPose.stageHeight || undefined,
-                        transform: expandUseCarouselPose
-                          ? expandCarouselStageTransform
-                          : "none",
-                      }}
-                    >
-                      <article
-                        className={[
-                          "people-carousel-card",
-                          "people-carousel-expand-layer",
-                          expandShouldAnimate
-                            ? "people-carousel-expand-layer--animate"
-                            : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        style={{
-                          transform: expandUseCarouselPose
-                            ? expandCarouselSlotTransform
-                            : "none",
-                        }}
-                      >
-                        <PeopleCarouselCardSurface
-                          ref={expandSurfaceRef}
-                          className={[
-                            "people-carousel-card__surface",
-                            "people-carousel-card__surface--in-zone",
-                            expandShowHoverSurface
-                              ? "people-carousel-card__surface--in-zone-hovered"
-                              : "",
-                            expandIsOpen
-                              ? "people-carousel-expand__surface--open"
-                              : "",
-                            expandIsClosing
-                              ? "people-carousel-card__surface--visible-glass"
-                              : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                          style={
-                            expandShowHoverSurface
-                              ? ({
-                                  "--zone-hover-stand-deg": `${ZONE_HOVER_STAND_DEG}deg`,
-                                  "--zone-hover-lift-px": `${ZONE_HOVER_LIFT_PX}px`,
-                                } as CSSProperties)
-                              : undefined
-                          }
-                          item={expandedCard.item}
-                        />
-                      </article>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {expandIsOpen && expandCloseReady ? (
-                <button
-                  type="button"
-                  className="people-carousel-expand__close people-carousel-expand__close--visible"
-                  style={{
-                    top: expandedTargetLayoutRect.top + 16,
-                    left:
-                      expandedTargetLayoutRect.left +
-                      expandedTargetLayoutRect.width -
-                      52,
-                  }}
-                  onClick={() => closeExpandedCard()}
-                  aria-label="Close expanded card"
-                >
-                  ×
-                </button>
-              ) : null}
-            </div>,
-            document.body,
-          )
-        : null}
+      {expandedCard && bodyAnchorRect && expandAnchor && expandRestPose ? (
+        <PeopleCarouselExpandedPortal
+          expandedCard={expandedCard}
+          bodyAnchorRect={bodyAnchorRect}
+          expandedTargetLayoutRect={expandedTargetLayoutRect}
+          expandAlignRef={expandAlignRef}
+          expand3dRootRef={expand3dRootRef}
+          expandSurfaceRef={expandSurfaceRef}
+          expandIsOpen={expandIsOpen}
+          expandIsClosing={expandIsClosing}
+          expandCloseHandoff={expandCloseHandoff}
+          expandCloseReady={expandCloseReady}
+          expandShouldAnimate={expandShouldAnimate}
+          expandTransformOriginValue={expandTransformOriginValue}
+          expandAlignTransform={expandAlignTransform}
+          expandUseCarouselPose={expandUseCarouselPose}
+          expandCarouselRigTransform={expandCarouselRigTransform}
+          expandCarouselStageTransform={expandCarouselStageTransform}
+          expandCarouselSlotTransform={expandCarouselSlotTransform}
+          expandShowHoverSurface={expandShowHoverSurface}
+          zoneHoverStandDeg={ZONE_HOVER_STAND_DEG}
+          zoneHoverLiftPx={ZONE_HOVER_LIFT_PX}
+          onClose={() => closeExpandedCard()}
+        />
+      ) : null}
 
       <p className="sr-only" aria-live="polite">
         {activeItem

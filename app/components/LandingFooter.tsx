@@ -1,15 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
+import { SITE_NAV_ITEMS } from "@/app/utils/siteNavigation";
 
-const TYPO_LOGO_PATH = "/icons/typo.svg";
+const TYPO_LOGO_PATH = "/icons/typo.svg?placement=footer";
 const INSTAGRAM_URL = "https://www.instagram.com/tukd_grad/";
-
-const FOOTER_NAV_ITEMS = [
-  { label: "Projects", href: "/projectspage" },
-  { label: "People", href: "/peoplepage" },
-  { label: "Showroom", href: "/showroompage" },
-  { label: "Credits", href: "/creditspage" },
-] as const;
 
 export default function LandingFooter() {
   return (
@@ -45,7 +39,7 @@ export default function LandingFooter() {
           <div className="landing-footer__column">
             <p className="landing-footer__links-label">LINK</p>
             <nav className="landing-footer__nav-list" aria-label="Site pages">
-              {FOOTER_NAV_ITEMS.map((item) => (
+              {SITE_NAV_ITEMS.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}

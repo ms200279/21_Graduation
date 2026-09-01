@@ -1,4 +1,3 @@
-export const PROJECT_CARD_COUNT = 77;
 export const ROW_CARD_COUNT = 12;
 export const ROTATION_SPEED_DEG = 0.028;
 export const WHEEL_ROTATION_SCALE = 0.045;
@@ -15,8 +14,8 @@ export type ProjectCard = {
   id: number;
 };
 
-export function getProjectDeck(seed: number): ProjectCard[] {
-  return Array.from({ length: PROJECT_CARD_COUNT }, (_, index) => index + 1)
+export function getProjectDeck(seed: number, ids: number[]): ProjectCard[] {
+  return ids
     .map((id) => ({
       id,
       sortKey: (id * 1103515245 + seed * 12345) >>> 0,
@@ -25,25 +24,37 @@ export function getProjectDeck(seed: number): ProjectCard[] {
     .map(({ id }) => ({ id }));
 }
 
-export function getAllProjectCards(): ProjectCard[] {
-  return Array.from({ length: PROJECT_CARD_COUNT }, (_, index) => ({
-    id: index + 1,
-  }));
+export function getAllProjectCards(ids: number[]): ProjectCard[] {
+  return ids.map((id) => ({ id }));
 }
 
-const INITIAL_PROJECT_DECK = getProjectDeck(1);
+function expandCards(cards: ProjectCard[], count: number): ProjectCard[] {
+  if (cards.length === 0 || cards.length >= count) {
+    return cards;
+  }
 
-export const INITIAL_UPPER_CARDS = INITIAL_PROJECT_DECK.slice(
-  0,
-  ROW_CARD_COUNT,
-);
-export const INITIAL_LOWER_CARDS = INITIAL_PROJECT_DECK.slice(
-  ROW_CARD_COUNT,
-  ROW_CARD_COUNT * 2,
-);
-export const INITIAL_REMAINING_CARDS = INITIAL_PROJECT_DECK.slice(
-  ROW_CARD_COUNT * 2,
-);
+  const expanded: ProjectCard[] = [];
+
+  while (expanded.length < count) {
+    expanded.push(...cards);
+  }
+
+  return expanded.slice(0, count);
+}
+
+export function createCylinderRows(ids: number[], seed = 1) {
+  const uniqueDeck = getProjectDeck(seed, ids);
+  const filled = expandCards(uniqueDeck, ROW_CARD_COUNT * 2);
+
+  return {
+    upper: filled.slice(0, ROW_CARD_COUNT),
+    lower: filled.slice(ROW_CARD_COUNT, ROW_CARD_COUNT * 2),
+    remaining:
+      uniqueDeck.length > ROW_CARD_COUNT * 2
+        ? uniqueDeck.slice(ROW_CARD_COUNT * 2)
+        : getProjectDeck(seed + 97, ids),
+  };
+}
 
 export function getCylinderRadius() {
   return "calc((var(--projects-cylinder-card-width) + var(--projects-cylinder-gap)) / (2 * tan(15deg)) * 0.98)";

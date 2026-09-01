@@ -1,33 +1,31 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useState } from "react";
 
+import {
+  PROJECTS_CATEGORY_OPTIONS,
+  type ProjectsCategoryId,
+} from "./projectCategories";
 import "@/app/styles/projects-category-filter.css";
 
-export const PROJECTS_CATEGORY_OPTIONS = [
-  { id: "all-projects", label: "All Projects" },
-  { id: "mobility-robot", label: "Mobility/Robot" },
-  { id: "public-design", label: "Public Design" },
-  { id: "it-education", label: "IT/Education" },
-  { id: "smart-life", label: "Smart Life" },
-  { id: "healthcare", label: "Healthcare" },
-] as const;
-
-export type ProjectsCategoryId = (typeof PROJECTS_CATEGORY_OPTIONS)[number]["id"];
+export {
+  PROJECTS_CATEGORY_OPTIONS,
+  type ProjectsCategoryId,
+} from "./projectCategories";
 
 type ProjectsCategoryFilterProps = {
   actionSlot?: ReactNode;
   isSticky?: boolean;
+  activeCategory: ProjectsCategoryId;
+  onCategoryChange: (categoryId: ProjectsCategoryId) => void;
 };
 
 export default function ProjectsCategoryFilter({
   actionSlot,
   isSticky = true,
+  activeCategory,
+  onCategoryChange,
 }: ProjectsCategoryFilterProps) {
-  const [activeCategory, setActiveCategory] =
-    useState<ProjectsCategoryId>("all-projects");
-
   return (
     <div
       className={[
@@ -55,7 +53,7 @@ export default function ProjectsCategoryFilter({
                   .filter(Boolean)
                   .join(" ")}
                 aria-pressed={isActive}
-                onClick={() => setActiveCategory(option.id)}
+                onClick={() => onCategoryChange(option.id)}
               >
                 {option.label}
               </button>

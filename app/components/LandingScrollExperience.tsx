@@ -3,26 +3,31 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { clamp } from "@/app/utils/numbers";
+import {
+  dispatchLandingScrollIntent,
+  dispatchLandingScrollProgress,
+  LANDING_FOOTER_VIEWPORT_RATIO,
+  LANDING_FULLPAGE_SCROLL_TO_EVENT,
+  setLandingScrollGestureMaxProgress,
+} from "./landingScrollContract";
 
-export const LANDING_SCROLL_PROGRESS_EVENT = "landing-scroll-progress";
-export const LANDING_SCROLL_INTENT_EVENT = "landing-scroll-intent";
-export const LANDING_FULLPAGE_SCROLL_TO_EVENT = "landing-fullpage-scroll-to";
-
-/** scrollProgress at or beyond the concept (carousel) section. */
-export const landingScrollConceptThreshold = 1 - 0.0001;
-
-/** scrollProgress at or beyond the media section. */
-export const landingScrollMediaThreshold = 2 - 0.0001;
-
-/** Footer panel height as a fraction of the viewport. */
-export const LANDING_FOOTER_VIEWPORT_RATIO = 0.4;
-
-/** scrollProgress when the footer snap is fully revealed. */
-export const landingScrollFooterThreshold =
-  2 + LANDING_FOOTER_VIEWPORT_RATIO - 0.0001;
-
-/** Upper bound of the landing ↔ concept zone; above this is concept ↔ media travel. */
-export const landingScrollHeaderExpandMaxProgress = 1 + 0.02;
+export {
+  clearLandingScrollDepthOnLeave,
+  getLandingScrollDepthOnLeave,
+  getLandingScrollGestureMaxProgress,
+  getLandingScrollSectionProgress,
+  LANDING_FOOTER_VIEWPORT_RATIO,
+  LANDING_FULLPAGE_SCROLL_TO_EVENT,
+  LANDING_SCROLL_INTENT_EVENT,
+  LANDING_SCROLL_PROGRESS_EVENT,
+  landingScrollConceptThreshold,
+  landingScrollFooterThreshold,
+  landingScrollHeaderExpandMaxProgress,
+  landingScrollMediaThreshold,
+  recordLandingScrollDepthOnLeave,
+  resetLandingScrollGestureForOrbHome,
+  scrollLandingFullpageTo,
+} from "./landingScrollContract";
 
 function getLandingSnapOffsets(
   viewportHeight: number,
@@ -62,109 +67,6 @@ const TOUCH_SWIPE_THRESHOLD = 56;
 const SCROLL_END_FALLBACK_MS = 120;
 /** Brief cooldown after scroll settles to absorb trackpad momentum tail. */
 const POST_SETTLE_LOCK_MS = 180;
-
-const landingScrollSectionProgressState = {
-  current: 0,
-  depthOnLeave: 0,
-  maxProgressInGesture: 0,
-};
-
-const landingScrollRevealedState = { current: false };
-
-export function getLandingScrollGestureMaxProgress() {
-  return landingScrollSectionProgressState.maxProgressInGesture;
-}
-
-export function getLandingScrollSectionProgress() {
-  return landingScrollSectionProgressState.current;
-}
-
-export function resetLandingScrollGestureForOrbHome() {
-  landingScrollSectionProgressState.maxProgressInGesture = 0;
-}
-
-export function recordLandingScrollDepthOnLeave(depth: number) {
-  landingScrollSectionProgressState.depthOnLeave = depth;
-}
-
-export function getLandingScrollDepthOnLeave() {
-  return landingScrollSectionProgressState.depthOnLeave;
-}
-
-export function clearLandingScrollDepthOnLeave() {
-  landingScrollSectionProgressState.depthOnLeave = 0;
-}
-
-function dispatchLandingScrollIntent(direction: "up" | "down") {
-  window.dispatchEvent(
-    new CustomEvent(LANDING_SCROLL_INTENT_EVENT, {
-      detail: { direction },
-    }),
-  );
-}
-
-const lastDispatchedScrollProgressState = {
-  progress: Number.NaN,
-  scrollProgress: Number.NaN,
-  maxScrollProgressInGesture: Number.NaN,
-};
-
-function dispatchLandingScrollProgress(
-  progress: number,
-  scrollProgress: number,
-  maxScrollProgressInGesture: number,
-) {
-  const shouldReveal = scrollProgress >= 1;
-
-  if (
-        Math.abs(progress - lastDispatchedScrollProgressState.progress) <
-          0.0001 &&
-        Math.abs(
-          scrollProgress - lastDispatchedScrollProgressState.scrollProgress,
-        ) < 0.0001 &&
-        maxScrollProgressInGesture ===
-          lastDispatchedScrollProgressState.maxScrollProgressInGesture &&
-        shouldReveal === landingScrollRevealedState.current
-      ) {
-    return;
-  }
-
-  lastDispatchedScrollProgressState.progress = progress;
-  lastDispatchedScrollProgressState.scrollProgress = scrollProgress;
-  lastDispatchedScrollProgressState.maxScrollProgressInGesture =
-    maxScrollProgressInGesture;
-
-  document.documentElement.style.setProperty(
-    "--landing-scroll-progress",
-    String(progress),
-  );
-
-  if (shouldReveal !== landingScrollRevealedState.current) {
-    landingScrollRevealedState.current = shouldReveal;
-    document.documentElement.classList.toggle(
-      "landing-scroll-revealed",
-      shouldReveal,
-    );
-  }
-
-  landingScrollSectionProgressState.current = scrollProgress;
-  landingScrollSectionProgressState.maxProgressInGesture =
-    maxScrollProgressInGesture;
-
-  window.dispatchEvent(
-    new CustomEvent(LANDING_SCROLL_PROGRESS_EVENT, {
-      detail: { progress, scrollProgress, maxScrollProgressInGesture },
-    }),
-  );
-}
-
-export function scrollLandingFullpageTo(top: number, behavior: ScrollBehavior = "smooth") {
-  window.dispatchEvent(
-    new CustomEvent(LANDING_FULLPAGE_SCROLL_TO_EVENT, {
-      detail: { top, behavior },
-    }),
-  );
-}
 
 type LandingScrollExperienceProps = {
   hero: ReactNode;
@@ -229,7 +131,11 @@ export default function LandingScrollExperience({
       document.body.classList.remove("landing-fullpage-active");
       lastProgressRef.current = 0;
       maxScrollProgressInGestureRef.current = 0;
-      dispatchLandingScrollProgress(0, 0, 0);
+      dispatchLandingScrollProgress({
+        progress: 0,
+        scrollProgress: 0,
+        maxScrollProgressInGesture: 0,
+      });
       if (footerRevealTimerRef.current) {
         clearTimeout(footerRevealTimerRef.current);
         footerRevealTimerRef.current = null;
@@ -362,11 +268,11 @@ export default function LandingScrollExperience({
 
       lastProgressRef.current = scrollProgress;
 
-      dispatchLandingScrollProgress(
+      dispatchLandingScrollProgress({
         progress,
         scrollProgress,
-        maxScrollProgressInGestureRef.current,
-      );
+        maxScrollProgressInGesture: maxScrollProgressInGestureRef.current,
+      });
     };
 
     const handleScrollEnd = () => {
@@ -379,7 +285,7 @@ export default function LandingScrollExperience({
       const section = getSectionIndex(container.scrollTop, viewportHeight);
       currentSectionRef.current = section;
       maxScrollProgressInGestureRef.current = section;
-      landingScrollSectionProgressState.maxProgressInGesture = section;
+      setLandingScrollGestureMaxProgress(section);
       releaseScrollGesture();
       updateProgress();
     };
@@ -423,10 +329,10 @@ export default function LandingScrollExperience({
 
       if (targetSection === 0 && currentSection > 0) {
         maxScrollProgressInGestureRef.current = 0;
-        landingScrollSectionProgressState.maxProgressInGesture = 0;
+        setLandingScrollGestureMaxProgress(0);
       } else {
         maxScrollProgressInGestureRef.current = currentSection;
-        landingScrollSectionProgressState.maxProgressInGesture = currentSection;
+        setLandingScrollGestureMaxProgress(currentSection);
       }
 
       if (
@@ -643,8 +549,7 @@ export default function LandingScrollExperience({
 
     currentSectionRef.current = getSectionIndex(container.scrollTop, container.clientHeight);
     maxScrollProgressInGestureRef.current = currentSectionRef.current;
-    landingScrollSectionProgressState.maxProgressInGesture =
-      currentSectionRef.current;
+    setLandingScrollGestureMaxProgress(currentSectionRef.current);
 
     updateProgress();
     container.addEventListener("scroll", handleScroll, { passive: true });

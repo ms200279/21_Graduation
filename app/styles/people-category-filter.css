@@ -4,6 +4,7 @@
   --people-search-morph-duration: 520ms;
   --people-search-morph-ease: cubic-bezier(0.34, 1.56, 0.64, 1);
   --people-search-icon-size: calc(var(--people-search-orb-size) * 0.42);
+  --category-filter-button-font-size: clamp(0.875rem, 1.6vw, 1.125rem);
   position: sticky;
   top: var(--people-category-filter-top, calc(100vh / 6));
   z-index: 30;
@@ -43,51 +44,6 @@
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-}
-
-.people-category-filter__button {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font-size: clamp(0.875rem, 1.6vw, 1.125rem);
-  font-weight: 500;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  color: color-mix(in srgb, var(--color-systemNavy) 55%, transparent);
-  cursor: pointer;
-  touch-action: manipulation;
-  transition:
-    color 0.2s ease,
-    text-shadow 0.2s ease,
-    transform 0.2s ease,
-    filter 0.2s ease;
-}
-
-.people-category-filter__button:hover {
-  color: var(--color-systemNavy);
-  transform: translateY(-1px);
-  filter: drop-shadow(0 1px 3px rgba(8, 16, 48, 0.12));
-}
-
-.people-category-filter__button:hover:not(.people-category-filter__button--active) {
-  text-shadow:
-    0.03em 0 0 currentColor,
-    -0.03em 0 0 currentColor;
-}
-
-.people-category-filter__button--active {
-  color: var(--color-systemNavy);
-  text-shadow:
-    0.03em 0 0 currentColor,
-    -0.03em 0 0 currentColor;
-}
-
-.people-category-filter__button:focus-visible {
-  outline: 2px solid var(--color-systemNavy);
-  outline-offset: 4px;
-  border-radius: 2px;
 }
 
 .people-category-filter__search-morph.liquid-glass-surface {

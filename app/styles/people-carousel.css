@@ -432,7 +432,7 @@
 .people-carousel-expand__surface--open {
   border-radius: 10px;
   border: 0;
-  padding: clamp(24px, 3vw, 40px) clamp(28px, 3.5vw, 44px);
+  padding: 0;
   background: #ffffff;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -443,36 +443,100 @@
   display: none;
 }
 
-.people-carousel-expand__surface--open .people-carousel-card__label {
-  bottom: clamp(24px, 3vw, 40px);
-  left: clamp(28px, 3.5vw, 44px);
-  right: clamp(28px, 3.5vw, 44px);
-  font-size: 0.625rem;
+.people-carousel-card__compact-content {
+  position: absolute;
+  inset: 0;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 140ms ease, visibility 0s linear;
 }
 
-.people-carousel-expand__surface--open .people-carousel-card__role {
-  top: clamp(24px, 3vw, 40px);
-  left: clamp(28px, 3.5vw, 44px);
-  right: clamp(28px, 3.5vw, 44px);
-  font-size: 0.5rem;
+.people-carousel-expand__surface--open .people-carousel-card__compact-content {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 100ms ease, visibility 0s linear 100ms;
 }
 
-.people-carousel-card__surface.people-carousel-expand__surface--open,
-.people-carousel-card__surface.people-carousel-expand__surface--open
-  .people-carousel-card__label,
-.people-carousel-card__surface.people-carousel-expand__surface--open
-  .people-carousel-card__role {
+.people-carousel-card__surface.people-carousel-expand__surface--open {
   transition:
     padding var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
     background var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
     border var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
     box-shadow var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
-    border-radius var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
-    font-size var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
-    top var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
-    bottom var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
-    left var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1),
-    right var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1);
+    border-radius var(--people-expand-duration, 520ms) cubic-bezier(0.34, 1.12, 0.64, 1);
+}
+
+.people-carousel-card__profile {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  padding-top: calc(var(--people-carousel-card-h) * 0.1625);
+  padding-bottom: calc(var(--people-carousel-card-h) * 0.1625);
+  padding-left: calc(var(--people-carousel-card-w) * 0.090278);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 180ms ease, visibility 0s linear 180ms;
+}
+
+.people-carousel-expand__surface--open .people-carousel-card__profile {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 240ms ease 120ms, visibility 0s linear 120ms;
+}
+
+.people-carousel-card__portrait {
+  width: calc(var(--people-carousel-card-w) * 0.25);
+  height: calc(var(--people-carousel-card-h) * 0.675);
+  flex: 0 0 calc(var(--people-carousel-card-w) * 0.25);
+  border-radius: 2px;
+  background-color: #e5e8ed;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.people-carousel-card__profile-copy {
+  display: flex;
+  width: calc(var(--people-carousel-card-w) * 0.25);
+  min-width: 0;
+  flex: 0 0 calc(var(--people-carousel-card-w) * 0.25);
+  flex-direction: column;
+  margin-left: calc(var(--people-carousel-card-w) * 0.133333);
+  color: var(--color-systemNavy);
+}
+
+.people-carousel-card__profile-name,
+.people-carousel-card__profile-affiliation,
+.people-carousel-card__profile-phone {
+  margin: 0;
+  padding: 0;
+  letter-spacing: 0;
+}
+
+.people-carousel-card__profile-name {
+  font-size: 0.6667rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.people-carousel-card__profile-affiliation {
+  margin-top: calc(var(--people-carousel-card-h) * 0.018);
+  color: #989898;
+  font-size: 0.3333rem;
+  font-weight: 400;
+  line-height: 1.1;
+}
+
+.people-carousel-card__profile-phone {
+  margin-top: calc(var(--people-carousel-card-h) * 0.106667);
+  font-size: 0.3667rem;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 .people-carousel-expand__close {
@@ -520,6 +584,7 @@
   bottom: 16px;
   left: 22px;
   right: 22px;
+  text-align: right;
   font-size: 1rem;
   font-weight: 600;
   line-height: 1.35;
@@ -532,6 +597,7 @@
   top: 16px;
   left: 22px;
   right: 22px;
+  text-align: left;
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.4;

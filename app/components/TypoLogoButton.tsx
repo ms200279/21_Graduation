@@ -3,6 +3,11 @@
 import { useCallback, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  isLandingPath,
+  isShowroomPath,
+  SITE_PATHS,
+} from "@/app/utils/routes";
 
 import { scrollLandingFullpageTo } from "./LandingScrollExperience";
 
@@ -35,8 +40,7 @@ function readCopyAlignedLeft() {
 export default function TypoLogoButton() {
   const pathname = usePathname();
   const router = useRouter();
-  const isShowroomPage =
-    pathname === "/showroompage" || pathname.startsWith("/showroompage/");
+  const isShowroomPage = isShowroomPath(pathname);
   const isMobileHeaderExpanded = useSyncExternalStore(
     subscribeToMobileHeaderExpanded,
     getMobileHeaderExpandedSnapshot,
@@ -45,7 +49,7 @@ export default function TypoLogoButton() {
 
   const subscribeToCopyAlignedLeft = useCallback(
     (onStoreChange: () => void) => {
-      if (pathname !== "/") {
+      if (!isLandingPath(pathname)) {
         return () => {};
       }
 
@@ -67,7 +71,7 @@ export default function TypoLogoButton() {
   );
 
   const getCopyAlignedLeftSnapshot = useCallback(() => {
-    if (pathname !== "/") {
+    if (!isLandingPath(pathname)) {
       return null;
     }
 
@@ -81,12 +85,12 @@ export default function TypoLogoButton() {
   );
 
   const handleClick = () => {
-    if (pathname === "/") {
+    if (isLandingPath(pathname)) {
       scrollLandingFullpageTo(0);
       return;
     }
 
-    router.push("/");
+    router.push(SITE_PATHS.landing);
   };
 
   return (
@@ -115,6 +119,7 @@ export default function TypoLogoButton() {
         width={1874}
         height={401}
         loading="eager"
+        fetchPriority="high"
         unoptimized
         className="object-contain object-left transition-[filter] duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
         style={isShowroomPage ? { filter: "brightness(0) invert(1)" } : undefined}
