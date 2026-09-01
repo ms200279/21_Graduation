@@ -115,6 +115,7 @@ export default function TypoLogoButton() {
         width={1874}
         height={401}
         loading="eager"
+        fetchPriority="high"
         unoptimized
         className="object-contain object-left transition-[filter] duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]"
         style={isShowroomPage ? { filter: "brightness(0) invert(1)" } : undefined}
