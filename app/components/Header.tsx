@@ -2,8 +2,14 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import {
+  isExactOrNestedPath,
+  isLandingPath,
+  isShowroomPath,
+  SITE_PATHS,
+} from "@/app/utils/routes";
+import { SITE_NAV_ITEMS } from "@/app/utils/siteNavigation";
 import {
   LANDING_HEADER_NAV_LIQUID_GLASS_OPTIONS,
   LANDING_INFO_LIQUID_GLASS_OPTIONS,
@@ -22,27 +28,15 @@ import {
   recordLandingScrollDepthOnLeave,
   resetLandingScrollGestureForOrbHome,
   scrollLandingFullpageTo,
-} from "./LandingScrollExperience";
+} from "./landingScrollContract";
+import { HeaderLogoIcon } from "./header/HeaderLogoIcon";
+import { useHeaderRouteTransition } from "./header/useHeaderRouteTransition";
+import { useMobileHeaderMenu } from "./header/useMobileHeaderMenu";
 
-const navItems = [
-  { label: "Projects", href: "/projectspage" },
-  { label: "People", href: "/peoplepage" },
-  { label: "Showroom", href: "/showroompage" },
-  { label: "Credits", href: "/creditspage" },
-];
-
-function isNavItemPath(itemHref: string, pathname: string) {
-  return pathname === itemHref || pathname.startsWith(`${itemHref}/`);
-}
-
-const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
 const MOBILE_PAGE_PILL_HORIZONTAL_PADDING = 28;
 
 const orbMotionDuration = 700;
 const labelMotionDuration = Math.round(orbMotionDuration * 0.38);
-const orbReturnHoldDelay = 140;
-const transitionDuration = orbMotionDuration;
-const transitionSettleDelay = 180;
 const landingScrollCollapseThreshold = 0.02;
 /** Header orb animation only runs in the landing ↔ concept scroll zone (scrollProgress 0–1). */
 const landingScrollPastConceptThreshold = landingScrollConceptThreshold;
@@ -63,8 +57,6 @@ const movingLabelClassName = [
   headerNavLabelSizeClassName,
   headerNavLabelBoldClassName,
 ].join(" ");
-
-const siteLogoIconPath = "/icons/symbol.svg";
 
 function measureOrbCenterDeltaPx(
   orbElement: HTMLElement,
@@ -115,56 +107,6 @@ const showroomInactiveNavLabelClassName = [
   "md:hover:[text-shadow:0.03em_0_0_currentColor,-0.03em_0_0_currentColor]",
 ].join(" ");
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(MOBILE_MEDIA_QUERY);
-
-    const updateIsMobile = () => {
-      setIsMobile(mediaQuery.matches);
-    };
-
-    updateIsMobile();
-    mediaQuery.addEventListener("change", updateIsMobile);
-
-    return () => {
-      mediaQuery.removeEventListener("change", updateIsMobile);
-    };
-  }, []);
-
-  return isMobile;
-}
-
-function SiteLogoIcon({
-  className = "",
-  style,
-  disableTransition = false,
-}: {
-  className?: string;
-  style?: CSSProperties;
-  disableTransition?: boolean;
-}) {
-  return (
-    <Image
-      src={siteLogoIconPath}
-      alt=""
-      aria-hidden="true"
-      width={177}
-      height={299}
-      unoptimized
-      style={style}
-      className={[
-        "block h-[calc(var(--orb-size)*0.48)] w-[calc(var(--orb-size)*0.284)] object-contain object-center",
-        "translate-y-[1px]",
-        disableTransition ? "" : "transition-opacity",
-        disableTransition ? "" : transitionEaseClassName,
-        className,
-      ].join(" ")}
-    />
-  );
-}
-
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
@@ -179,25 +121,37 @@ export default function Header() {
     mountKey: pathname,
   });
   const mobilePillMeasureRef = useRef<HTMLSpanElement>(null);
-  const routeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
   const previousPathnameRef = useRef(pathname);
-  const isMobile = useIsMobile();
-  const [mobileMenuPath, setMobileMenuPath] = useState<string | null>(null);
-  const mobileMenuPathRef = useRef<string | null>(null);
   const [mobilePagePillWidth, setMobilePagePillWidth] = useState(112);
   const [orbTransitionEnabled, setOrbTransitionEnabled] = useState(true);
-  const [activeTransition, setActiveTransition] = useState<{
-    href: string;
-    label: string;
-    fromOffset: number;
-    toOffset: number;
-    isAtRest: boolean;
-    phase: "forward" | "return";
-  } | null>(null);
+  const navigate = useCallback((href: string) => router.push(href), [router]);
+  const getOrbElement = useCallback(() => orbRef.current, []);
+  const getNavElement = useCallback(() => navRef.current, []);
+  const {
+    activeTransition,
+    activeTransitionRef,
+    beginForward,
+    beginReturn,
+    isTransitionActive,
+  } = useHeaderRouteTransition({
+    pathname,
+    navigate,
+    orbElement: getOrbElement,
+    navElement: getNavElement,
+    setOrbTransitionEnabled,
+  });
+  const {
+    isMobile,
+    isOpen: isMobileMenuOpen,
+    menuPathRef: mobileMenuPathRef,
+    open: openMobileMenu,
+    close: closeMobileMenu,
+  } = useMobileHeaderMenu({
+    headerRef,
+    pathname,
+    isTransitionActive,
+  });
   const pathnameRef = useRef(pathname);
-  const activeTransitionRef = useRef(activeTransition);
   const landingScrollCollapsedRef = useRef(false);
   const landingCollapseStartedAtRef = useRef<number | null>(null);
   const landingScrollAnimationRef = useRef<{
@@ -228,15 +182,10 @@ export default function Header() {
   const landingScrollProgressRef = useRef(0);
 
   useEffect(() => {
-    mobileMenuPathRef.current = mobileMenuPath;
-  }, [mobileMenuPath]);
-
-  useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
 
   useEffect(() => {
-    activeTransitionRef.current = activeTransition;
     isTransitionActiveRef.current = activeTransition !== null;
   }, [activeTransition]);
 
@@ -244,20 +193,17 @@ export default function Header() {
     isMobileRef.current = isMobile;
   }, [isMobile]);
 
-  const isLandingPage = pathname === "/";
-  const isShowroomPage =
-    pathname === "/showroompage" || pathname.startsWith("/showroompage/");
-  const currentItemIndex = navItems.findIndex((item) =>
-    isNavItemPath(item.href, pathname),
+  const isLandingPage = isLandingPath(pathname);
+  const isShowroomPage = isShowroomPath(pathname);
+  const currentItemIndex = SITE_NAV_ITEMS.findIndex((item) =>
+    isExactOrNestedPath(pathname, item.href),
   );
-  const currentItem = currentItemIndex >= 0 ? navItems[currentItemIndex] : null;
+  const currentItem =
+    currentItemIndex >= 0 ? SITE_NAV_ITEMS[currentItemIndex] : null;
   const isForwardShrinking = activeTransition?.phase === "forward";
   const isReturnAbsorbed = activeTransition?.phase === "return";
-  const isTransitionActive = activeTransition !== null;
   const isLandingScrollCollapsed =
     isLandingPage && landingScrollCollapsed && !isTransitionActive;
-  const isMobileMenuOpen =
-    isMobile && mobileMenuPath === pathname && !isTransitionActive;
   const isMobileExpanded = isMobileMenuOpen;
 
   const shouldShowDesktopLandingOrbOutside =
@@ -269,7 +215,7 @@ export default function Header() {
   const mobilePillMeasureLabel =
     activeTransition?.phase === "forward"
       ? activeTransition.label
-      : (currentItem?.label ?? navItems[0].label);
+      : (currentItem?.label ?? SITE_NAV_ITEMS[0].label);
 
   const desktopNavSizeClassName = isLandingPage
     ? isForwardShrinking || isReturnAbsorbed
@@ -300,38 +246,6 @@ export default function Header() {
       ? "rounded-full"
       : "rounded-[22px]"
     : "rounded-[var(--header-radius)]";
-
-  useEffect(() => {
-    return () => {
-      if (routeTimerRef.current) {
-        clearTimeout(routeTimerRef.current);
-      }
-
-      if (resetTimerRef.current) {
-        clearTimeout(resetTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (
-      !activeTransition ||
-      activeTransition.phase === "return" ||
-      pathname !== activeTransition.href
-    ) {
-      return;
-    }
-
-    resetTimerRef.current = setTimeout(() => {
-      setActiveTransition(null);
-    }, transitionSettleDelay);
-
-    return () => {
-      if (resetTimerRef.current) {
-        clearTimeout(resetTimerRef.current);
-      }
-    };
-  }, [activeTransition, pathname]);
 
   useLayoutEffect(() => {
     if (!isMobile) {
@@ -475,7 +389,7 @@ export default function Header() {
       maxScrollProgressInGesture = landingScrollGestureMaxProgressRef.current,
     ) => {
       if (
-        pathnameRef.current !== "/" ||
+        pathnameRef.current !== SITE_PATHS.landing ||
         isMobileRef.current ||
         isTransitionActiveRef.current
       ) {
@@ -600,7 +514,7 @@ export default function Header() {
       pendingProgress = null;
 
       if (progress > 0 && mobileMenuPathRef.current !== null) {
-        setMobileMenuPath(null);
+        closeMobileMenu();
       }
 
       if (!isLandingPage || isMobileRef.current) {
@@ -678,6 +592,8 @@ export default function Header() {
     syncLandingScrollHeaderFromProgress,
     expandLandingScrollHeader,
     cancelLandingScrollHeaderAnimation,
+    closeMobileMenu,
+    mobileMenuPathRef,
   ]);
 
   useEffect(() => {
@@ -782,73 +698,15 @@ export default function Header() {
     };
   }, [isLandingPage, isMobile, measureNavLabelViewportOffsets]);
 
-  useEffect(() => {
-    if (!isMobile || !isMobileMenuOpen) {
-      return;
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const headerNode = headerRef.current;
-
-      if (!headerNode || headerNode.contains(event.target as Node)) {
-        return;
-      }
-
-      setMobileMenuPath(null);
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-    };
-  }, [isMobile, isMobileMenuOpen]);
-
-  useEffect(() => {
-    const isExpanded = isMobile && isMobileMenuOpen;
-
-    document.body.classList.toggle("mobile-header-expanded", isExpanded);
-
-    window.dispatchEvent(
-      new CustomEvent("mobile-header-expanded-change", {
-        detail: { expanded: isExpanded },
-      }),
-    );
-
-    return () => {
-      document.body.classList.remove("mobile-header-expanded");
-      window.dispatchEvent(
-        new CustomEvent("mobile-header-expanded-change", {
-          detail: { expanded: false },
-        }),
-      );
-    };
-  }, [isMobile, isMobileMenuOpen]);
-
-  const clearTransitionTimers = () => {
-    if (routeTimerRef.current) {
-      clearTimeout(routeTimerRef.current);
-    }
-
-    if (resetTimerRef.current) {
-      clearTimeout(resetTimerRef.current);
-    }
-
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-  };
-
   const beginOrbReturnAnimation = useCallback((fromHref: string) => {
-    if (fromHref === "/") {
+    if (fromHref === SITE_PATHS.landing) {
       return;
     }
 
-    if (activeTransitionRef.current?.phase === "return") {
-      return;
-    }
-
-    if (activeTransitionRef.current?.phase === "forward") {
+    if (
+      activeTransitionRef.current?.phase === "return" ||
+      activeTransitionRef.current?.phase === "forward"
+    ) {
       return;
     }
 
@@ -865,18 +723,6 @@ export default function Header() {
       return;
     }
 
-    if (routeTimerRef.current) {
-      clearTimeout(routeTimerRef.current);
-      routeTimerRef.current = null;
-    }
-
-    if (resetTimerRef.current) {
-      clearTimeout(resetTimerRef.current);
-      resetTimerRef.current = null;
-    }
-
-    setOrbTransitionEnabled(false);
-
     cancelLandingScrollHeaderAnimation();
 
     landingScrollCollapsedRef.current = false;
@@ -885,88 +731,12 @@ export default function Header() {
     setLandingLabelsCollapsed(false);
     setReturnNavElevated(true);
 
-    setActiveTransition({
-      href: "/",
-      label: "",
-      fromOffset: 0,
-      toOffset: 0,
-      isAtRest: true,
-      phase: "return",
-    });
-  }, [cancelLandingScrollHeaderAnimation]);
-
-  const forwardOrbHoldKey =
-    activeTransition?.phase === "forward" && !activeTransition.isAtRest
-      ? activeTransition.href
-      : null;
-  const returnOrbHoldKey =
-    activeTransition?.phase === "return" ? "returning" : null;
-
-  useLayoutEffect(() => {
-    if (!forwardOrbHoldKey) {
-      return;
-    }
-
-    const startFrame = requestAnimationFrame(() => {
-      const orbNode = orbRef.current;
-      const navNode = navRef.current;
-
-      if (orbNode) {
-        void orbNode.offsetWidth;
-      }
-
-      if (navNode) {
-        void navNode.offsetWidth;
-      }
-
-      setOrbTransitionEnabled(true);
-
-      setActiveTransition((transition) =>
-        transition?.phase === "forward" && !transition.isAtRest
-          ? { ...transition, isAtRest: true }
-          : transition,
-      );
-    });
-
-    return () => {
-      cancelAnimationFrame(startFrame);
-    };
-  }, [forwardOrbHoldKey]);
-
-  useLayoutEffect(() => {
-    if (!returnOrbHoldKey) {
-      return;
-    }
-
-    let delayTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const startFrame = requestAnimationFrame(() => {
-      const orbNode = orbRef.current;
-      const navNode = navRef.current;
-
-      if (orbNode) {
-        void orbNode.offsetWidth;
-      }
-
-      if (navNode) {
-        void navNode.offsetWidth;
-      }
-
-      setOrbTransitionEnabled(true);
-
-      delayTimer = setTimeout(() => {
-        setActiveTransition(null);
-      }, orbReturnHoldDelay);
-    });
-
-    return () => {
-      cancelAnimationFrame(startFrame);
-
-      if (delayTimer) {
-        clearTimeout(delayTimer);
-      }
-    };
-  }, [returnOrbHoldKey]);
+    beginReturn();
+  }, [
+    activeTransitionRef,
+    beginReturn,
+    cancelLandingScrollHeaderAnimation,
+  ]);
 
   useEffect(() => {
     if (
@@ -992,8 +762,8 @@ export default function Header() {
 
     if (
       !isMobile &&
-      pathname === "/" &&
-      previousPathname !== "/" &&
+      pathname === SITE_PATHS.landing &&
+      previousPathname !== SITE_PATHS.landing &&
       activeTransition?.phase !== "return" &&
       activeTransition?.phase !== "forward"
     ) {
@@ -1005,13 +775,13 @@ export default function Header() {
 
   useEffect(() => {
     const handlePopState = () => {
-      if (isMobile || window.location.pathname !== "/") {
+      if (isMobile || window.location.pathname !== SITE_PATHS.landing) {
         return;
       }
 
       const fromHref = pathnameRef.current;
 
-      if (fromHref === "/") {
+      if (fromHref === SITE_PATHS.landing) {
         return;
       }
 
@@ -1036,7 +806,7 @@ export default function Header() {
       void nav.offsetWidth;
     }
 
-    setMobileMenuPath(pathname);
+    openMobileMenu();
   };
 
   const handleOrbClick = () => {
@@ -1044,7 +814,7 @@ export default function Header() {
       return;
     }
 
-    if (pathname === "/") {
+    if (isLandingPath(pathname)) {
       if (getLandingScrollSectionProgress() >= landingScrollPastConceptThreshold) {
         forceExpandLandingScrollHeaderForOrbHome();
       }
@@ -1053,7 +823,7 @@ export default function Header() {
       return;
     }
 
-    router.push("/");
+    router.push(SITE_PATHS.landing);
   };
 
   const isDesktopOrbExpanded =
@@ -1108,17 +878,15 @@ export default function Header() {
     : undefined;
 
   const handleNavClick = (
-    item: (typeof navItems)[number],
+    item: (typeof SITE_NAV_ITEMS)[number],
     button: HTMLButtonElement,
   ) => {
     if (item.href === pathname || isTransitionActive) {
       return;
     }
 
-    clearTransitionTimers();
-
     if (isMobile) {
-      setMobileMenuPath(null);
+      closeMobileMenu();
     }
 
     if (isLandingPage && !isMobile) {
@@ -1149,20 +917,11 @@ export default function Header() {
       void orbRef.current.offsetWidth;
     }
 
-    setOrbTransitionEnabled(false);
-
-    setActiveTransition({
+    beginForward({
       href: item.href,
       label: item.label,
       fromOffset: buttonCenter - navCenter,
-      toOffset: 0,
-      isAtRest: false,
-      phase: "forward",
     });
-
-    routeTimerRef.current = setTimeout(() => {
-      router.push(item.href);
-    }, transitionDuration);
   };
 
   const showMobileCurrentLabel =
@@ -1240,7 +999,7 @@ export default function Header() {
             }}
           >
             {shouldShowLandingOrbIcon ? (
-              <SiteLogoIcon />
+              <HeaderLogoIcon />
             ) : null}
           </button>
         </span>
@@ -1302,7 +1061,7 @@ export default function Header() {
               "focus-visible:outline-offset-2 focus-visible:outline-white",
             ].join(" ")}
           >
-            <SiteLogoIcon />
+            <HeaderLogoIcon />
           </button>
         ) : null}
 
@@ -1359,15 +1118,17 @@ export default function Header() {
             navButtonsHidden ? "pointer-events-none opacity-0" : "",
           ].join(" ")}
         >
-          {navItems.map((item, index) => (
+          {SITE_NAV_ITEMS.map((item, index) => (
             <button
               key={item.href}
               type="button"
               data-landing-nav-item=""
-              data-active={isNavItemPath(item.href, pathname) ? "" : undefined}
+              data-active={
+                isExactOrNestedPath(pathname, item.href) ? "" : undefined
+              }
               onClick={(event) => handleNavClick(item, event.currentTarget)}
               style={{
-                fontWeight: isNavItemPath(item.href, pathname) ? 700 : 400,
+                fontWeight: isExactOrNestedPath(pathname, item.href) ? 700 : 400,
                 transform:
                   isLandingPage && !isMobile && landingLabelsCollapsed
                     ? `translateX(${-(navLabelViewportOffsets[index] ?? 0)}px)`
@@ -1387,7 +1148,7 @@ export default function Header() {
                 transitionEaseClassName,
                 headerNavLabelSizeClassName,
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white",
-                isNavItemPath(item.href, pathname)
+                isExactOrNestedPath(pathname, item.href)
                   ? isShowroomPage
                     ? "text-white"
                     : "text-systemNavy"

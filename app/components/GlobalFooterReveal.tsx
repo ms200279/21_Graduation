@@ -12,10 +12,11 @@ import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 
 import { clamp } from "@/app/utils/numbers";
+import { isLandingPath, isPeoplePath } from "@/app/utils/routes";
+import { normalizeWheelDelta } from "@/app/utils/wheel";
 import LandingFooter from "./LandingFooter";
 import {
   isPeopleCarouselAtScrollEnd,
-  isPeoplePagePath,
   PEOPLE_CAROUSEL_PROGRAMMATIC_STEP_EVENT,
   pinPeopleCarouselAtScrollEnd,
 } from "./people-carousel/peopleCarouselFooter";
@@ -30,18 +31,6 @@ const PEOPLE_FOOTER_ARM_COOLDOWN_MS = 320;
 const PEOPLE_FOOTER_DISMISS_SCROLL_LOCK_MS = 420;
 const TOUCH_SWIPE_THRESHOLD = 56;
 const SCROLL_BOTTOM_THRESHOLD_PX = 12;
-
-function normalizeWheelDelta(event: WheelEvent) {
-  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
-    return event.deltaY * 16;
-  }
-
-  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
-    return event.deltaY * window.innerHeight;
-  }
-
-  return event.deltaY;
-}
 
 function isDocumentScrollAtBottom(threshold = SCROLL_BOTTOM_THRESHOLD_PX) {
   const scrollTop = window.scrollY;
@@ -64,8 +53,8 @@ function isNestedContentScrollTarget(target: EventTarget | null) {
 
 export default function GlobalFooterReveal() {
   const pathname = usePathname();
-  const isLandingPage = pathname === "/";
-  const isPeoplePage = isPeoplePagePath(pathname);
+  const isLandingPage = isLandingPath(pathname);
+  const isPeoplePage = isPeoplePath(pathname);
   const [footerRevealProgress, setFooterRevealProgress] = useState(0);
   const footerRevealProgressRef = useRef(0);
   const footerAnimatingRef = useRef(false);
@@ -241,7 +230,7 @@ export default function GlobalFooterReveal() {
         return;
       }
 
-      const deltaY = normalizeWheelDelta(event);
+      const deltaY = normalizeWheelDelta(event, event.deltaY);
 
       if (shouldBlockPageScroll()) {
         event.preventDefault();

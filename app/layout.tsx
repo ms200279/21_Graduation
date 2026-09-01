@@ -5,6 +5,11 @@ import Header from "./components/Header";
 import SitePageShell from "./components/SitePageShell";
 import TypoLogoButton from "./components/TypoLogoButton";
 import "./globals.css";
+import "./styles/landing.css";
+import "./styles/site-page-shell.css";
+import "./styles/landing-footer.css";
+import "./styles/site-header.css";
+import "./styles/category-filter-buttons.css";
 
 const pretendard = localFont({
   src: "../public/fonts/PretendardVariable.woff2",

@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
 import ProjectDetail from "@/app/components/projects/ProjectDetail";
-import ProjectsPageContent from "@/app/components/projects/ProjectsPageContent";
 import {
   getProjectDetailBySlug,
   PROJECT_DETAILS,
@@ -27,12 +26,5 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  return (
-    <>
-      <div aria-hidden="true" inert>
-        <ProjectsPageContent />
-      </div>
-      <ProjectDetail project={project} />
-    </>
-  );
+  return <ProjectDetail project={project} />;
 }

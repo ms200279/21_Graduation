@@ -2,8 +2,16 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { createPortal } from "react-dom";
 
+import { SITE_PATHS } from "@/app/utils/routes";
 import type {
   ProjectDetailData,
   ProjectStorySection,
@@ -73,6 +81,9 @@ function ProjectStoryPage({
         >
           {section.title}
         </h2>
+        {section.subtitle ? (
+          <p className="project-detail-lead">{section.subtitle}</p>
+        ) : null}
         <p className="project-detail-body">{section.body}</p>
       </div>
       <ProjectMedia
@@ -86,6 +97,12 @@ function ProjectStoryPage({
 
 export default function ProjectDetail({ project }: ProjectDetailProps) {
   const router = useRouter();
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isClosingRef = useRef(false);
@@ -105,12 +122,13 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
       : PROJECT_DETAIL_CLOSE_DURATION_MS;
 
     closeTimerRef.current = setTimeout(() => {
-      router.push("/projectspage", { scroll: false });
+      router.push(SITE_PATHS.projects, { scroll: false });
     }, closeDuration);
   }, [router]);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-project-detail-open", "true");
+    closeButtonRef.current?.focus({ preventScroll: true });
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -186,7 +204,11 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
     });
   };
 
-  return (
+  if (!isMounted) {
+    return null;
+  }
+
+  return createPortal(
     <div
       className={[
         "project-detail-layer",
@@ -203,10 +225,10 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
         aria-labelledby="project-detail-heading"
       >
         <button
+          ref={closeButtonRef}
           type="button"
           className="project-detail-close"
           aria-label="Close project"
-          autoFocus
           onClick={closeProject}
         >
           <svg
@@ -327,6 +349,7 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
           </section>
         </div>
       </article>
-    </div>
+    </div>,
+    document.body,
   );
 }

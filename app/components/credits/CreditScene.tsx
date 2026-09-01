@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import * as THREE from "three";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 
 import "@/app/styles/credits-scene.css";
+import { SITE_PATHS } from "@/app/utils/routes";
 import CreditContentOverlay from "./CreditContentOverlay";
 import {
   CREDIT_FRAGMENT_POLYGONS,
@@ -16,6 +16,27 @@ import {
   type CreditFragmentId,
   type FragmentPoint,
 } from "./creditData";
+import {
+  getOffscreenFragmentPosition,
+  getPolygonBounds,
+  getPolygonCentroid,
+  getSelectedFragmentPosition,
+  isPointInsidePolygon,
+  scoreLabelPosition,
+  type CreditLabelCorner,
+} from "./creditSceneMath";
+import {
+  createLiquidBackdropTexture,
+  createLiquidSurfaceTexture,
+  disposeCreditFragmentTextures,
+  loadCreditFragmentTextures,
+} from "./creditSceneResources";
+import { createCreditFragmentGeometry } from "./creditSceneGeometry";
+import { createCreditFragmentMaterial } from "./creditSceneMaterial";
+import {
+  createCreditSceneBase,
+  disposeCreditSceneBase,
+} from "./creditSceneSetup";
 
 type ScenePhase = "IDLE" | "SELECTING" | "SELECTED" | "CLOSING";
 type FragmentRuntime = ReturnType<typeof createFragment>;
@@ -25,17 +46,6 @@ type CreditSceneProps = {
 
 const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
 const SCENE_TRANSITION_DURATION_MS = 920;
-const CREDIT_FRAGMENT_TEXTURE_PATHS: Record<CreditFragmentId, string> = {
-  "01": "/images/cti1.png",
-  "02": "/images/cti2.png",
-  "03": "/images/cti3.png",
-  "04": "/images/cti4.png",
-  "05": "/images/cti5.png",
-};
-const PANEL_DEPTH = 0.12;
-const PANEL_BEVEL_SIZE = 0.025;
-const PANEL_BEVEL_THICKNESS = 0.018;
-const PANEL_CORNER_RADIUS = 0.16;
 const ASSEMBLED_POSITION = new THREE.Vector3(0, 0, 0);
 const SEAM = 0.085;
 const SIDE_FRAGMENT_SEAM_OFFSET = 0.075;
@@ -45,105 +55,15 @@ const PANEL_BASE_ROTATION = new THREE.Euler(
   0,
 );
 
-function createLiquidSurfaceTexture() {
-  const size = 64;
-  const data = new Uint8Array(size * size * 4);
-
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const nx = x / size;
-      const ny = y / size;
-      const wave =
-        Math.sin(nx * Math.PI * 4 + Math.sin(ny * Math.PI * 2) * 0.8) * 30 +
-        Math.cos(ny * Math.PI * 6 - nx * Math.PI * 2) * 20 +
-        Math.sin((nx + ny) * Math.PI * 4) * 10;
-      const value = THREE.MathUtils.clamp(Math.round(128 + wave), 0, 255);
-      const offset = (y * size + x) * 4;
-
-      data[offset] = value;
-      data[offset + 1] = value;
-      data[offset + 2] = value;
-      data[offset + 3] = 255;
-    }
-  }
-
-  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(1.35, 0.85);
-  texture.colorSpace = THREE.NoColorSpace;
-  texture.needsUpdate = true;
-
-  return texture;
-}
-
-function createLiquidBackdropTexture() {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 512;
-  const context = canvas.getContext("2d");
-
-  if (!context) {
-    return new THREE.Texture();
-  }
-
-  const gradient = context.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, "#f7fafc");
-  gradient.addColorStop(0.48, "#e7eef5");
-  gradient.addColorStop(1, "#f3f7fa");
-  context.fillStyle = gradient;
-  context.fillRect(0, 0, canvas.width, canvas.height);
-
-  const glow = context.createRadialGradient(168, 156, 0, 168, 156, 280);
-  glow.addColorStop(0, "rgba(32, 60, 96, 0.18)");
-  glow.addColorStop(1, "rgba(32, 60, 96, 0)");
-  context.fillStyle = glow;
-  context.fillRect(0, 0, canvas.width, canvas.height);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.needsUpdate = true;
-
-  return texture;
-}
-
-function isPointInsidePolygon(
-  x: number,
-  y: number,
-  polygon: readonly FragmentPoint[],
-) {
-  let inside = false;
-
-  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
-    const [x1, y1] = polygon[index];
-    const [x2, y2] = polygon[previous];
-    const crossesEdge = y1 > y !== y2 > y;
-
-    if (crossesEdge && x < ((x2 - x1) * (y - y1)) / (y2 - y1) + x1) {
-      inside = !inside;
-    }
-  }
-
-  return inside;
-}
-
 function findLabelPosition(
   polygon: readonly FragmentPoint[],
   width: number,
   height: number,
   fallbackX: number,
   fallbackY: number,
-  corner: "top-left" | "top-right" | "bottom-right",
+  corner: CreditLabelCorner,
 ) {
-  const bounds = polygon.reduce(
-    (result, [x, y]) => ({
-      minX: Math.min(result.minX, x),
-      maxX: Math.max(result.maxX, x),
-      minY: Math.min(result.minY, y),
-      maxY: Math.max(result.maxY, y),
-    }),
-    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
-  );
+  const bounds = getPolygonBounds(polygon);
   const padding = 0.13;
   const halfWidth = width / 2;
   const halfHeight = height / 2;
@@ -178,12 +98,7 @@ function findLabelPosition(
         continue;
       }
 
-      const score =
-        corner === "top-left"
-          ? -x + y * 0.82
-          : corner === "top-right"
-            ? x + y * 0.82
-            : x - y * 0.82;
+      const score = scoreLabelPosition(x, y, corner);
 
       if (score > bestScore) {
         bestScore = score;
@@ -259,105 +174,6 @@ function createFragmentLabel(
   return { mesh, material, geometry, texture };
 }
 
-function getPolygonCentroid(points: readonly FragmentPoint[]) {
-  let x = 0;
-  let y = 0;
-
-  for (const point of points) {
-    x += point[0];
-    y += point[1];
-  }
-
-  x /= points.length;
-  y /= points.length;
-
-  return [x, y] as const;
-}
-
-function createCreditFragmentGeometry(points: readonly FragmentPoint[]) {
-  const shape = new THREE.Shape();
-  const corners = points.map(([x, y], index) => {
-    const [previousX, previousY] = points[(index - 1 + points.length) % points.length];
-    const [nextX, nextY] = points[(index + 1) % points.length];
-    const previousDistance = Math.hypot(previousX - x, previousY - y);
-    const nextDistance = Math.hypot(nextX - x, nextY - y);
-    const radius = Math.min(
-      PANEL_CORNER_RADIUS,
-      previousDistance * 0.24,
-      nextDistance * 0.24,
-    );
-
-    return {
-      vertex: new THREE.Vector2(x, y),
-      entry: new THREE.Vector2(
-        x + ((previousX - x) / previousDistance) * radius,
-        y + ((previousY - y) / previousDistance) * radius,
-      ),
-      exit: new THREE.Vector2(
-        x + ((nextX - x) / nextDistance) * radius,
-        y + ((nextY - y) / nextDistance) * radius,
-      ),
-    };
-  });
-
-  shape.moveTo(corners[0].entry.x, corners[0].entry.y);
-  corners.forEach((corner, index) => {
-    const nextCorner = corners[(index + 1) % corners.length];
-
-    shape.quadraticCurveTo(
-      corner.vertex.x,
-      corner.vertex.y,
-      corner.exit.x,
-      corner.exit.y,
-    );
-    shape.lineTo(nextCorner.entry.x, nextCorner.entry.y);
-  });
-  shape.closePath();
-
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: PANEL_DEPTH,
-    bevelEnabled: true,
-    bevelThickness: PANEL_BEVEL_THICKNESS,
-    bevelSize: PANEL_BEVEL_SIZE,
-    bevelOffset: 0,
-    bevelSegments: 3,
-    curveSegments: 8,
-    steps: 1,
-  });
-
-  geometry.translate(0, 0, -PANEL_DEPTH / 2);
-  geometry.computeVertexNormals();
-  geometry.computeBoundingBox();
-
-  const bounds = geometry.boundingBox;
-  const positions = geometry.getAttribute("position");
-  const uvs = geometry.getAttribute("uv");
-
-  if (bounds && uvs) {
-    const width = Math.max(bounds.max.x - bounds.min.x, Number.EPSILON);
-    const height = Math.max(bounds.max.y - bounds.min.y, Number.EPSILON);
-    const fragmentAspect = width / height;
-    const imageAspect = 16 / 9;
-    const uScale = fragmentAspect < imageAspect ? fragmentAspect / imageAspect : 1;
-    const vScale = fragmentAspect > imageAspect ? imageAspect / fragmentAspect : 1;
-
-    for (let index = 0; index < positions.count; index += 1) {
-      const normalizedX = (positions.getX(index) - bounds.min.x) / width;
-      const normalizedY = (positions.getY(index) - bounds.min.y) / height;
-
-      uvs.setXY(
-        index,
-        0.5 + (normalizedX - 0.5) * uScale,
-        0.5 + (normalizedY - 0.5) * vScale,
-      );
-    }
-
-    uvs.needsUpdate = true;
-  }
-
-  return geometry;
-}
-
 function createFragment(
   data: CreditFragmentData,
   liquidSurfaceTexture: THREE.Texture,
@@ -369,15 +185,7 @@ function createFragment(
   const polygon = CREDIT_FRAGMENT_POLYGONS[CREDIT_GEOMETRY_MAP[data.id]];
   const geometry = createCreditFragmentGeometry(polygon);
   const [centroidX, centroidY] = getPolygonCentroid(polygon);
-  const polygonBounds = polygon.reduce(
-    (bounds, [x, y]) => ({
-      minX: Math.min(bounds.minX, x),
-      maxX: Math.max(bounds.maxX, x),
-      minY: Math.min(bounds.minY, y),
-      maxY: Math.max(bounds.maxY, y),
-    }),
-    { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity },
-  );
+  const polygonBounds = getPolygonBounds(polygon);
   const seamDirection = new THREE.Vector2(centroidX, centroidY);
 
   if (seamDirection.lengthSq() > 0) {
@@ -390,30 +198,11 @@ function createFragment(
     seamDirection.x += SIDE_FRAGMENT_SEAM_OFFSET;
   }
 
-  const material = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color("#ffffff"),
-    map: fragmentTexture,
-    emissive: new THREE.Color("#000000"),
-    emissiveIntensity: 0,
-    roughness: 0.22,
-    metalness: 0,
-    transmission: 0.34,
-    thickness: 0.38,
-    ior: 1.42,
-    clearcoat: 0.18,
-    clearcoatRoughness: 0.24,
-    specularIntensity: 0.07,
-    specularColor: new THREE.Color("#ffffff"),
-    attenuationColor: new THREE.Color("#ffffff"),
-    attenuationDistance: 3.6,
-    envMapIntensity: 0.05,
-    bumpMap: liquidSurfaceTexture,
-    bumpScale: 0.045 + data.seed * 0.002,
-    transparent: true,
-    opacity: 0.76,
-    depthWrite: false,
-    side: THREE.FrontSide,
-  });
+  const material = createCreditFragmentMaterial(
+    fragmentTexture,
+    liquidSurfaceTexture,
+    data.seed,
+  );
   const liquidUniforms = {
     backdrop: { value: backgroundTexture },
     resolution: { value: liquidResolution },
@@ -585,33 +374,19 @@ function setSelectedTarget(
 ) {
   const selectedScale =
     fragment.data.selectedScale * (isMobile ? 0.58 : 0.72);
-  const isLeftFragment = fragment.centroid.x <= 0;
-  const horizontalEdge = isMobile ? 2.35 : 4.55;
-  const topEdge = isMobile ? 1.58 : 1.9;
-  const anchorX = isLeftFragment
-    ? -horizontalEdge - fragment.polygonBounds.minX * selectedScale
-    : horizontalEdge - fragment.polygonBounds.maxX * selectedScale;
-  const anchorY = topEdge - fragment.polygonBounds.maxY * selectedScale;
-
-  target.set(anchorX, anchorY, 0.95);
+  target.fromArray(
+    getSelectedFragmentPosition(
+      fragment.centroid.x,
+      fragment.polygonBounds,
+      selectedScale,
+      isMobile,
+    ),
+  );
 }
 
 function setOffscreenTarget(target: THREE.Vector3, fragment: FragmentRuntime) {
-  const direction = new THREE.Vector2(fragment.centroid.x, fragment.centroid.y);
-
-  if (direction.lengthSq() < 0.01) {
-    direction.set(0, -1);
-  } else {
-    direction.normalize();
-  }
-
-  const anchorX = direction.x * 9.5;
-  const anchorY = direction.y * 7;
-
-  target.set(
-    anchorX - fragment.centroid.x,
-    anchorY - fragment.centroid.y,
-    -0.7,
+  target.fromArray(
+    getOffscreenFragmentPosition(fragment.centroid.x, fragment.centroid.y),
   );
 }
 
@@ -656,7 +431,7 @@ export default function CreditScene({
       return;
     }
 
-    router.push(`/creditspage/${fragment.slug}`, { scroll: false });
+    router.push(`${SITE_PATHS.credits}/${fragment.slug}`, { scroll: false });
   }, [router]);
 
   const closeFragment = useCallback(() => {
@@ -667,7 +442,7 @@ export default function CreditScene({
     phaseRef.current = "CLOSING";
     transitionStartedAtRef.current = performance.now();
     setContentVisible(false);
-    router.push("/creditspage", { scroll: false });
+    router.push(SITE_PATHS.credits, { scroll: false });
   }, [router]);
 
   useEffect(() => {
@@ -706,7 +481,7 @@ export default function CreditScene({
 
   useEffect(() => {
     creditFragments.forEach((fragment) => {
-      router.prefetch(`/creditspage/${fragment.slug}`);
+      router.prefetch(`${SITE_PATHS.credits}/${fragment.slug}`);
     });
   }, [router]);
 
@@ -731,36 +506,17 @@ export default function CreditScene({
       return;
     }
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance",
-    });
-    const scene = new THREE.Scene();
+    const sceneBase = createCreditSceneBase(container);
+    const { renderer, scene, camera, sceneRoot } = sceneBase;
     const liquidSurfaceTexture = createLiquidSurfaceTexture();
     const backgroundTexture = createLiquidBackdropTexture();
-    const textureLoader = new THREE.TextureLoader();
-    const fragmentTextures = {} as Record<CreditFragmentId, THREE.Texture>;
-
-    creditFragments.forEach((fragment) => {
-      const texture = textureLoader.load(
-        CREDIT_FRAGMENT_TEXTURE_PATHS[fragment.id],
-      );
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
-      fragmentTextures[fragment.id] = texture;
-    });
+    const fragmentTextures = loadCreditFragmentTextures(
+      renderer,
+      creditFragments.map((fragment) => fragment.id),
+    );
     const liquidResolution = new THREE.Vector2(1, 1);
     const liquidCoverTransform = new THREE.Vector4(1, 1, 0, 0);
-    const roomEnvironment = new RoomEnvironment();
-    const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    const environmentMap = pmremGenerator.fromScene(roomEnvironment, 0.04).texture;
-
-    roomEnvironment.dispose();
     backgroundTexture.colorSpace = THREE.SRGBColorSpace;
-    scene.environment = environmentMap;
-    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
-    const sceneRoot = new THREE.Group();
     sceneRoot.rotation.copy(PANEL_BASE_ROTATION);
     const raycaster = new THREE.Raycaster();
     const rayPointer = new THREE.Vector2(10, 10);
@@ -881,24 +637,7 @@ export default function CreditScene({
       }
     });
 
-    renderer.setClearColor(0xffffff, 0);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.domElement.className = "credits-webgl-canvas";
-    container.appendChild(renderer.domElement);
-
-    scene.add(sceneRoot);
-    scene.fog = new THREE.Fog("#ffffff", 18, 32);
     sceneRoot.add(...fragments.map((fragment) => fragment.group));
-
-    const ambientLight = new THREE.AmbientLight("#ffffff", 0.44);
-    const keyLight = new THREE.DirectionalLight("#ffffff", 0.18);
-    const rimLight = new THREE.DirectionalLight("#dcecff", 0.07);
-    const fillLight = new THREE.PointLight("#f5f9ff", 0.03, 8);
-
-    keyLight.position.set(-4.8, 1.2, 4.4);
-    rimLight.position.set(4.2, -0.4, -3.2);
-    fillLight.position.set(2.6, -1.8, 3.2);
-    scene.add(ambientLight, keyLight, rimLight, fillLight);
 
     resize();
 
@@ -1148,14 +887,10 @@ export default function CreditScene({
         fragment.label?.material.dispose();
         fragment.label?.texture.dispose();
       });
-      scene.environment = null;
-      scene.background = null;
       liquidSurfaceTexture.dispose();
       backgroundTexture.dispose();
-      Object.values(fragmentTextures).forEach((texture) => texture.dispose());
-      environmentMap.dispose();
-      pmremGenerator.dispose();
-      renderer.dispose();
+      disposeCreditFragmentTextures(fragmentTextures);
+      disposeCreditSceneBase(sceneBase);
     };
   }, []);
 

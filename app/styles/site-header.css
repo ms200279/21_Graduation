@@ -1,0 +1,112 @@
+@media (min-width: 768px) {
+  .desktop-header {
+    --header-width: min(384px, calc(100vw - 32px));
+    --header-padding-x: 22px;
+    --header-inner-width: calc(
+      var(--header-width) - var(--header-padding-x) - var(--header-padding-x)
+    );
+    --collapsed-header-width: 110px;
+    --header-height: 46px;
+    --header-radius: calc(var(--header-height) / 2);
+    --orb-size: var(--header-height);
+    --orb-header-gap: 54px;
+    --nav-label-offset-0: calc(var(--header-inner-width) * -0.375);
+    --nav-label-offset-1: calc(var(--header-inner-width) * -0.125);
+    --nav-label-offset-2: calc(var(--header-inner-width) * 0.125);
+    --nav-label-offset-3: calc(var(--header-inner-width) * 0.375);
+    --landing-orb-offset: calc(
+      (var(--header-width) / -2) - var(--orb-header-gap)
+    );
+  }
+}
+
+@media (min-width: 1024px) {
+  .desktop-header {
+    --header-width: min(399px, calc(100vw - 32px));
+    --header-padding-x: 26px;
+    --header-inner-width: calc(
+      var(--header-width) - var(--header-padding-x) - var(--header-padding-x)
+    );
+    --collapsed-header-width: 120px;
+    --header-height: 50px;
+    --header-radius: calc(var(--header-height) / 2);
+    --orb-size: var(--header-height);
+    --orb-header-gap: 60px;
+    --nav-label-offset-0: calc(var(--header-inner-width) * -0.385);
+    --nav-label-offset-1: calc(var(--header-inner-width) * -0.135);
+    --nav-label-offset-2: calc(var(--header-inner-width) * 0.135);
+    --nav-label-offset-3: calc(var(--header-inner-width) * 0.385);
+    --landing-orb-offset: calc(
+      (var(--header-width) / -2) - var(--orb-header-gap)
+    );
+  }
+}
+
+@media (min-width: 1280px) {
+  .desktop-header {
+    --header-width: min(430px, calc(100vw - 32px));
+    --header-padding-x: 28px;
+    --header-inner-width: calc(
+      var(--header-width) - var(--header-padding-x) - var(--header-padding-x)
+    );
+    --collapsed-header-width: 128px;
+    --header-height: 52px;
+    --header-radius: calc(var(--header-height) / 2);
+    --orb-size: var(--header-height);
+    --orb-header-gap: 64px;
+    --landing-orb-offset: calc(
+      (var(--header-width) / -2) - var(--orb-header-gap)
+    );
+  }
+}
+
+.typo-logo-button {
+  --typo-logo-viewport-left: var(--landing-copy-inset-x);
+  --typo-logo-viewport-top: 16px;
+  --typo-logo-block-height: 44px;
+  --typo-logo-height: calc(var(--typo-logo-block-height) * 0.5);
+  --typo-logo-width: calc(var(--typo-logo-height) * 1873.95 / 400.98);
+  position: fixed;
+  z-index: 40;
+  height: var(--typo-logo-height);
+  width: var(--typo-logo-width);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+  top: calc(
+    var(--typo-logo-viewport-top) +
+      (var(--typo-logo-block-height) - var(--typo-logo-height)) / 2
+  );
+  left: var(--typo-logo-viewport-left);
+  transition: filter 700ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 700ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.typo-logo-button img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.typo-logo-button--showroom:focus-visible {
+  outline-color: #ffffff;
+}
+
+@media (max-width: 767px) {
+  .typo-logo-button.typo-logo-button--blurred {
+    filter: blur(8px);
+    opacity: 0.55;
+  }
+}
+
+@media (min-width: 768px) {
+  .typo-logo-button.desktop-header {
+    --typo-logo-viewport-top: 10px;
+    --typo-logo-block-height: var(--header-height);
+    --typo-logo-height: calc(var(--header-height) * 0.5);
+    --typo-logo-width: calc(var(--typo-logo-height) * 1873.95 / 400.98);
+  }
+}

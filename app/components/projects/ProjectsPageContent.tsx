@@ -1,11 +1,14 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import { isProjectDetailPath } from "@/app/utils/routes";
 import ProjectsCategoryFilter from "./ProjectsCategoryFilter";
 import ProjectsCylinderGallery from "./ProjectsCylinderGallery";
-
-export type ProjectsViewMode = "cylinder" | "grid";
+import type { ProjectsCategoryId } from "./projectCategories";
+import type { ProjectSummary } from "./projectData";
+import type { ProjectsViewMode } from "./projectsViewMode";
 
 function ProjectsViewToggle({
   viewMode,
@@ -89,18 +92,37 @@ function ProjectsViewToggle({
   );
 }
 
-export default function ProjectsPageContent() {
+export default function ProjectsPageContent({
+  projects,
+}: {
+  projects: ProjectSummary[];
+}) {
+  const pathname = usePathname();
+  const isDetailOpen = isProjectDetailPath(pathname);
   const [viewMode, setViewMode] = useState<ProjectsViewMode>("cylinder");
+  const [activeCategory, setActiveCategory] =
+    useState<ProjectsCategoryId>("all-projects");
 
   return (
-    <main className="projects-page mx-auto min-h-screen max-w-6xl bg-white 2xl:max-w-[100rem]">
+    <main
+      className="projects-page mx-auto min-h-screen max-w-6xl bg-white 2xl:max-w-[100rem]"
+      aria-hidden={isDetailOpen}
+      inert={isDetailOpen ? true : undefined}
+    >
       <ProjectsCategoryFilter
         isSticky={viewMode === "cylinder"}
+        activeCategory={activeCategory}
+        onCategoryChange={setActiveCategory}
         actionSlot={
           <ProjectsViewToggle viewMode={viewMode} onChange={setViewMode} />
         }
       />
-      <ProjectsCylinderGallery viewMode={viewMode} />
+      <ProjectsCylinderGallery
+        key={activeCategory}
+        viewMode={viewMode}
+        categoryId={activeCategory}
+        projects={projects}
+      />
     </main>
   );
 }

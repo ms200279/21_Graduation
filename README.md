@@ -12,7 +12,7 @@
 | Styling | Tailwind CSS 4, CSS modules, global CSS |
 | 3D | Three.js 0.185 |
 | Font | Pretendard Variable (`next/font/local`) |
-| Validation | ESLint 9, Next.js production build |
+| Validation | TypeScript, ESLint 9, Vitest, Playwright, Next.js production build |
 | Deployment | Vercel 연동 |
 
 현재 Supabase 클라이언트, 인증, API route, 환경변수 의존성은 없습니다.
@@ -23,6 +23,7 @@
 | --- | --- | --- |
 | `/` | Static | Hero, 전시 정보, Concept 캐러셀, Media, Footer 스크롤 경험 |
 | `/projectspage` | Static | 77개 작품의 실린더/그리드 갤러리 |
+| `/projectspage/[projectId]` | SSG | 작품 상세 portal과 정적 작품 경로 |
 | `/peoplepage` | Static | 참여자 로테이팅 캐러셀 |
 | `/peoplepage/[memberId]` | Dynamic | 선택한 참여자 확대 상태 |
 | `/showroompage` | Static | 입력 문구로 변형되는 Canvas 파티클 타이포 |
@@ -58,9 +59,16 @@
 
 구성 분리:
 
-- `ProjectsCylinderGallery.tsx`: React 상태, 입력 이벤트, 렌더링
-- `projectsCylinderConfig.ts`: 카드 덱, 회전 상수, 각도/스냅 계산
+- `ProjectsPageContent.tsx`: 카테고리와 보기 모드 상태, 갤러리 조합
+- `ProjectsCylinderGallery.tsx` / `CylinderRow.tsx`: 실린더 입력과 렌더링
+- `ProjectsGridGallery.tsx`: 그리드 보기
+- `projectsCylinderConfig.ts`: 실린더 상수와 배치 설정
+- `projectsGalleryModel.ts`, `useProjectsDeckState.ts`: 필터링, 덱, 스냅 모델
+- `projectData.ts`: 검증된 원본 데이터를 화면용 상세/요약 모델로 변환
+- `projectDataSchema.ts`: `app/data/projectinfo.json`의 런타임 스키마 검증
 - `projects-cylinder-gallery.css`: 실린더와 그리드 레이아웃
+
+`projectspage/layout.tsx`는 갤러리를 상세 route 바깥으로 remount하지 않고 유지합니다. 따라서 상세 portal을 열고 닫아도 카테고리, 보기 모드, 실린더 위치와 문서 스크롤이 보존됩니다.
 
 ### People
 
@@ -74,7 +82,11 @@
 구성 분리:
 
 - `PeopleRotatingCarousel.tsx`: React 상태, 이벤트, 렌더링
+- `PeopleCarouselCard.tsx`, `PeopleCarouselExpandedPortal.tsx`: 카드와 확대 portal
+- `PeoplePageShell.tsx`: 페이지 배경과 캐러셀 조합
 - `peopleCarouselModel.ts`: 측정값 타입, 좌표/스냅 계산, 애니메이션 설정
+- `usePeopleCarouselMeasurements.ts`, `peopleCarouselWheelSnapEvents.ts`: 측정과 휠 스냅
+- `usePeopleCarouselRouteSync.ts`: 확대 상태와 동적 route 동기화
 - `items.ts`: 참여자 데이터
 - `memberPaths.ts`: 참여자 URL 변환
 - `peopleCarouselFooter.ts`: Footer 스크롤 연동
@@ -103,7 +115,7 @@
 - ESC/닫기 복귀 및 reduced-motion 대응
 - 크레딧 본문과 조직도를 DOM으로 제공
 
-크레딧 데이터는 `creditData.ts`에 분리되어 있습니다. 조직도는 위원장단을 먼저 표시하고 `기획팀 → 디자인팀 → 웹사이트팀 → 총무팀 → 홍보팀` 순서로 구성합니다.
+크레딧 데이터는 `creditData.ts`에 분리되어 있고, scene 구성은 `creditSceneSetup.ts`, `creditSceneGeometry.ts`, `creditSceneMaterial.ts`, `creditSceneResources.ts`, `creditSceneMath.ts`로 나뉩니다. `creditspage/layout.tsx`는 선택 route가 바뀌어도 Three.js scene과 선택 애니메이션 상태를 유지합니다. 조직도는 위원장단을 먼저 표시하고 `기획팀 → 디자인팀 → 웹사이트팀 → 총무팀 → 홍보팀` 순서로 구성합니다.
 
 ## 공통 UI
 
@@ -113,6 +125,8 @@
 - `SitePageShell.tsx`: Showroom 진입/이탈 배경 전환
 - `liquid-glass/**`: SVG filter와 Liquid Glass hook
 - `app/utils/numbers.ts`: 공통 숫자 범위 제한 유틸리티
+
+전역 reset, theme token, font, `html`/`body` 기본값은 `app/globals.css`에만 둡니다. Root layout이 `landing.css` → `site-page-shell.css` → `landing-footer.css` → `site-header.css` → `category-filter-buttons.css` 순서로 공통 스타일을 불러와 cascade 순서를 고정합니다. People/Projects 필터는 `category-filter-buttons.css`의 공통 visual layer와 각 페이지 CSS의 변수/레이아웃 규칙을 조합합니다.
 
 ## 반응형 기준
 
@@ -150,6 +164,8 @@ app/
 │   ├── Header.tsx
 │   ├── LandingScrollExperience.tsx
 │   └── SitePageShell.tsx
+├── data/
+│   └── projectinfo.json
 ├── creditspage/
 ├── peoplepage/
 ├── projectspage/
@@ -169,7 +185,7 @@ public/
 
 ### 요구사항
 
-- Node.js 20 이상 권장
+- Node.js 24.x (`package.json`의 `engines.node`)
 - npm
 
 ### 설치 및 실행
@@ -184,12 +200,14 @@ npm run dev
 ### 검증
 
 ```bash
+npm run typecheck
 npm run lint
+npm test
 npm run build
-npm run start
+npm run test:e2e
 ```
 
-별도의 `npm test` 또는 E2E 스크립트는 아직 없습니다.
+Vitest는 모델, route, 데이터 스키마 단위 테스트를 실행합니다. Playwright는 데스크톱·모바일의 주요 route와 Landing 스크롤, Projects 필터·상세 상태, People 확대, Showroom 입력, Credits 상세 닫기를 검증합니다.
 
 ## 수동 QA
 
@@ -239,7 +257,7 @@ npm run dev -- -p 3001
 - Credit `Archive` 본문과 일부 작품/참여자 실제 데이터는 교체가 필요할 수 있습니다.
 - Landing Media 영역은 현재 콘텐츠 placeholder입니다.
 - Supabase, 인증, 업로드, 관리자 기능은 구현되지 않았습니다.
-- 자동화 테스트와 `LICENSE` 파일은 없습니다.
+- `LICENSE` 파일은 없습니다.
 
 ## 배포
 

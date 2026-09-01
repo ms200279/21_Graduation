@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { isLandingPath, isShowroomPath } from "@/app/utils/routes";
 
 type SitePageShellProps = {
   children: ReactNode;
@@ -9,9 +10,8 @@ type SitePageShellProps = {
 
 export default function SitePageShell({ children }: SitePageShellProps) {
   const pathname = usePathname();
-  const isLandingPage = pathname === "/";
-  const isShowroomPage =
-    pathname === "/showroompage" || pathname.startsWith("/showroompage/");
+  const isLandingPage = isLandingPath(pathname);
+  const isShowroomPage = isShowroomPath(pathname);
 
   return (
     <div

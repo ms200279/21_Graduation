@@ -15,6 +15,8 @@ export default function CreditsLayout({ children }: CreditsLayoutProps) {
   const fragmentSlug = pathname.match(/^\/creditspage\/([^/]+)\/?$/)?.[1];
   const fragment = fragmentSlug ? getCreditFragmentBySlug(fragmentSlug) : null;
 
+  // The scene owns selection animation state, so detail routes render inside
+  // this persistent client layout instead of remounting the Three.js canvas.
   return (
     <main
       className={[

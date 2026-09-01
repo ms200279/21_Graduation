@@ -1,9 +1,11 @@
+import { getMemberDetailPath } from "@/app/utils/routes";
+
 export function getMemberSlugFromIndex(index: number) {
   return String(index + 1).padStart(2, "0");
 }
 
 export function getMemberPathFromIndex(index: number) {
-  return `/peoplepage/${getMemberSlugFromIndex(index)}`;
+  return getMemberDetailPath(index);
 }
 
 export function parseMemberSlugFromPath(pathname: string) {
