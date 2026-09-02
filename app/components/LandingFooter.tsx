@@ -70,7 +70,7 @@ export default function LandingFooter() {
           ⓒ 2026 TECH UNIV KOREA. ALL RIGHTS RESERVED.
         </p>
         <p className="landing-footer__copyright">
-          TUKOREA DESIGN ENGINEERING 21TH GRADUATION EXHIBITION
+          TUKOREA DESIGN ENGINEERING 21ST GRADUATION EXHIBITION
         </p>
       </div>
     </footer>
