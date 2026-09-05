@@ -68,6 +68,8 @@ export type CreditFragmentData = {
   slug: string;
   title: string;
   description: string[];
+  videoSrc?: string;
+  videoLabel?: string;
   organization?: {
     title: string;
     members: { role: string; name: string }[];
@@ -194,6 +196,8 @@ export const creditFragments: CreditFragmentData[] = [
     description: [
       "Web archive, interface implementation, and digital preservation.",
     ],
+    videoSrc: "/images/interview-player.webm",
+    videoLabel: "Graduation exhibition interview",
     scale: 1,
     selectedScale: 1.06,
     rotation: [0, 0, 0],

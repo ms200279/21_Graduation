@@ -18,17 +18,17 @@ test("people card opens and closes without leaving carousel state", async ({
 }) => {
   await page.goto(SITE_PATHS.people);
 
-  const expandButton = page.getByRole("button", { name: "Expand Member 01" });
+  const expandButton = page.getByRole("button", { name: "Expand 공건호" });
   await expect(expandButton).toBeVisible({ timeout: 10_000 });
   await expandButton.hover();
   await expandButton.click();
 
   await expect(page).toHaveURL(new RegExp(`${getMemberDetailPath(0)}$`));
-  await expect(page.getByRole("dialog", { name: "Member 01" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "공건호" })).toBeVisible();
 
   await page.keyboard.press("Escape");
   await expect(page).toHaveURL(new RegExp(`${SITE_PATHS.people}$`));
-  await expect(page.getByRole("dialog", { name: "Member 01" })).toBeHidden();
+  await expect(page.getByRole("dialog", { name: "공건호" })).toBeHidden();
 });
 
 test("showroom accepts text input and announces the rendered value", async ({

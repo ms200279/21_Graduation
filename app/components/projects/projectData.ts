@@ -4,6 +4,7 @@ import {
   type ProjectTagCategoryId,
 } from "./projectCategories";
 import projectInfo from "@/app/data/projectinfo.json";
+import { getProjectImages } from "@/app/data/projectImages";
 import {
   parseProjectInfo,
   type SourceCopyBlock,
@@ -66,13 +67,14 @@ function normalizeCopy(value: string | undefined) {
 function createStorySection(
   id: ProjectStorySectionId,
   copy: SourceCopyBlock | undefined,
+  imageSrc: string,
 ): ProjectStorySection {
   return {
     id,
     title: STORY_SECTION_TITLES[id],
     subtitle: normalizeCopy(copy?.subtitle),
     body: normalizeCopy(copy?.body),
-    imageSrc: null,
+    imageSrc,
   };
 }
 
@@ -80,6 +82,13 @@ function mapSourceProject(source: SourceProject): ProjectDetailData {
   const categoryId = getCategoryIdFromSourceTag(source.tag);
   const name = normalizeCopy(source.title.en) || normalizeCopy(source.title.ko);
   const features = source.features ?? [];
+  const images = getProjectImages(source.projectNo);
+  const storyImages = [
+    images.featureMain,
+    images.feature2,
+    images.feature3,
+  ];
+  const detailImages = [images.detail1, images.detail2, images.detail3];
 
   return {
     id: source.projectNo,
@@ -89,17 +98,17 @@ function mapSourceProject(source: SourceProject): ProjectDetailData {
     tag: getCategoryLabel(categoryId),
     categoryId,
     body: normalizeCopy(source.oneLine),
-    thumbnailSrc: null,
+    thumbnailSrc: images.thumbnail,
     sections: [
-      createStorySection("background", source.background),
-      createStorySection("goal", source.goal),
+      createStorySection("background", source.background, images.background),
+      createStorySection("goal", source.goal, images.goal),
       ...FEATURE_SECTION_IDS.map((sectionId, index) =>
-        createStorySection(sectionId, features[index]),
+        createStorySection(sectionId, features[index], storyImages[index]),
       ),
     ],
     details: Array.from({ length: 3 }, (_, detailIndex) => ({
       id: `detail-${detailIndex + 1}`,
-      imageSrc: null,
+      imageSrc: detailImages[detailIndex],
       body: normalizeCopy(source.detail?.[detailIndex]?.body),
     })),
   };
@@ -109,6 +118,8 @@ export type ProjectSummary = {
   id: number;
   name: string;
   categoryId: ProjectTagCategoryId;
+  thumbnailSrc?: string;
+  description?: string;
 };
 
 export const PROJECT_DETAILS: ProjectDetailData[] = parseProjectInfo(projectInfo)
@@ -121,6 +132,8 @@ export const PROJECT_SUMMARIES: ProjectSummary[] = PROJECT_DETAILS.map(
     id: project.id,
     name: project.name,
     categoryId: project.categoryId,
+    thumbnailSrc: project.thumbnailSrc ?? "",
+    description: project.body,
   }),
 );
 

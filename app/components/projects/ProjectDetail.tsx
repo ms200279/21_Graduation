@@ -33,18 +33,21 @@ type ProjectMediaProps = {
 };
 
 function ProjectMedia({ src, label, variant }: ProjectMediaProps) {
+  const [hasImageError, setHasImageError] = useState(false);
+
   return (
     <div
       className={`project-detail-media project-detail-media--${variant}`}
-      aria-label={src ? undefined : `${label} image placeholder`}
+      aria-label={src && !hasImageError ? undefined : `${label} image placeholder`}
     >
-      {src ? (
+      {src && !hasImageError ? (
         <Image
           src={src}
           alt={label}
           fill
           sizes={variant === "story" ? "(min-width: 768px) 52vw, 100vw" : "(min-width: 768px) 62vw, 100vw"}
           className="project-detail-media__image"
+          onError={() => setHasImageError(true)}
         />
       ) : (
         <span className="project-detail-media__placeholder" aria-hidden="true">

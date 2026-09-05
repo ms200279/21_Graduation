@@ -164,6 +164,23 @@
   margin-top: 1.5em;
 }
 
+.credits-content-video {
+  overflow: hidden;
+  width: 100%;
+  max-width: 28rem;
+  margin-top: 1.75rem;
+  border-radius: 0.9rem;
+  background: #050505;
+  box-shadow: 0 12px 32px rgba(8, 16, 48, 0.12);
+}
+
+.credits-content-video__player {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+}
+
 .credits-content-organization {
   display: grid;
   padding-bottom: 1rem;

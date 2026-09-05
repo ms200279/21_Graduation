@@ -1,22 +1,38 @@
+import peopleRoster from "@/app/data/people.json";
+
+import { getDepartment, type PeopleDepartmentId } from "./peopleCategories";
+import { parsePeopleRoster } from "./peopleDataSchema";
+
 export type PeopleCarouselItem = {
   id: string;
   name: string;
   role?: string;
   phone?: string;
   photoSrc?: string;
+  categoryId?: PeopleDepartmentId;
 };
 
-/** Placeholder roster until people data is wired to Supabase. */
-export const PEOPLE_CAROUSEL_ITEMS: PeopleCarouselItem[] = Array.from(
-  { length: 99 },
-  (_, index) => {
-    const memberNumber = String(index + 1).padStart(2, "0");
+export const PEOPLE_CAROUSEL_ITEMS: PeopleCarouselItem[] = parsePeopleRoster(
+  peopleRoster,
+)
+  .slice()
+  .sort((left, right) => {
+    const byName = left.name.localeCompare(right.name, "ko");
+
+    if (byName !== 0) {
+      return byName;
+    }
+
+    return left.studentId.localeCompare(right.studentId);
+  })
+  .map((person, index) => {
+    const department = getDepartment(person.majorTag);
 
     return {
       id: String(index + 1),
-      name: `Member ${memberNumber}`,
-      role: "Design Engineering",
-      phone: "010-0000-0000",
+      name: person.name,
+      role: department?.label,
+      phone: person.phone || undefined,
+      categoryId: department?.categoryId,
     };
-  },
-);
+  });

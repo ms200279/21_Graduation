@@ -47,6 +47,16 @@ export default function ProjectsCylinderGallery({
     (id: number) => resolveProjectName(projects, id),
     [projects],
   );
+  const getProjectThumbnail = useCallback(
+    (id: number) =>
+      projects.find((project) => project.id === id)?.thumbnailSrc ?? "",
+    [projects],
+  );
+  const getProjectDescription = useCallback(
+    (id: number) =>
+      projects.find((project) => project.id === id)?.description ?? "",
+    [projects],
+  );
 
   if (viewMode === "grid") {
     return (
@@ -54,6 +64,8 @@ export default function ProjectsCylinderGallery({
         cards={getAllProjectCards(projectIds)}
         onCardSelect={openProject}
         getProjectName={getProjectName}
+        getProjectThumbnail={getProjectThumbnail}
+        getProjectDescription={getProjectDescription}
       />
     );
   }
@@ -71,6 +83,8 @@ export default function ProjectsCylinderGallery({
         onCardRecycle={replaceUpperCard}
         onCardSelect={openProject}
         getProjectName={getProjectName}
+        getProjectThumbnail={getProjectThumbnail}
+        getProjectDescription={getProjectDescription}
       />
       <CylinderRow
         cards={lowerCards}
@@ -80,6 +94,8 @@ export default function ProjectsCylinderGallery({
         onCardRecycle={replaceLowerCard}
         onCardSelect={openProject}
         getProjectName={getProjectName}
+        getProjectThumbnail={getProjectThumbnail}
+        getProjectDescription={getProjectDescription}
       />
     </section>
   );

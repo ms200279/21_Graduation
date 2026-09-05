@@ -1,6 +1,4 @@
-import PeopleCategoryFilter from "./PeopleCategoryFilter";
-import PeopleRotatingCarousel from "./PeopleRotatingCarousel";
-import { PEOPLE_CAROUSEL_ITEMS } from "./items";
+import PeoplePageContent from "./PeoplePageContent";
 
 const PEOPLE_BACKGROUND_SRC = "/images/ppbg.webm";
 
@@ -22,11 +20,7 @@ export default function PeoplePageShell({
           className="people-page__background"
         />
       </div>
-      <PeopleCategoryFilter />
-      <PeopleRotatingCarousel
-        items={PEOPLE_CAROUSEL_ITEMS}
-        initialMemberSlug={initialMemberSlug}
-      />
+      <PeoplePageContent initialMemberSlug={initialMemberSlug} />
     </main>
   );
 }
