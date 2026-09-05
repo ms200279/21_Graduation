@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import SymbolCarouselIcons from "./SymbolCarouselIcons";
 import type { LandingCarouselSlide } from "./slides";
 
@@ -10,15 +10,43 @@ const TYPO_HEADING_HEIGHT = 62;
 
 type ConceptCarouselSlideContentProps = {
   slide: LandingCarouselSlide;
+  isActive: boolean;
 };
 
 function ConceptCarouselSlideContent({
   slide,
+  isActive,
 }: ConceptCarouselSlideContentProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (!isActive) {
+      videoRef.current?.pause();
+    }
+  }, [isActive]);
+
+  const isVideoSlide = Boolean(slide.videoSrc);
+
   return (
-    <div className="landing-carousel__slide-card">
-      <p className="landing-carousel__slide-label">{slide.title}</p>
-      <div className="landing-carousel__slide-copy">
+    <div
+      className={[
+        "landing-carousel__slide-card",
+        isVideoSlide ? "landing-carousel__slide-card--video" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {isVideoSlide ? null : (
+        <p className="landing-carousel__slide-label">{slide.title}</p>
+      )}
+      <div
+        className={[
+          "landing-carousel__slide-copy",
+          isVideoSlide ? "landing-carousel__slide-copy--video" : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         {slide.headingSymbols ? (
           <SymbolCarouselIcons variants={slide.headingSymbols} />
         ) : slide.headingImage ? (
@@ -45,6 +73,23 @@ function ConceptCarouselSlideContent({
                 {paragraph}
               </p>
             ))}
+          </div>
+        ) : null}
+        {slide.videoSrc ? (
+          <div
+            className="landing-carousel__slide-video"
+            onWheel={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+          >
+            <video
+              ref={videoRef}
+              src={slide.videoSrc}
+              controls
+              playsInline
+              preload={isActive ? "metadata" : "none"}
+              aria-label={slide.videoLabel ?? slide.title}
+              className="landing-carousel__slide-video-player"
+            />
           </div>
         ) : null}
       </div>

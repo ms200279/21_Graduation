@@ -181,7 +181,7 @@ const CarouselSlide = memo(function CarouselSlide({
         className="landing-carousel__slide-surface relative z-[1]"
         style={{ borderRadius: SLIDE_RADIUS_MAX }}
       >
-        <ConceptCarouselSlideContent slide={slide} />
+        <ConceptCarouselSlideContent slide={slide} isActive={isActive} />
       </div>
     </article>
   );

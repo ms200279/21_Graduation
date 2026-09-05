@@ -21,7 +21,7 @@
 
 | 경로 | 렌더링 | 설명 |
 | --- | --- | --- |
-| `/` | Static | Hero, 전시 정보, Concept 캐러셀, Media, Footer 스크롤 경험 |
+| `/` | Static | Hero, Concept 캐러셀, Media, Footer 스크롤 경험 |
 | `/projectspage` | Static | 77개 작품의 실린더/그리드 갤러리 |
 | `/projectspage/[projectId]` | SSG | 작품 상세 portal과 정적 작품 경로 |
 | `/peoplepage` | Static | 참여자 로테이팅 캐러셀 |
@@ -39,6 +39,8 @@
 - Schedule/Info Liquid Glass 패널
 - 토요일 `10:00-17:30`, 일요일 `10:00-17:00` 전시 시간 표시
 - Concept, Typography, Symbol, Senses 캐러셀
+- Senses 카드의 카테고리 필름(`/images/categori-player.webm`) 재생/정지
+- Media 섹션의 메인 필름(`/images/landing-main-player.webm`)
 - 스크롤 진행도와 연동되는 글로벌 Header/Orb 전환
 
 관련 파일:
@@ -50,11 +52,12 @@
 
 ### Projects
 
-- 77개 작품 카드
+- 77개 작품 카드와 Vercel Blob 작품 이미지
 - 12개 슬롯으로 구성된 상하 실린더, 서로 반대 방향 자동 회전
 - 휠, 좌우 버튼, hover 기준 스냅
 - 화면 뒤쪽에서 카드를 교체하는 비중복 순환 덱
 - 실린더/그리드 보기 전환
+- 카드 hover 시 작품명과 한 줄 소개
 - 16:9 반응형 카드
 
 구성 분리:
@@ -66,6 +69,7 @@
 - `projectsGalleryModel.ts`, `useProjectsDeckState.ts`: 필터링, 덱, 스냅 모델
 - `projectData.ts`: 검증된 원본 데이터를 화면용 상세/요약 모델로 변환
 - `projectDataSchema.ts`: `app/data/projectinfo.json`의 런타임 스키마 검증
+- `projectImages.ts`: 작품 번호와 Blob 이미지 경로 매핑
 - `projects-cylinder-gallery.css`: 실린더와 그리드 레이아웃
 
 `projectspage/layout.tsx`는 갤러리를 상세 route 바깥으로 remount하지 않고 유지합니다. 따라서 상세 portal을 열고 닫아도 카테고리, 보기 모드, 실린더 위치와 문서 스크롤이 보존됩니다.
@@ -73,6 +77,10 @@
 ### People
 
 - `/images/ppbg.webm` 전체 화면 배경
+- `app/data/people.json`의 98명 참여자 명단
+- 한글 이름순 정렬
+- Everyone / Industrial Design / Media Design 학과 필터
+- 한글 이름 부분 일치 검색, Enter 후에도 결과 유지
 - 원통형 참여자 카드와 진입 stagger 애니메이션
 - zone 카드의 hover tilt와 클릭 확대
 - 휠 종류를 구분한 스크롤/스냅 처리
@@ -81,15 +89,21 @@
 
 구성 분리:
 
+- `PeoplePageContent.tsx`: 학과 필터와 검색 상태
 - `PeopleRotatingCarousel.tsx`: React 상태, 이벤트, 렌더링
 - `PeopleCarouselCard.tsx`, `PeopleCarouselExpandedPortal.tsx`: 카드와 확대 portal
-- `PeoplePageShell.tsx`: 페이지 배경과 캐러셀 조합
-- `peopleCarouselModel.ts`: 측정값 타입, 좌표/스냅 계산, 애니메이션 설정
+- `PeoplePageShell.tsx`: 페이지 배경과 콘텐츠 조합
+- `peopleCarouselModel.ts`: 측정값 타입, 좌표/스냅 계산, 검색 결과 1명일 때 카드 유지
 - `usePeopleCarouselMeasurements.ts`, `peopleCarouselWheelSnapEvents.ts`: 측정과 휠 스냅
 - `usePeopleCarouselRouteSync.ts`: 확대 상태와 동적 route 동기화
-- `items.ts`: 참여자 데이터
+- `items.ts`: 검증된 명단을 화면용 카드 모델로 변환
+- `peopleDataSchema.ts`: `app/data/people.json` 런타임 검증
+- `peopleCategories.ts`: 학과 태그 매핑
+- `peopleSearch.ts`: 한글 이름 검색과 필터 조합
 - `memberPaths.ts`: 참여자 URL 변환
 - `peopleCarouselFooter.ts`: Footer 스크롤 연동
+
+검색은 이름에 포함된 한글 음절만 사용합니다. 초성, 전화번호, 영어 입력은 검색어로 쓰지 않습니다.
 
 ### Showroom
 
@@ -112,6 +126,7 @@
 - fragment별 이미지(`/images/cti1.png`-`cti5.png`)와 liquid glass shader
 - idle drift, pointer parallax, hover tilt
 - 선택 시 파편 이동과 route 전환, 본문 overlay 연결
+- Archive 파편의 인터뷰 필름(`/images/interview-player.webm`)
 - ESC/닫기 복귀 및 reduced-motion 대응
 - 크레딧 본문과 조직도를 DOM으로 제공
 
@@ -165,6 +180,8 @@ app/
 │   ├── LandingScrollExperience.tsx
 │   └── SitePageShell.tsx
 ├── data/
+│   ├── people.json
+│   ├── projectImages.ts
 │   └── projectinfo.json
 ├── creditspage/
 ├── peoplepage/
@@ -212,13 +229,14 @@ Vitest는 모델, route, 데이터 스키마 단위 테스트를 실행합니다
 ## 수동 QA
 
 1. Hero에서 Concept/Media/Footer까지 스크롤하고 Header 전환을 확인합니다.
-2. Schedule/Info 패널과 모바일 Header touch 동작을 확인합니다.
-3. Projects 두 실린더의 자동 회전, 휠, 버튼, hover snap, 그리드 전환을 확인합니다.
-4. People 진입 애니메이션, zone snap, 확대/닫기, 동적 URL을 확인합니다.
-5. Showroom 초기 morph, 입력 제출, 오감 설명, 해파리 실루엣을 확인합니다.
-6. Credits hover/click/ESC, fragment route, 긴 본문 스크롤을 확인합니다.
-7. `<= 767px`, `768px`, `1024px`, `1536px` 전후 viewport를 확인합니다.
-8. reduced-motion 환경에서 콘텐츠 접근이 가능한지 확인합니다.
+2. Senses 카드와 Media 섹션에서 영상을 재생/정지합니다.
+3. Schedule/Info 패널과 모바일 Header touch 동작을 확인합니다.
+4. Projects 두 실린더의 자동 회전, 휠, 버튼, hover snap, 그리드 전환을 확인합니다.
+5. People 학과 필터, 한글 이름 검색, zone snap, 확대/닫기, 동적 URL을 확인합니다.
+6. Showroom 초기 morph, 입력 제출, 오감 설명, 해파리 실루엣을 확인합니다.
+7. Credits hover/click/ESC, fragment route, Archive 인터뷰 영상, 긴 본문 스크롤을 확인합니다.
+8. `<= 767px`, `768px`, `1024px`, `1536px` 전후 viewport를 확인합니다.
+9. reduced-motion 환경에서 콘텐츠 접근이 가능한지 확인합니다.
 
 ## 트러블슈팅
 
@@ -253,11 +271,14 @@ npm run dev -- -p 3001
 
 ## 데이터와 남은 작업
 
-- Projects와 People은 현재 로컬 데이터로 렌더링합니다.
-- Credit `Archive` 본문과 일부 작품/참여자 실제 데이터는 교체가 필요할 수 있습니다.
-- Landing Media 영역은 현재 콘텐츠 placeholder입니다.
+- Projects는 `app/data/projectinfo.json`과 Vercel Blob 이미지를 사용합니다.
+- People은 `app/data/people.json`의 이름, 전화번호, 학과를 사용합니다.
+- 참여자 프로필 사진 파일은 아직 public 경로에 연결되어 있지 않습니다.
+- Landing Media의 Film 02/03 슬롯은 비어 있습니다.
 - Supabase, 인증, 업로드, 관리자 기능은 구현되지 않았습니다.
 - `LICENSE` 파일은 없습니다.
+
+원본 대용량 영상(`main.webm`, `interview.webm`, `categori.webm`)은 재생용 `*-player.webm`으로 압축해 사용합니다.
 
 ## 배포
 

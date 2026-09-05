@@ -7,6 +7,8 @@ export type LandingCarouselSlide = {
   headingImage?: string;
   headingSymbols?: SymbolHeadingVariant[];
   paragraphs: string[];
+  videoSrc?: string;
+  videoLabel?: string;
 };
 
 export const CONCEPT_CAROUSEL_SLIDES: LandingCarouselSlide[] = [
@@ -39,7 +41,8 @@ export const CONCEPT_CAROUSEL_SLIDES: LandingCarouselSlide[] = [
   {
     id: "senses",
     title: "Senses",
-    heading: "Senses",
     paragraphs: [],
+    videoSrc: "/images/categori-player.webm",
+    videoLabel: "Project category film",
   },
 ];

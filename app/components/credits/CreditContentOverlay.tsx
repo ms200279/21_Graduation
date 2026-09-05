@@ -70,6 +70,20 @@ export default function CreditContentOverlay({
                   <p key={paragraph}>{paragraph}</p>
                 ))
               )}
+              {selectedFragment.videoSrc ? (
+                <div className="credits-content-video">
+                  <video
+                    src={selectedFragment.videoSrc}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    aria-label={
+                      selectedFragment.videoLabel ?? selectedFragment.title
+                    }
+                    className="credits-content-video__player"
+                  />
+                </div>
+              ) : null}
             </div>
           </article>
         ) : null}

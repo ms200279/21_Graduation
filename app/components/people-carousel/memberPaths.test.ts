@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  findMemberIndexByItemId,
   findMemberIndexBySlug,
   getMemberPathFromIndex,
+  getMemberRosterIndex,
   getMemberSlugFromIndex,
   parseMemberSlugFromPath,
 } from "./memberPaths";
@@ -25,5 +27,20 @@ describe("memberPaths", () => {
     expect(findMemberIndexBySlug(99, "09")).toBe(8);
     expect(findMemberIndexBySlug(99, "100")).toBe(-1);
     expect(findMemberIndexBySlug(99, "member")).toBe(-1);
+  });
+
+  it("finds a member inside a filtered list by stable roster id", () => {
+    expect(
+      findMemberIndexByItemId(
+        [
+          { id: "3" },
+          { id: "8" },
+          { id: "12" },
+        ],
+        "08",
+      ),
+    ).toBe(1);
+    expect(findMemberIndexByItemId([{ id: "3" }], "1")).toBe(-1);
+    expect(getMemberRosterIndex({ id: "08" })).toBe(7);
   });
 });

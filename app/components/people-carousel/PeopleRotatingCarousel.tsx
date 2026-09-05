@@ -17,7 +17,8 @@ import type { PeopleCarouselItem } from "./items";
 import { PeopleCarouselCardSurface } from "./PeopleCarouselCard";
 import PeopleCarouselExpandedPortal from "./PeopleCarouselExpandedPortal";
 import {
-  findMemberIndexBySlug,
+  findMemberIndexByItemId,
+  getMemberRosterIndex,
   parseMemberSlugFromPath,
 } from "./memberPaths";
 import {
@@ -47,6 +48,7 @@ import {
   getScrollProgressForItemIndex,
   getSnappedCarouselStateForItemIndex,
   resolveStepOriginItemIndex,
+  shouldOmitWrappedCarouselSlot,
   INITIAL_ROTATION_OFFSET_DEG,
   isLikelyDiscreteMouseWheel,
   isSlotInGlassEffectWindow,
@@ -298,6 +300,33 @@ export default function PeopleRotatingCarousel({
     [applyCarouselState, items.length],
   );
 
+  const itemListKey = items.map((item) => item.id).join(",");
+  const previousItemListKeyRef = useRef(itemListKey);
+
+  useLayoutEffect(() => {
+    if (previousItemListKeyRef.current === itemListKey) {
+      return;
+    }
+
+    previousItemListKeyRef.current = itemListKey;
+    clearExpandTimers();
+    setExpandedCard(null);
+    applyCarouselState(0, 0);
+
+    if (items.length <= 1) {
+      window.scrollTo(0, 0);
+      return;
+    }
+
+    scrollToItemIndex(0);
+  }, [
+    applyCarouselState,
+    clearExpandTimers,
+    itemListKey,
+    items.length,
+    scrollToItemIndex,
+  ]);
+
   const beginExpandedCardAtIndex = useCallback(
     (
       itemIndex: number,
@@ -349,7 +378,7 @@ export default function PeopleRotatingCarousel({
       });
 
       if (syncHistory) {
-        pendingExpandSyncRef.current = itemIndex;
+        pendingExpandSyncRef.current = getMemberRosterIndex(items[itemIndex]);
       }
     },
     [
@@ -410,7 +439,7 @@ export default function PeopleRotatingCarousel({
 
   const openExpandedCardFromSlug = useCallback(
     (slug: string, options?: { syncHistory?: boolean }) => {
-      const itemIndex = findMemberIndexBySlug(items.length, slug);
+      const itemIndex = findMemberIndexByItemId(items, slug);
 
       if (itemIndex === -1) {
         return;
@@ -438,7 +467,7 @@ export default function PeopleRotatingCarousel({
       beginExpandedCardAtIndex,
       clearExpandTimers,
       expandedCard,
-      items.length,
+      items,
       scrollToItemIndex,
     ],
   );
@@ -1392,31 +1421,14 @@ export default function PeopleRotatingCarousel({
     return Array.from({ length: VISIBLE_CAROUSEL_SLOTS }, (_, slotIndex) => {
       const itemIndex = startIndex + slotIndex;
 
-      if (itemIndex >= items.length) {
-        return null;
-      }
-
-      // Batch 0 wraps slot 11 over the #01 zone at rest — omit only in that case.
       if (
-        batchIndex === 0 &&
-        zoneSlotInBatch === 0 &&
-        slotIndex === VISIBLE_CAROUSEL_SLOTS - 1
-      ) {
-        return null;
-      }
-
-      const lastBatchIndex = Math.max(
-        0,
-        getBatchCount(items.length, VISIBLE_CAROUSEL_SLOTS) - 1,
-      );
-      const lastItemZoneSlot =
-        items.length - 1 - lastBatchIndex * VISIBLE_CAROUSEL_SLOTS;
-
-      // Last batch wraps slot 1 under the final member zone — omit only in that case.
-      if (
-        batchIndex === lastBatchIndex &&
-        zoneSlotInBatch === lastItemZoneSlot &&
-        slotIndex === 0
+        shouldOmitWrappedCarouselSlot({
+          batchIndex,
+          slotIndex,
+          zoneSlotInBatch,
+          itemCount: items.length,
+          batchSize: VISIBLE_CAROUSEL_SLOTS,
+        })
       ) {
         return null;
       }
@@ -1547,7 +1559,7 @@ export default function PeopleRotatingCarousel({
               >
                 {visibleSlots.map(({ slotIndex, item, itemIndex, isActive, isVisibleGlass, isInZone, angle }, entryIndex) => (
                   <article
-                    key={`${batchIndex}-${slotIndex}`}
+                    key={`${batchIndex}-${slotIndex}-${item.id}`}
                     ref={isInZone ? zoneCardRef : undefined}
                     className="people-carousel-card"
                     style={{

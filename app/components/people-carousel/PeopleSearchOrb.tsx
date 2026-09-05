@@ -39,6 +39,7 @@ export type PeopleSearchOrbProps = {
   query: string;
   onQueryChange: (value: string) => void;
   onOpen: () => void;
+  onCommit: () => void;
   onClose: () => void;
 };
 
@@ -47,12 +48,15 @@ export default function PeopleSearchOrb({
   query,
   onQueryChange,
   onOpen,
+  onCommit,
   onClose,
 }: PeopleSearchOrbProps) {
+  const glassRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isComposingRef = useRef(false);
 
-  useLiquidGlass(shellRef, {
+  useLiquidGlass(glassRef, {
     ...LANDING_INFO_LIQUID_GLASS_OPTIONS,
     redrawDuringSizeTransition: true,
     motionStrengthScale: 0.85,
@@ -61,6 +65,8 @@ export default function PeopleSearchOrb({
     sizeTransitionRestoreMs: SEARCH_MORPH_DURATION_MS + 80,
     radius: 999,
   });
+
+  const previousQueryRef = useRef(query);
 
   useEffect(() => {
     if (!isOpen) {
@@ -77,6 +83,16 @@ export default function PeopleSearchOrb({
   }, [isOpen]);
 
   useEffect(() => {
+    const input = inputRef.current;
+    const wasCleared = previousQueryRef.current !== "" && query === "";
+    previousQueryRef.current = query;
+
+    if (wasCleared && input && !isComposingRef.current) {
+      input.value = "";
+    }
+  }, [query]);
+
+  useEffect(() => {
     if (!isOpen) {
       return;
     }
@@ -86,7 +102,7 @@ export default function PeopleSearchOrb({
         shellRef.current &&
         !shellRef.current.contains(event.target as Node)
       ) {
-        onClose();
+        onCommit();
       }
     };
 
@@ -95,35 +111,68 @@ export default function PeopleSearchOrb({
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onCommit]);
+
+  const emitQuery = (value: string) => {
+    onQueryChange(value);
+  };
 
   return (
     <div
       ref={shellRef}
       className={[
         "people-category-filter__search-morph",
-        "liquid-glass-surface",
         isOpen ? "people-category-filter__search-morph--open" : "",
       ]
         .filter(Boolean)
         .join(" ")}
       role={isOpen ? "search" : undefined}
     >
+      <div
+        ref={glassRef}
+        className="people-category-filter__search-glass liquid-glass-surface"
+        aria-hidden="true"
+      />
       <input
         ref={inputRef}
-        type="search"
+        type="text"
         className="people-category-filter__search-input"
         placeholder="Search people"
-        value={query}
-        onChange={(event) => onQueryChange(event.target.value)}
+        defaultValue={query}
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="none"
+        spellCheck={false}
+        lang="ko"
+        enterKeyHint="search"
+        onCompositionStart={() => {
+          isComposingRef.current = true;
+        }}
+        onCompositionEnd={(event) => {
+          isComposingRef.current = false;
+          emitQuery(event.currentTarget.value);
+        }}
+        onInput={(event) => {
+          if (isComposingRef.current) {
+            return;
+          }
+
+          emitQuery(event.currentTarget.value);
+        }}
         onKeyDown={(event) => {
           if (event.key === "Escape") {
             event.preventDefault();
             onClose();
+            return;
+          }
+
+          if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+            event.preventDefault();
+            emitQuery(event.currentTarget.value);
+            onCommit();
           }
         }}
         tabIndex={isOpen ? 0 : -1}
-        readOnly={!isOpen}
         aria-label="Search people"
         aria-hidden={!isOpen}
       />

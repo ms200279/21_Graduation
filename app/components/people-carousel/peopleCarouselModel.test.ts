@@ -10,6 +10,7 @@ import {
   mod,
   resolveStepOriginItemIndex,
   resolveZoneSnapItemIndex,
+  shouldOmitWrappedCarouselSlot,
 } from "./peopleCarouselModel";
 
 describe("peopleCarouselModel", () => {
@@ -39,6 +40,30 @@ describe("peopleCarouselModel", () => {
     expect(resolveZoneSnapItemIndex(4.1, 10)).toBe(4);
     expect(resolveZoneSnapItemIndex(4.49, 10)).toBeNull();
     expect(resolveStepOriginItemIndex(4.6, 10)).toBe(5);
+  });
+
+  it("keeps a single search result visible in the first slot", () => {
+    expect(
+      shouldOmitWrappedCarouselSlot({
+        batchIndex: 0,
+        slotIndex: 0,
+        zoneSlotInBatch: 0,
+        itemCount: 1,
+        batchSize: 11,
+      }),
+    ).toBe(false);
+  });
+
+  it("still hides the wrapped last-batch neighbor when more than one card remains", () => {
+    expect(
+      shouldOmitWrappedCarouselSlot({
+        batchIndex: 0,
+        slotIndex: 0,
+        zoneSlotInBatch: 1,
+        itemCount: 2,
+        batchSize: 11,
+      }),
+    ).toBe(true);
   });
 
   it("wraps the glass effect window across slot boundaries", () => {

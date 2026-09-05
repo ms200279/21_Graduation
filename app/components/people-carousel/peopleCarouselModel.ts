@@ -283,6 +283,48 @@ export function getBatchCount(itemCount: number, batchSize: number) {
   return Math.ceil(itemCount / batchSize);
 }
 
+export function shouldOmitWrappedCarouselSlot({
+  batchIndex,
+  slotIndex,
+  zoneSlotInBatch,
+  itemCount,
+  batchSize,
+}: {
+  batchIndex: number;
+  slotIndex: number;
+  zoneSlotInBatch: number;
+  itemCount: number;
+  batchSize: number;
+}) {
+  if (itemCount <= 0 || batchSize <= 0) {
+    return true;
+  }
+
+  const itemIndex = batchIndex * batchSize + slotIndex;
+
+  if (itemIndex >= itemCount) {
+    return true;
+  }
+
+  if (
+    batchIndex === 0 &&
+    zoneSlotInBatch === 0 &&
+    slotIndex === batchSize - 1
+  ) {
+    return true;
+  }
+
+  const lastBatchIndex = Math.max(0, getBatchCount(itemCount, batchSize) - 1);
+  const lastItemZoneSlot = itemCount - 1 - lastBatchIndex * batchSize;
+
+  return (
+    batchIndex === lastBatchIndex &&
+    zoneSlotInBatch === lastItemZoneSlot &&
+    slotIndex === 0 &&
+    lastItemZoneSlot > 0
+  );
+}
+
 export function isSlotInGlassEffectWindow(
   slotIndex: number,
   activeSlotIndex: number,

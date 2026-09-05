@@ -3,36 +3,52 @@
 import { useCallback, useEffect, useState } from "react";
 
 import PeopleSearchOrb from "./PeopleSearchOrb";
+import {
+  PEOPLE_CATEGORY_OPTIONS,
+  type PeopleCategoryId,
+} from "./peopleCategories";
 
 import "@/app/styles/people-category-filter.css";
 
-export const PEOPLE_CATEGORY_OPTIONS = [
-  { id: "everyone", label: "Everyone" },
-  { id: "industrial-design", label: "Industrial Design" },
-  { id: "media-design", label: "Media Design" },
-] as const;
+export { PEOPLE_CATEGORY_OPTIONS, type PeopleCategoryId } from "./peopleCategories";
 
-export type PeopleCategoryId = (typeof PEOPLE_CATEGORY_OPTIONS)[number]["id"];
+type PeopleCategoryFilterProps = {
+  activeCategory: PeopleCategoryId;
+  onCategoryChange: (categoryId: PeopleCategoryId) => void;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
+};
 
-export default function PeopleCategoryFilter() {
-  const [activeCategory, setActiveCategory] =
-    useState<PeopleCategoryId>("everyone");
+export default function PeopleCategoryFilter({
+  activeCategory,
+  onCategoryChange,
+  searchQuery,
+  onSearchQueryChange,
+}: PeopleCategoryFilterProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
-  const closeSearch = useCallback(() => {
+  const hasQuery = searchQuery.trim().length > 0;
+  const isSearchVisible = isSearchOpen || hasQuery;
+
+  const dismissSearch = useCallback(() => {
+    if (!searchQuery.trim()) {
+      setIsSearchOpen(false);
+    }
+  }, [searchQuery]);
+
+  const cancelSearch = useCallback(() => {
     setIsSearchOpen(false);
-    setSearchQuery("");
-  }, []);
+    onSearchQueryChange("");
+  }, [onSearchQueryChange]);
 
   useEffect(() => {
-    if (!isSearchOpen) {
+    if (!isSearchVisible) {
       return;
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        closeSearch();
+        cancelSearch();
       }
     };
 
@@ -41,7 +57,7 @@ export default function PeopleCategoryFilter() {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [closeSearch, isSearchOpen]);
+  }, [cancelSearch, isSearchVisible]);
 
   return (
     <div className="people-category-filter" role="toolbar" aria-label="People categories">
@@ -49,7 +65,7 @@ export default function PeopleCategoryFilter() {
         <div
           className={[
             "people-category-filter__cluster",
-            isSearchOpen ? "people-category-filter__cluster--search-open" : "",
+            isSearchVisible ? "people-category-filter__cluster--search-open" : "",
           ]
             .filter(Boolean)
             .join(" ")}
@@ -69,9 +85,9 @@ export default function PeopleCategoryFilter() {
                     .filter(Boolean)
                     .join(" ")}
                   aria-pressed={isActive}
-                  aria-hidden={isSearchOpen}
-                  tabIndex={isSearchOpen ? -1 : 0}
-                  onClick={() => setActiveCategory(option.id)}
+                  aria-hidden={isSearchVisible}
+                  tabIndex={isSearchVisible ? -1 : 0}
+                  onClick={() => onCategoryChange(option.id)}
                 >
                   {option.label}
                 </button>
@@ -79,11 +95,12 @@ export default function PeopleCategoryFilter() {
             })}
           </div>
           <PeopleSearchOrb
-            isOpen={isSearchOpen}
+            isOpen={isSearchVisible}
             query={searchQuery}
-            onQueryChange={setSearchQuery}
+            onQueryChange={onSearchQueryChange}
             onOpen={() => setIsSearchOpen(true)}
-            onClose={closeSearch}
+            onCommit={dismissSearch}
+            onClose={cancelSearch}
           />
         </div>
       </div>

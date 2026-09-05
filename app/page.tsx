@@ -5,6 +5,7 @@ import { LandingCarousel } from "./components/landing-carousel";
 
 const HERO_BACKGROUND_SRC = "/images/bg.webm";
 const CONCEPT_BACKGROUND_SRC = "/images/bg2.webm";
+const MAIN_FILM_SRC = "/images/landing-main-player.webm";
 
 export default function LandingPage() {
   return (
@@ -68,7 +69,30 @@ export default function LandingPage() {
         </div>
       }
       media={
-        <div className="relative z-10 h-[100dvh] w-full bg-white pointer-events-auto" />
+        <div className="landing-media-showcase">
+          <div className="landing-media-showcase__layout">
+            <div className="landing-media-player landing-media-player--main">
+              <video
+                src={MAIN_FILM_SRC}
+                controls
+                playsInline
+                preload="metadata"
+                aria-label="21st graduation exhibition main film"
+                className="landing-media-player__video"
+              />
+            </div>
+            <div
+              className="landing-media-showcase__side"
+              aria-label="Additional film slots"
+            >
+              {["Film 02", "Film 03"].map((label) => (
+                <div className="landing-media-slot" key={label}>
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       }
       footer={<LandingFooter />}
     />
