@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   useCallback,
   useEffect,
@@ -35,6 +36,8 @@ export type CylinderRowProps = {
   onCardRecycle: (index: number) => void;
   onCardSelect: (id: number) => void;
   getProjectName: (id: number) => string;
+  getProjectThumbnail: (id: number) => string;
+  getProjectDescription: (id: number) => string;
 };
 
 export default function CylinderRow({
@@ -45,6 +48,8 @@ export default function CylinderRow({
   onCardRecycle,
   onCardSelect,
   getProjectName,
+  getProjectThumbnail,
+  getProjectDescription,
 }: CylinderRowProps) {
   const rowRef = useRef<HTMLElement>(null);
   const rotationRef = useRef(0);
@@ -595,8 +600,23 @@ export default function CylinderRow({
                 }}
               >
                 <div className="projects-cylinder-card__visual">
-                  <span className="projects-cylinder-card__number">
-                    {String(card.id).padStart(2, "0")}
+                  <Image
+                    src={getProjectThumbnail(card.id)}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1536px) 376px, (min-width: 1024px) 23vw, 46vw"
+                    className="projects-cylinder-card__image"
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                  <span className="projects-card-overlay">
+                    <strong className="projects-card-overlay__title">
+                      {getProjectName(card.id)}
+                    </strong>
+                    <span className="projects-card-overlay__description">
+                      {getProjectDescription(card.id)}
+                    </span>
                   </span>
                 </div>
               </button>
