@@ -9,7 +9,15 @@ import {
 
 import type { PeopleCarouselItem } from "./items";
 
-function PeopleCarouselCardContent({ item }: { item: PeopleCarouselItem }) {
+function PeopleCarouselCardContent({
+  item,
+  showPortrait,
+}: {
+  item: PeopleCarouselItem;
+  showPortrait: boolean;
+}) {
+  const portraitSrc = showPortrait ? item.photoSrc : undefined;
+
   return (
     <>
       <div className="people-carousel-card__compact-content">
@@ -23,12 +31,10 @@ function PeopleCarouselCardContent({ item }: { item: PeopleCarouselItem }) {
         <div
           className="people-carousel-card__portrait"
           style={
-            item.photoSrc
-              ? { backgroundImage: `url(${item.photoSrc})` }
-              : undefined
+            portraitSrc ? { backgroundImage: `url(${portraitSrc})` } : undefined
           }
-          role={item.photoSrc ? "img" : undefined}
-          aria-label={item.photoSrc ? `${item.name} portrait` : undefined}
+          role={portraitSrc ? "img" : undefined}
+          aria-label={portraitSrc ? `${item.name} portrait` : undefined}
         />
         <div className="people-carousel-card__profile-copy">
           <h2 className="people-carousel-card__profile-name">{item.name}</h2>
@@ -66,7 +72,10 @@ export const PeopleCarouselCardSurface = forwardRef<HTMLDivElement, Props>(
 
     return (
       <div ref={surfaceRef} className={className} style={style}>
-        <PeopleCarouselCardContent item={item} />
+        <PeopleCarouselCardContent
+          item={item}
+          showPortrait={className.includes("people-carousel-expand__surface--open")}
+        />
       </div>
     );
   },
