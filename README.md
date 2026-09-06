@@ -78,6 +78,7 @@
 
 - `/images/ppbg.webm` 전체 화면 배경
 - `app/data/people.json`의 98명 참여자 명단
+- `app/data/people-images.json`의 프로필 사진을 이름으로 매칭
 - 한글 이름순 정렬
 - Everyone / Industrial Design / Media Design 학과 필터
 - 한글 이름 부분 일치 검색, Enter 후에도 결과 유지
@@ -98,6 +99,7 @@
 - `usePeopleCarouselRouteSync.ts`: 확대 상태와 동적 route 동기화
 - `items.ts`: 검증된 명단을 화면용 카드 모델로 변환
 - `peopleDataSchema.ts`: `app/data/people.json` 런타임 검증
+- `peopleImages.ts`: `app/data/people-images.json` 이름 매칭
 - `peopleCategories.ts`: 학과 태그 매핑
 - `peopleSearch.ts`: 한글 이름 검색과 필터 조합
 - `memberPaths.ts`: 참여자 URL 변환
@@ -180,6 +182,7 @@ app/
 │   ├── LandingScrollExperience.tsx
 │   └── SitePageShell.tsx
 ├── data/
+│   ├── people-images.json
 │   ├── people.json
 │   ├── projectImages.ts
 │   └── projectinfo.json
@@ -273,7 +276,8 @@ npm run dev -- -p 3001
 
 - Projects는 `app/data/projectinfo.json`과 Vercel Blob 이미지를 사용합니다.
 - People은 `app/data/people.json`의 이름, 전화번호, 학과를 사용합니다.
-- 참여자 프로필 사진 파일은 아직 public 경로에 연결되어 있지 않습니다.
+- 참여자 사진은 `app/data/people-images.json`을 이름으로 매칭하며, 동명이인은 학번으로 구분합니다.
+- 프로필 파일은 `public/people/{학번}_{이름}.png`에 있습니다. 문기돈, 정해인은 원본 사진이 없습니다.
 - Landing Media의 Film 02/03 슬롯은 비어 있습니다.
 - Supabase, 인증, 업로드, 관리자 기능은 구현되지 않았습니다.
 - `LICENSE` 파일은 없습니다.

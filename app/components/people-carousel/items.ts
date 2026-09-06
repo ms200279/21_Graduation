@@ -2,6 +2,7 @@ import peopleRoster from "@/app/data/people.json";
 
 import { getDepartment, type PeopleDepartmentId } from "./peopleCategories";
 import { parsePeopleRoster } from "./peopleDataSchema";
+import { getPeoplePhotoSrc } from "./peopleImages";
 
 export type PeopleCarouselItem = {
   id: string;
@@ -33,6 +34,7 @@ export const PEOPLE_CAROUSEL_ITEMS: PeopleCarouselItem[] = parsePeopleRoster(
       name: person.name,
       role: department?.label,
       phone: person.phone || undefined,
+      photoSrc: getPeoplePhotoSrc(person.name, person.studentId),
       categoryId: department?.categoryId,
     };
   });

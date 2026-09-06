@@ -1,0 +1,492 @@
+[
+  {
+    "studentId": "2023192001",
+    "name": "공건호",
+    "image": "/people/2023192001_공건호.png"
+  },
+  {
+    "studentId": "2023192022",
+    "name": "이채원",
+    "image": "/people/2023192022_이채원.png"
+  },
+  {
+    "studentId": "2023194001",
+    "name": "곽영경",
+    "image": "/people/2023194001_곽영경.png"
+  },
+  {
+    "studentId": "2022192002",
+    "name": "권남영",
+    "image": "/people/2022192002_권남영.png"
+  },
+  {
+    "studentId": "2022190002",
+    "name": "권유민",
+    "image": "/people/2022190002_권유민.png"
+  },
+  {
+    "studentId": "2023194002",
+    "name": "권유진",
+    "image": "/people/2023194002_권유진.png"
+  },
+  {
+    "studentId": "2023194019",
+    "name": "염예빈",
+    "image": "/people/2023194019_염예빈.png"
+  },
+  {
+    "studentId": "2023194003",
+    "name": "김가연",
+    "image": "/people/2023194003_김가연.png"
+  },
+  {
+    "studentId": "2023194004",
+    "name": "김강비",
+    "image": "/people/2023194004_김강비.png"
+  },
+  {
+    "studentId": "2022190006",
+    "name": "김리안",
+    "image": "/people/2022190006_김리안.png"
+  },
+  {
+    "studentId": "2021192004",
+    "name": "김민석",
+    "image": "/people/2021192004_김민석.png"
+  },
+  {
+    "studentId": "2021192037",
+    "name": "박민수",
+    "image": "/people/2021192037_박민수.png"
+  },
+  {
+    "studentId": "2021194006",
+    "name": "김백두연",
+    "image": "/people/2021194006_김백두연.png"
+  },
+  {
+    "studentId": "2023194039",
+    "name": "조예진",
+    "image": "/people/2023194039_조예진.png"
+  },
+  {
+    "studentId": "2021190004",
+    "name": "김세훈",
+    "image": "/people/2021190004_김세훈.png"
+  },
+  {
+    "studentId": "2022192004",
+    "name": "김솔희",
+    "image": "/people/2022192004_김솔희.png"
+  },
+  {
+    "studentId": "2020192009",
+    "name": "김영일",
+    "image": "/people/2020192009_김영일.png"
+  },
+  {
+    "studentId": "2021190010",
+    "name": "김의현",
+    "image": "/people/2021190010_김의현.png"
+  },
+  {
+    "studentId": "2023194008",
+    "name": "김재경",
+    "image": "/people/2023194008_김재경.png"
+  },
+  {
+    "studentId": "2021190011",
+    "name": "김준태",
+    "image": "/people/2021190011_김준태.png"
+  },
+  {
+    "studentId": "2022192006",
+    "name": "김지나",
+    "image": "/people/2022192006_김지나.png"
+  },
+  {
+    "studentId": "2023194010",
+    "name": "김지민",
+    "image": "/people/2023194010_김지민.png"
+  },
+  {
+    "studentId": "2023190040",
+    "name": "김지효",
+    "image": "/people/2023190040_김지효.png"
+  },
+  {
+    "studentId": "2022190011",
+    "name": "김효은",
+    "image": "/people/2022190011_김효은.png"
+  },
+  {
+    "studentId": "2020194011",
+    "name": "김훈성",
+    "image": "/people/2020194011_김훈성.png"
+  },
+  {
+    "studentId": "2023194012",
+    "name": "모세빈",
+    "image": "/people/2023194012_모세빈.png"
+  },
+  {
+    "studentId": "2019192014",
+    "name": "박민규",
+    "image": "/people/2019192014_박민규.png"
+  },
+  {
+    "studentId": "2021190019",
+    "name": "박유진",
+    "image": "/people/2021190019_박유진.png"
+  },
+  {
+    "studentId": "2019194048",
+    "name": "조정현",
+    "image": "/people/2019194048_조정현.png"
+  },
+  {
+    "studentId": "2023190009",
+    "name": "박정원",
+    "image": "/people/2023190009_박정원.png"
+  },
+  {
+    "studentId": "2022190014",
+    "name": "박지영",
+    "image": "/people/2022190014_박지영.png"
+  },
+  {
+    "studentId": "2021194015",
+    "name": "백시은",
+    "image": "/people/2021194015_백시은.png"
+  },
+  {
+    "studentId": "2019190014",
+    "name": "서용준",
+    "image": "/people/2019190014_서용준.png"
+  },
+  {
+    "studentId": "2023192013",
+    "name": "송민규",
+    "image": "/people/2023192013_송민규.png"
+  },
+  {
+    "studentId": "2021194016",
+    "name": "송민철",
+    "image": "/people/2021194016_송민철.png"
+  },
+  {
+    "studentId": "2023190012",
+    "name": "신가연",
+    "image": "/people/2023190012_신가연.png"
+  },
+  {
+    "studentId": "2020190041",
+    "name": "신민기",
+    "image": "/people/2020190041_신민기.png"
+  },
+  {
+    "studentId": "2022190020",
+    "name": "신채희",
+    "image": "/people/2022190020_신채희.png"
+  },
+  {
+    "studentId": "2023194017",
+    "name": "심혜나",
+    "image": "/people/2023194017_심혜나.png"
+  },
+  {
+    "studentId": "2023194030",
+    "name": "이정연",
+    "image": "/people/2023194030_이정연.png"
+  },
+  {
+    "studentId": "2023192015",
+    "name": "양민경",
+    "image": "/people/2023192015_양민경.png"
+  },
+  {
+    "studentId": "2022194020",
+    "name": "양유민",
+    "image": "/people/2022194020_양유민.png"
+  },
+  {
+    "studentId": "2021192018",
+    "name": "우지민",
+    "image": "/people/2021192018_우지민.png"
+  },
+  {
+    "studentId": "2021190017",
+    "name": "문기돈",
+    "image": null
+  },
+  {
+    "studentId": "2023194020",
+    "name": "유동윤",
+    "image": "/people/2023194020_유동윤.png"
+  },
+  {
+    "studentId": "2023190017",
+    "name": "유연우",
+    "image": "/people/2023190017_유연우.png"
+  },
+  {
+    "studentId": "2023194021",
+    "name": "유연이",
+    "image": "/people/2023194021_유연이.png"
+  },
+  {
+    "studentId": "2022192020",
+    "name": "윤서현",
+    "image": "/people/2022192020_윤서현.png"
+  },
+  {
+    "studentId": "2020192022",
+    "name": "윤지호",
+    "image": "/people/2020192022_윤지호.png"
+  },
+  {
+    "studentId": "2021192019",
+    "name": "윤해강",
+    "image": "/people/2021192019_윤해강.png"
+  },
+  {
+    "studentId": "2023190021",
+    "name": "윤혜원",
+    "image": "/people/2023190021_윤혜원.png"
+  },
+  {
+    "studentId": "2021192021",
+    "name": "이관우",
+    "image": "/people/2021192021_이관우.png"
+  },
+  {
+    "studentId": "2023194023",
+    "name": "이다영",
+    "image": "/people/2023194023_이다영.png"
+  },
+  {
+    "studentId": "2021194018",
+    "name": "이명찬",
+    "image": "/people/2021194018_이명찬.png"
+  },
+  {
+    "studentId": "2023190041",
+    "name": "이새연",
+    "image": "/people/2023190041_이새연.png"
+  },
+  {
+    "studentId": "2023192037",
+    "name": "김은서",
+    "image": "/people/2023192037_김은서.png"
+  },
+  {
+    "studentId": "2022190037",
+    "name": "이서진",
+    "image": "/people/2022190037_이서진.png"
+  },
+  {
+    "studentId": "2023192019",
+    "name": "이윤서",
+    "image": "/people/2023192019_이윤서.png"
+  },
+  {
+    "studentId": "2023192005",
+    "name": "김은서",
+    "image": "/people/2023192005_김은서.png"
+  },
+  {
+    "studentId": "2022194028",
+    "name": "이은서",
+    "image": "/people/2022194028_이은서.png"
+  },
+  {
+    "studentId": "2021194021",
+    "name": "이준수",
+    "image": "/people/2021194021_이준수.png"
+  },
+  {
+    "studentId": "2023190022",
+    "name": "이지원",
+    "image": "/people/2023190022_이지원.png"
+  },
+  {
+    "studentId": "2020192030",
+    "name": "이찬희",
+    "image": "/people/2020192030_이찬희.png"
+  },
+  {
+    "studentId": "2021194025",
+    "name": "이현승",
+    "image": "/people/2021194025_이현승.png"
+  },
+  {
+    "studentId": "2021192026",
+    "name": "이홍기",
+    "image": "/people/2021192026_이홍기.png"
+  },
+  {
+    "studentId": "2021194040",
+    "name": "이희재",
+    "image": "/people/2021194040_이희재.png"
+  },
+  {
+    "studentId": "2022190004",
+    "name": "김도요",
+    "image": "/people/2022190004_김도요.png"
+  },
+  {
+    "studentId": "2023190026",
+    "name": "임채원",
+    "image": "/people/2023190026_임채원.png"
+  },
+  {
+    "studentId": "2023190003",
+    "name": "김지우",
+    "image": "/people/2023190003_김지우.png"
+  },
+  {
+    "studentId": "2023192038",
+    "name": "장연정",
+    "image": "/people/2023192038_장연정.png"
+  },
+  {
+    "studentId": "2019190031",
+    "name": "정송",
+    "image": "/people/2019190031_정송.png"
+  },
+  {
+    "studentId": "2022190034",
+    "name": "정해인",
+    "image": null
+  },
+  {
+    "studentId": "2023190030",
+    "name": "조세빈",
+    "image": "/people/2023190030_조세빈.png"
+  },
+  {
+    "studentId": "2023190013",
+    "name": "신진경",
+    "image": "/people/2023190013_신진경.png"
+  },
+  {
+    "studentId": "2023190031",
+    "name": "조희연",
+    "image": "/people/2023190031_조희연.png"
+  },
+  {
+    "studentId": "2023194040",
+    "name": "지종현",
+    "image": "/people/2023194040_지종현.png"
+  },
+  {
+    "studentId": "2022194010",
+    "name": "박서연",
+    "image": "/people/2022194010_박서연.png"
+  },
+  {
+    "studentId": "2023194032",
+    "name": "채다현",
+    "image": "/people/2023194032_채다현.png"
+  },
+  {
+    "studentId": "2021192030",
+    "name": "채승제",
+    "image": "/people/2021192030_채승제.png"
+  },
+  {
+    "studentId": "2023192031",
+    "name": "채종은",
+    "image": "/people/2023192031_채종은.png"
+  },
+  {
+    "studentId": "2022192032",
+    "name": "최가혜",
+    "image": "/people/2022192032_최가혜.png"
+  },
+  {
+    "studentId": "2023192032",
+    "name": "최은영",
+    "image": "/people/2023192032_최은영.png"
+  },
+  {
+    "studentId": "2022194035",
+    "name": "최지은",
+    "image": "/people/2022194035_최지은.png"
+  },
+  {
+    "studentId": "2023194042",
+    "name": "최하늘",
+    "image": "/people/2023194042_최하늘.png"
+  },
+  {
+    "studentId": "2020162039",
+    "name": "한서진",
+    "image": "/people/2020162039_한서진.png"
+  },
+  {
+    "studentId": "2023190034",
+    "name": "한승훈",
+    "image": "/people/2023190034_한승훈.png"
+  },
+  {
+    "studentId": "2023190011",
+    "name": "백시현",
+    "image": "/people/2023190011_백시현.png"
+  },
+  {
+    "studentId": "2021192033",
+    "name": "한인규",
+    "image": "/people/2021192033_한인규.png"
+  },
+  {
+    "studentId": "2023190037",
+    "name": "김강현",
+    "image": "/people/2023190037_김강현.png"
+  },
+  {
+    "studentId": "2023192039",
+    "name": "한준영",
+    "image": "/people/2023192039_한준영.png"
+  },
+  {
+    "studentId": "2022194037",
+    "name": "한지원",
+    "image": "/people/2022194037_한지원.png"
+  },
+  {
+    "studentId": "2023194041",
+    "name": "진연우",
+    "image": "/people/2023194041_진연우.png"
+  },
+  {
+    "studentId": "2021194024",
+    "name": "이초은",
+    "image": "/people/2021194024_이초은.png"
+  },
+  {
+    "studentId": "2020190037",
+    "name": "홍인석",
+    "image": "/people/2020190037_홍인석.png"
+  },
+  {
+    "studentId": "2021194035",
+    "name": "황인성",
+    "image": "/people/2021194035_황인성.png"
+  },
+  {
+    "studentId": "2021194012",
+    "name": "박성진",
+    "image": "/people/2021194012_박성진.png"
+  },
+  {
+    "studentId": "2021190037",
+    "name": "황재하",
+    "image": "/people/2021190037_황재하.png"
+  },
+  {
+    "studentId": "2022194024",
+    "name": "이여원",
+    "image": "/people/2022194024_이여원.png"
+  }
+]

@@ -6,6 +6,7 @@ export {
 export { default as PeopleRotatingCarousel } from "./PeopleRotatingCarousel";
 export { VISIBLE_CAROUSEL_SLOTS } from "./peopleCarouselModel";
 export { PEOPLE_CAROUSEL_ITEMS, type PeopleCarouselItem } from "./items";
+export { getPeoplePhotoSrc } from "./peopleImages";
 export {
   filterPeopleByCategory,
   filterPeopleBySearch,
