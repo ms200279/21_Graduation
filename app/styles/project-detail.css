@@ -205,7 +205,7 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
 .project-detail-thumbnail {
   grid-template-columns: minmax(0, 1.45fr) minmax(20rem, 0.55fr);
   align-content: center;
-  align-items: start;
+  align-items: stretch;
   gap: 48pt;
   padding: clamp(5rem, 9vh, 8rem) clamp(3rem, 6vw, 8rem);
 }
@@ -213,9 +213,78 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
 .project-detail-thumbnail__copy {
   display: flex;
   min-width: 0;
-  height: auto;
+  flex-direction: column;
   align-items: flex-start;
+  align-self: stretch;
   padding: 0;
+}
+
+.project-detail-thumbnail__visual {
+  min-width: 0;
+  align-self: start;
+}
+
+.project-detail-authors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: flex-end;
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.project-detail-author {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.project-detail-author__name {
+  font-size: 13.3333pt;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: 0;
+  color: var(--color-systemBlack);
+}
+
+.project-detail-author__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--color-systemNavy);
+  color: #ffffff;
+  font-size: 13pt;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  box-shadow: 0 6px 18px rgba(8, 16, 48, 0.12);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+.project-detail-author:hover .project-detail-author__button {
+  background: #182c48;
+  box-shadow: 0 8px 22px rgba(8, 16, 48, 0.16);
+  transform: translateY(-1px);
+}
+
+.project-detail-author:focus-visible {
+  outline: none;
+}
+
+.project-detail-author:focus-visible .project-detail-author__button {
+  outline: 2px solid var(--color-systemNavy);
+  outline-offset: 3px;
 }
 
 .project-detail-thumbnail__copy .project-detail-body {
@@ -433,6 +502,22 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   .project-detail-thumbnail__copy {
     height: auto;
     padding: 0;
+  }
+
+  .project-detail-authors {
+    gap: 12px 16px;
+    margin-top: 1.5rem;
+    padding-top: 0;
+  }
+
+  .project-detail-author__name {
+    font-size: clamp(0.875rem, 4vw, 1rem);
+  }
+
+  .project-detail-author__button {
+    min-height: 34px;
+    padding: 0 14px;
+    font-size: clamp(0.8125rem, 3.6vw, 0.9375rem);
   }
 
   .project-detail-story--image-first .project-detail-story__copy,

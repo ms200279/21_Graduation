@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   forwardRef,
   useImperativeHandle,
@@ -45,6 +46,20 @@ function PeopleCarouselCardContent({
           ) : null}
           {item.phone ? (
             <p className="people-carousel-card__profile-phone">{item.phone}</p>
+          ) : null}
+          {showPortrait && item.projectHref ? (
+            <Link
+              href={item.projectHref}
+              className="people-carousel-card__work"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <span className="people-carousel-card__work-name">
+                {item.projectTitle}
+              </span>
+              <span className="people-carousel-card__work-button">
+                Project
+              </span>
+            </Link>
           ) : null}
         </div>
       </div>

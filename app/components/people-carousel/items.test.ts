@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { PEOPLE_CAROUSEL_ITEMS } from "./items";
+import { getMemberDetailPath, getProjectDetailPath } from "@/app/utils/routes";
+
+import { getProjectAuthors, PEOPLE_CAROUSEL_ITEMS } from "./items";
 
 describe("PEOPLE_CAROUSEL_ITEMS", () => {
   it("sorts the roster by Korean name and fills contact fields", () => {
@@ -17,6 +19,11 @@ describe("PEOPLE_CAROUSEL_ITEMS", () => {
       role: "Industrial Design",
       categoryId: "industrial-design",
       photoSrc: encodeURI("/people/2023192001_공건호.png"),
+      projectNo: 1,
+      projectTitle: "ICY:CLE",
+      projectHref: getProjectDetailPath(1),
+      memberHref: getMemberDetailPath(0),
+      authorOrder: 1,
     });
     expect(
       PEOPLE_CAROUSEL_ITEMS.find((person) => person.name === "곽영경"),
@@ -38,5 +45,25 @@ describe("PEOPLE_CAROUSEL_ITEMS", () => {
       PEOPLE_CAROUSEL_ITEMS.find((person) => person.name === "문기돈")
         ?.photoSrc,
     ).toBeUndefined();
+  });
+
+  it("links each person to their project and groups team authors", () => {
+    expect(getProjectAuthors(1).map((person) => person.name)).toEqual([
+      "공건호",
+      "이채원",
+    ]);
+    expect(getProjectAuthors(1).map((person) => person.memberHref)).toEqual([
+      getMemberDetailPath(0),
+      PEOPLE_CAROUSEL_ITEMS.find((person) => person.name === "이채원")
+        ?.memberHref,
+    ]);
+    expect(getProjectAuthors(2).map((person) => person.name)).toEqual([
+      "곽영경",
+    ]);
+    expect(getProjectAuthors(62).map((person) => person.name)).toEqual([
+      "조세빈",
+      "신진경",
+      "조희연",
+    ]);
   });
 });

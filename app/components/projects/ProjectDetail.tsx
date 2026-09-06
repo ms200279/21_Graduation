@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -11,6 +12,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { getProjectAuthors } from "@/app/components/people-carousel/items";
 import { SITE_PATHS } from "@/app/utils/routes";
 import type {
   ProjectDetailData,
@@ -101,6 +103,7 @@ function ProjectStoryPage({
 
 export default function ProjectDetail({ project }: ProjectDetailProps) {
   const router = useRouter();
+  const authors = getProjectAuthors(project.id);
   const isMounted = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -291,11 +294,13 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
             className="project-detail-section project-detail-thumbnail"
             aria-labelledby="project-detail-heading"
           >
-            <ProjectMedia
-              src={project.thumbnailSrc}
-              label={`${project.name} thumbnail`}
-              variant="thumbnail"
-            />
+            <div className="project-detail-thumbnail__visual">
+              <ProjectMedia
+                src={project.thumbnailSrc}
+                label={`${project.name} thumbnail`}
+                variant="thumbnail"
+              />
+            </div>
             <div className="project-detail-thumbnail__copy">
               <div>
                 <h1 id="project-detail-heading" className="project-detail-head">
@@ -304,6 +309,27 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
                 <p className="project-detail-tag">#{project.tag}</p>
                 <p className="project-detail-body">{project.body}</p>
               </div>
+              {authors.length > 0 ? (
+                <nav
+                  className="project-detail-authors"
+                  aria-label="Project members"
+                >
+                  {authors.map((author) => (
+                    <Link
+                      key={author.id}
+                      href={author.memberHref}
+                      className="project-detail-author"
+                    >
+                      <span className="project-detail-author__name">
+                        {author.name}
+                      </span>
+                      <span className="project-detail-author__button">
+                        Profile
+                      </span>
+                    </Link>
+                  ))}
+                </nav>
+              ) : null}
             </div>
           </section>
 
