@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { SITE_PATHS } from "../app/utils/routes";
+import { getProjectDetailPath, SITE_PATHS } from "../app/utils/routes";
 
 async function selectToggle(page: import("@playwright/test").Page, name: string) {
   const button = page.getByRole("button", { name, exact: true });
@@ -32,6 +32,25 @@ test("project category, grid view, and detail state persist", async ({ page }) =
     "aria-pressed",
     "true",
   );
+});
+
+test("project thumbnail links to member profiles and back to the work", async ({
+  page,
+}) => {
+  await page.goto(getProjectDetailPath(1));
+
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByRole("link", { name: "공건호 Profile" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "이채원 Profile" })).toBeVisible();
+
+  await page.getByRole("link", { name: "공건호 Profile" }).click();
+  await expect(page).toHaveURL(/\/peoplepage\/01\/?$/);
+  await expect(page.getByRole("dialog", { name: "공건호" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "ICY:CLE Project" })).toBeVisible();
+
+  await page.getByRole("link", { name: "ICY:CLE Project" }).click();
+  await expect(page).toHaveURL(new RegExp(`${getProjectDetailPath(1)}/?$`));
+  await expect(page.getByRole("heading", { name: "ICY:CLE" })).toBeVisible();
 });
 
 test("opening a grid card does not move the document scroll", async ({ page }) => {
