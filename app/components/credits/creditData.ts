@@ -193,9 +193,7 @@ export const creditFragments: CreditFragmentData[] = [
     id: "05",
     slug: "archive",
     title: "Archive",
-    description: [
-      "Web archive, interface implementation, and digital preservation.",
-    ],
+    description: [],
     videoSrc: "/images/interview-player.webm",
     videoLabel: "Graduation exhibition interview",
     scale: 1,
