@@ -5,6 +5,9 @@ export type SourcePerson = {
   name: string;
   phone?: string;
   majorTag: PeopleMajorTag;
+  projectNo: number;
+  projectTitle?: string;
+  authorOrder?: number;
 };
 
 function assertObject(
@@ -38,6 +41,35 @@ function assertSourcePerson(
 
   if (typeof value.majorTag !== "number" || !isPeopleMajorTag(value.majorTag)) {
     throw new TypeError(`Person at index ${index}.majorTag must be 1 or 2`);
+  }
+
+  if (
+    typeof value.projectNo !== "number" ||
+    !Number.isInteger(value.projectNo)
+  ) {
+    throw new TypeError(
+      `Person at index ${index}.projectNo must be an integer`,
+    );
+  }
+
+  if (
+    value.projectTitle !== undefined &&
+    typeof value.projectTitle !== "string"
+  ) {
+    throw new TypeError(
+      `Person at index ${index}.projectTitle must be a string when provided`,
+    );
+  }
+
+  if (value.authorOrder !== undefined) {
+    if (
+      typeof value.authorOrder !== "number" ||
+      !Number.isInteger(value.authorOrder)
+    ) {
+      throw new TypeError(
+        `Person at index ${index}.authorOrder must be an integer when provided`,
+      );
+    }
   }
 }
 

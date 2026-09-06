@@ -13,6 +13,9 @@ describe("parsePeopleRoster", () => {
       studentId: "2023192001",
       name: "공건호",
       majorTag: 2,
+      projectNo: 1,
+      projectTitle: "아이사이클",
+      authorOrder: 1,
     });
   });
 
@@ -23,8 +26,21 @@ describe("parsePeopleRoster", () => {
           studentId: "2023192001",
           name: "공건호",
           majorTag: 3,
+          projectNo: 1,
         },
       ]),
     ).toThrow(/majorTag/);
+  });
+
+  it("rejects a missing project number", () => {
+    expect(() =>
+      parsePeopleRoster([
+        {
+          studentId: "2023192001",
+          name: "공건호",
+          majorTag: 2,
+        },
+      ]),
+    ).toThrow(/projectNo/);
   });
 });
