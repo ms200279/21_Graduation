@@ -2,6 +2,7 @@ import LandingScrollExperience from "./components/LandingScrollExperience";
 import LandingHeroActionButton from "./components/LandingHeroActionButton";
 import LandingFooter from "./components/LandingFooter";
 import { LandingCarousel } from "./components/landing-carousel";
+import LandingDeployClickBlock from "./components/LandingDeployClickBlock";
 
 const HERO_BACKGROUND_SRC = "/images/bg.webm";
 const CONCEPT_BACKGROUND_SRC = "/images/bg2.webm";
@@ -9,7 +10,10 @@ const MAIN_FILM_SRC = "/images/landing-main-player.webm";
 
 export default function LandingPage() {
   return (
-    <LandingScrollExperience
+    <>
+      {/* TEMP: delete LandingDeployClickBlock.tsx and this line to restore clicks. */}
+      <LandingDeployClickBlock />
+      <LandingScrollExperience
       hero={
         <div className="landing-hero relative flex h-full min-h-[100dvh] w-full flex-col justify-end overflow-hidden py-8 md:py-12">
           <video
@@ -96,5 +100,6 @@ export default function LandingPage() {
       }
       footer={<LandingFooter />}
     />
+    </>
   );
 }
