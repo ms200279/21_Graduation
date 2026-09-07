@@ -11,7 +11,7 @@ const MAIN_FILM_SRC = "/images/landing-main-player.webm";
 export default function LandingPage() {
   return (
     <>
-      {/* TEMP: delete LandingDeployClickBlock.tsx and this line to restore clicks. */}
+      {/* TEMP: delete LandingDeployClickBlock.tsx, this line, and middleware.ts to restore the site. */}
       <LandingDeployClickBlock />
       <LandingScrollExperience
       hero={

@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 
 /**
  * TEMP production-only click/touch shield for the landing page.
- * Delete this file and its import in `app/page.tsx` to remove.
+ * Delete this file, its import in `app/page.tsx`, and `middleware.ts` to remove.
  */
 export default function LandingDeployClickBlock() {
   const isMounted = useSyncExternalStore(
