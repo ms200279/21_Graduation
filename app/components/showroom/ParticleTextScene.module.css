@@ -1,8 +1,9 @@
 .scene {
   position: relative;
   width: 100%;
-  height: 100dvh;
-  min-height: 32rem;
+  height: var(--snap-h);
+  min-height: var(--snap-h);
+  max-height: var(--snap-h);
   overflow: hidden;
 }
 
@@ -17,13 +18,13 @@
 .inputWrap {
   position: absolute;
   z-index: 1;
-  left: 50%;
-  bottom: clamp(2.25rem, 7vh, 5rem);
+  left: var(--from-center-x);
+  bottom: calc(var(--safe-bottom) + clamp(2.25rem, 7vh, 5rem));
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(20rem, 32rem) minmax(0, 1fr);
   align-items: end;
   gap: 2rem;
-  width: min(72rem, calc(100vw - 4rem));
+  width: min(72rem, calc(var(--safe-content-w) - 2rem));
   opacity: 0;
   filter: blur(8px);
   pointer-events: none;
@@ -63,8 +64,8 @@
 .particleDescription {
   position: absolute;
   z-index: 1;
-  top: 57%;
-  right: clamp(2rem, 6vw, 7rem);
+  top: calc(var(--safe-top) + (var(--safe-content-h) * 0.57));
+  right: calc(var(--safe-right) + clamp(2rem, 6vw, 7rem));
   display: grid;
   gap: 0.45rem;
   width: min(22rem, 28vw);
@@ -129,15 +130,11 @@
 }
 
 @media (max-width: 767px) {
-  .scene {
-    min-height: 28rem;
-  }
-
   .inputWrap {
-    bottom: max(2rem, env(safe-area-inset-bottom));
+    bottom: calc(var(--safe-bottom) + 2rem);
     grid-template-columns: minmax(0, 1fr);
     gap: 0.9rem;
-    width: min(32rem, calc(100vw - 3rem));
+    width: min(32rem, calc(var(--safe-content-w) - 2rem));
   }
 
   .inputForm,
@@ -151,9 +148,9 @@
   }
 
   .particleDescription {
-    top: 57%;
-    right: 1.5rem;
-    left: 1.5rem;
+    top: calc(var(--safe-top) + (var(--safe-content-h) * 0.57));
+    right: calc(var(--safe-right) + 1.5rem);
+    left: calc(var(--safe-left) + 1.5rem);
     width: auto;
     text-align: center;
   }
