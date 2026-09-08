@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { clamp } from "@/app/utils/numbers";
+import { useIsMobileViewport } from "@/app/utils/useIsMobileViewport";
 import { normalizeWheelDelta } from "@/app/utils/wheel";
 import type { PeopleCarouselItem } from "./items";
 import { PeopleCarouselCardSurface } from "./PeopleCarouselCard";
@@ -44,6 +45,7 @@ import {
   getExpandAlignTransform,
   getExpandedTargetRect,
   getExpandedTargetRectFallback,
+  getPeopleCarouselTrackHeightVh,
   getScrollMetrics,
   getScrollProgressForItemIndex,
   getSnappedCarouselStateForItemIndex,
@@ -55,7 +57,6 @@ import {
   measureExpandAnchorMetrics,
   mod,
   resolveZoneSnapItemIndex,
-  SCROLL_VH_PER_CARD,
   SNAP_DURATION_MS,
   SNAP_POSITION_TOLERANCE_PX,
   type CardRect,
@@ -88,6 +89,7 @@ export default function PeopleRotatingCarousel({
   header,
   initialMemberSlug,
 }: PeopleRotatingCarouselProps) {
+  const isMobile = useIsMobileViewport();
   const trackRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -1451,8 +1453,7 @@ export default function PeopleRotatingCarousel({
     }).filter((slot): slot is NonNullable<typeof slot> => slot !== null);
   }, [activeSlotInBatch, batchIndex, items, slotAngleStep, zoneSlotInBatch]);
 
-  const scrollTrackHeight =
-    items.length > 0 ? `${items.length * SCROLL_VH_PER_CARD}vh` : "100vh";
+  const scrollTrackHeight = `${getPeopleCarouselTrackHeightVh(items.length, { isMobile })}vh`;
 
   const expandedTargetLayoutRect =
     expandedTargetRect ?? getExpandedTargetRectFallback();

@@ -4,6 +4,7 @@ import {
   getBatchCount,
   getCarouselStateFromItemPosition,
   getItemIndexFromScrollProgress,
+  getPeopleCarouselTrackHeightVh,
   getScrollProgressForItemIndex,
   getZoneRotationForItemIndex,
   isSlotInGlassEffectWindow,
@@ -11,6 +12,7 @@ import {
   resolveStepOriginItemIndex,
   resolveZoneSnapItemIndex,
   shouldOmitWrappedCarouselSlot,
+  SCROLL_VH_PER_CARD,
 } from "./peopleCarouselModel";
 
 describe("peopleCarouselModel", () => {
@@ -34,6 +36,23 @@ describe("peopleCarouselModel", () => {
 
     expect(progress).toBe(0.5);
     expect(getItemIndexFromScrollProgress(progress, 98)).toBe(49);
+  });
+
+  it("keeps the original desktop scroll track length", () => {
+    expect(getPeopleCarouselTrackHeightVh(0)).toBe(100);
+    expect(getPeopleCarouselTrackHeightVh(1)).toBe(SCROLL_VH_PER_CARD);
+    expect(getPeopleCarouselTrackHeightVh(98)).toBe(98 * SCROLL_VH_PER_CARD);
+  });
+
+  it("keeps a scrollable range on mobile when only two cards remain", () => {
+    expect(getPeopleCarouselTrackHeightVh(0, { isMobile: true })).toBe(100);
+    expect(getPeopleCarouselTrackHeightVh(1, { isMobile: true })).toBe(100);
+    expect(getPeopleCarouselTrackHeightVh(2, { isMobile: true })).toBe(
+      100 + SCROLL_VH_PER_CARD,
+    );
+    expect(getPeopleCarouselTrackHeightVh(98, { isMobile: true })).toBe(
+      100 + 97 * SCROLL_VH_PER_CARD,
+    );
   });
 
   it("resolves snap zones and fallback step origins", () => {
