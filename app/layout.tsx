@@ -1,10 +1,12 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import GlobalFooterReveal from "./components/GlobalFooterReveal";
 import Header from "./components/Header";
+import MobileViewportShell from "./components/mobile-shell/MobileViewportShell";
 import SitePageShell from "./components/SitePageShell";
 import TypoLogoButton from "./components/TypoLogoButton";
 import "./globals.css";
+import "./styles/mobile-shell.css";
 import "./styles/landing.css";
 import "./styles/site-page-shell.css";
 import "./styles/landing-footer.css";
@@ -23,6 +25,12 @@ export const metadata: Metadata = {
   description: "TUK 21st graduation online exhibition",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -33,6 +41,7 @@ export default function RootLayout({
       <body
         className={`${pretendard.className} ${pretendard.variable} antialiased`}
       >
+        <MobileViewportShell />
         <TypoLogoButton />
         <Header />
         <SitePageShell>{children}</SitePageShell>
