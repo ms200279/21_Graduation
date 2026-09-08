@@ -191,3 +191,47 @@
   height: 100%;
   overflow: hidden;
 }
+
+@media (max-width: 767px) {
+  .landing-carousel {
+    --carousel-label-size: 17px;
+    --carousel-heading-size: 28px;
+    --carousel-heading-media-height: 56px;
+    --carousel-body-size: 15px;
+    --carousel-label-padding-inline: 22px;
+    --carousel-copy-padding-inline: 22px;
+    --carousel-card-padding-top: 22px;
+    --carousel-copy-padding-top: 14px;
+    --carousel-heading-margin-bottom: 12px;
+    --carousel-paragraph-gap: 10px;
+  }
+
+  .landing-carousel__slide-card {
+    padding-bottom: 20px;
+  }
+
+  .landing-carousel__slide-label {
+    text-align: left;
+  }
+
+  .landing-carousel__slide-copy {
+    justify-content: center;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .landing-carousel__slide-heading-symbols {
+    gap: 16px;
+  }
+
+  .landing-carousel__slide-copy--video {
+    padding-inline: 16px;
+  }
+
+  .landing-carousel__slide-paragraph {
+    line-height: 1.55;
+  }
+}

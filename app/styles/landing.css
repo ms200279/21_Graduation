@@ -46,6 +46,10 @@ body.landing-fullpage-active {
   --landing-hero-action-inset-bottom: 2rem;
 }
 
+.landing-hero__copy {
+  padding-inline: var(--landing-copy-inset-x);
+}
+
 .landing-hero-action {
   position: absolute;
   right: var(--landing-copy-inset-x);
@@ -159,6 +163,13 @@ body.landing-fullpage-active {
 
 .landing-hero-action__panel > * {
   flex-shrink: 0;
+}
+
+.landing-hero-action__scroll-spacer {
+  display: none;
+  flex: 0 0 auto;
+  width: 100%;
+  pointer-events: none;
 }
 
 .landing-hero-action__panel--schedule,
@@ -312,6 +323,12 @@ body.landing-fullpage-active {
   line-height: 1;
 }
 
+@media (max-width: 767px) {
+  .desktop-header [data-landing-nav-item] {
+    font-size: 14px;
+  }
+}
+
 .desktop-header [data-landing-nav-item][data-active] {
   font-weight: 700;
 }
@@ -413,12 +430,16 @@ body.landing-fullpage-active {
   will-change: transform;
 }
 
+.landing-media-showcase-backdrop {
+  background: #ffffff;
+}
+
 .landing-media-showcase {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 100dvh;
+  height: 100%;
   padding: clamp(1.25rem, 4vw, 4rem);
   box-sizing: border-box;
   background: #ffffff;
@@ -473,19 +494,84 @@ body.landing-fullpage-active {
 }
 
 @media (max-width: 767px) {
+  .landing-fullpage,
+  .landing-fullpage__section {
+    height: var(--snap-h);
+  }
+
+  .landing-hero {
+    --landing-hero-action-height: 30px;
+    --landing-hero-action-width: 72px;
+  }
+
+  .landing-hero-action__label {
+    font-size: 0.75rem;
+    line-height: 1.2;
+  }
+
+  .landing-hero-action__panels {
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    contain: none;
+  }
+
+  .landing-hero-action--expanded .landing-hero-action__scroll-spacer {
+    display: block;
+    height: var(--info-scroll-pad, 0px);
+  }
+
+  .landing-hero-action__panel {
+    height: auto;
+    overflow: visible;
+    flex: 0 0 auto;
+  }
+
+  .landing-hero-action__panel--schedule,
+  .landing-hero-action__panel--info {
+    padding: 1.25rem;
+    margin-left: 0;
+  }
+
+  .landing-hero-action__section-title {
+    margin-bottom: 0.65rem;
+    font-size: 0.8125rem;
+  }
+
+  .landing-hero-action__section-title--follow {
+    margin-top: 0.85rem;
+  }
+
+  .landing-hero-action__section-text,
+  .landing-hero-action__schedule-date,
+  .landing-hero-action__schedule-item {
+    font-size: 0.75rem;
+    line-height: 1.45;
+  }
+
+  .landing-hero-action__schedule-days {
+    gap: 0.75rem;
+  }
+
   .landing-media-showcase {
-    padding: 4.5rem 1rem 1.5rem;
+    height: 100%;
+    padding: 0;
+    background: transparent;
   }
 
   .landing-media-showcase__layout {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto;
+    grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr);
     width: 100%;
-    height: auto;
+    height: 100%;
+    min-height: 0;
   }
 
   .landing-media-player--main {
-    aspect-ratio: 16 / 9;
+    min-height: 0;
   }
 
   .landing-media-showcase__side {

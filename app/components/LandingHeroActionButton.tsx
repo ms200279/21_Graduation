@@ -13,6 +13,7 @@ import { createPortal } from "react-dom";
 import { LANDING_INFO_LIQUID_GLASS_OPTIONS, useLiquidGlass } from "./liquid-glass";
 
 const MOTION_EASE = "cubic-bezier(0.34, 1.56, 0.64, 1)";
+const COLLAPSE_EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 const MOTION_DURATION_MS = 700;
 const EXPANDED_RADIUS_PX = 28;
 
@@ -46,6 +47,46 @@ type MotionRect = {
   height: number;
 };
 
+function asFiniteRect(rect: MotionRect): MotionRect | null {
+  if (
+    !Number.isFinite(rect.top) ||
+    !Number.isFinite(rect.left) ||
+    !Number.isFinite(rect.width) ||
+    !Number.isFinite(rect.height)
+  ) {
+    return null;
+  }
+
+  return rect;
+}
+
+function syncMobileInfoScrollPad(button: HTMLElement) {
+  if (!window.matchMedia("(max-width: 767px)").matches) {
+    button.style.removeProperty("--info-scroll-pad");
+    return;
+  }
+
+  const panels = button.querySelector<HTMLElement>(
+    ".landing-hero-action__panels",
+  );
+  if (!panels) {
+    return;
+  }
+
+  const parking = [
+    ...panels.querySelectorAll(".landing-hero-action__section-title"),
+  ].find((el) => el.textContent?.trim() === "Parking");
+  if (!parking) {
+    return;
+  }
+
+  button.style.setProperty("--info-scroll-pad", "0px");
+  const parkingOffset =
+    parking.getBoundingClientRect().top - panels.getBoundingClientRect().top;
+  const pad = Math.max(0, Math.round(panels.clientHeight - parkingOffset));
+  button.style.setProperty("--info-scroll-pad", `${pad}px`);
+}
+
 function parseCssLength(value: string, rootFontSize: number) {
   const normalized = value.trim();
 
@@ -72,7 +113,35 @@ function parseCssLength(value: string, rootFontSize: number) {
   return parseFloat(normalized);
 }
 
+function getViewportBox() {
+  const visualViewport = window.visualViewport;
+
+  return {
+    width: visualViewport?.width ?? window.innerWidth,
+    height: visualViewport?.height ?? window.innerHeight,
+    top: visualViewport?.offsetTop ?? 0,
+    left: visualViewport?.offsetLeft ?? 0,
+  };
+}
+
+function isMobileViewport() {
+  return window.matchMedia("(max-width: 767px)").matches;
+}
+
 function getExpandedRect(anchor: { bottom: number; right: number }): MotionRect {
+  if (isMobileViewport()) {
+    const viewport = getViewportBox();
+    const width = viewport.width;
+    const height = viewport.height * 0.75;
+
+    return {
+      top: viewport.top + viewport.height - height,
+      left: viewport.left,
+      width,
+      height,
+    };
+  }
+
   const width = window.innerWidth * (1 / 2);
   const height = window.innerHeight * (2 / 3);
 
@@ -127,9 +196,31 @@ function getCollapsedTargetRect(
     rootFontSize,
   );
 
+  if (!window.matchMedia("(max-width: 767px)").matches) {
+    return {
+      top: window.innerHeight - insetBottom - height,
+      left: window.innerWidth - insetX - width,
+      width,
+      height,
+    };
+  }
+
+  const safeRight = parseCssLength(
+    htmlStyles.getPropertyValue("--safe-right"),
+    rootFontSize,
+  );
+  const safeBottom = parseCssLength(
+    htmlStyles.getPropertyValue("--safe-bottom"),
+    rootFontSize,
+  );
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+  const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+  const viewportTop = window.visualViewport?.offsetTop ?? 0;
+  const viewportLeft = window.visualViewport?.offsetLeft ?? 0;
+
   return {
-    top: window.innerHeight - insetBottom - height,
-    left: window.innerWidth - insetX - width,
+    top: viewportTop + viewportHeight - safeBottom - insetBottom - height,
+    left: viewportLeft + viewportWidth - safeRight - insetX - width,
     width,
     height,
   };
@@ -139,7 +230,7 @@ export default function LandingHeroActionButton() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const isBoxExpandedRef = useRef(false);
   const isCollapsingRef = useRef(false);
-  const anchorRef = useRef<{ bottom: number; right: number } | null>(null);
+  const originRectRef = useRef<MotionRect | null>(null);
   const [portalActive, setPortalActive] = useState(false);
   const [isBoxExpanded, setIsBoxExpanded] = useState(false);
   const [isCollapsing, setIsCollapsing] = useState(false);
@@ -167,7 +258,7 @@ export default function LandingHeroActionButton() {
     setPortalActive(false);
     setIsCollapsing(false);
     setMotionRect(null);
-    anchorRef.current = null;
+    originRectRef.current = null;
   }, []);
 
   useEffect(() => {
@@ -202,18 +293,18 @@ export default function LandingHeroActionButton() {
     }
 
     const snapshot = button.getBoundingClientRect();
-    const anchor = { bottom: snapshot.bottom, right: snapshot.right };
-    anchorRef.current = anchor;
-
-    setPortalActive(true);
-    setIsCollapsing(false);
-    setIsBoxExpanded(false);
-    setMotionRect({
+    const originRect = {
       top: snapshot.top,
       left: snapshot.left,
       width: snapshot.width,
       height: snapshot.height,
-    });
+    };
+    originRectRef.current = originRect;
+
+    setPortalActive(true);
+    setIsCollapsing(false);
+    setIsBoxExpanded(false);
+    setMotionRect(originRect);
 
     requestAnimationFrame(() => {
       const button = buttonRef.current;
@@ -221,10 +312,60 @@ export default function LandingHeroActionButton() {
         void button.offsetWidth;
       }
 
-      setMotionRect(getExpandedRect(anchor));
+      setMotionRect(
+        getExpandedRect({
+          bottom: snapshot.bottom,
+          right: snapshot.right,
+        }),
+      );
       setIsBoxExpanded(true);
     });
   }, [portalActive]);
+
+  useEffect(() => {
+    if (!isBoxExpanded || isCollapsing) {
+      return;
+    }
+
+    const syncExpandedRect = () => {
+      const origin = originRectRef.current;
+
+      if (!origin) {
+        return;
+      }
+
+      setMotionRect(
+        getExpandedRect({
+          bottom: origin.top + origin.height,
+          right: origin.left + origin.width,
+        }),
+      );
+    };
+
+    const syncScrollPad = () => {
+      const button = buttonRef.current;
+      if (button) {
+        syncMobileInfoScrollPad(button);
+      }
+    };
+
+    window.addEventListener("resize", syncExpandedRect);
+    window.visualViewport?.addEventListener("resize", syncExpandedRect);
+    window.addEventListener("resize", syncScrollPad);
+    window.visualViewport?.addEventListener("resize", syncScrollPad);
+
+    const frame = requestAnimationFrame(syncScrollPad);
+    const settleTimer = window.setTimeout(syncScrollPad, MOTION_DURATION_MS);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(settleTimer);
+      window.removeEventListener("resize", syncExpandedRect);
+      window.visualViewport?.removeEventListener("resize", syncExpandedRect);
+      window.removeEventListener("resize", syncScrollPad);
+      window.visualViewport?.removeEventListener("resize", syncScrollPad);
+    };
+  }, [isBoxExpanded, isCollapsing]);
 
   const collapse = useCallback(() => {
     if (!portalActive || !isBoxExpandedRef.current) {
@@ -240,7 +381,32 @@ export default function LandingHeroActionButton() {
         void button.offsetWidth;
       }
 
-      setMotionRect(getCollapsedTargetRect(anchorRef.current ?? undefined));
+      const origin = originRectRef.current;
+      const isMobile = window.matchMedia("(max-width: 767px)").matches;
+
+      if (isMobile) {
+        const collapsedRect =
+          origin && asFiniteRect(origin)
+            ? origin
+            : asFiniteRect(getCollapsedTargetRect()) ?? origin;
+
+        if (collapsedRect) {
+          setMotionRect(collapsedRect);
+        }
+
+        return;
+      }
+
+      setMotionRect(
+        getCollapsedTargetRect(
+          origin
+            ? {
+                bottom: origin.top + origin.height,
+                right: origin.left + origin.width,
+              }
+            : undefined,
+        ),
+      );
     });
   }, [portalActive]);
 
@@ -264,6 +430,11 @@ export default function LandingHeroActionButton() {
 
   const showInfoLabel = !portalActive || isCollapsing;
 
+  const isMobileMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 767px)").matches;
+  const motionEase =
+    isCollapsing && isMobileMotion ? COLLAPSE_EASE : MOTION_EASE;
   const motionStyle: CSSProperties | undefined = portalActive
     ? {
         position: "fixed",
@@ -275,14 +446,16 @@ export default function LandingHeroActionButton() {
         right: "auto",
         bottom: "auto",
         borderRadius: isBoxExpanded
-          ? EXPANDED_RADIUS_PX
+          ? isMobileMotion
+            ? "1.25rem 1.25rem 0 0"
+            : EXPANDED_RADIUS_PX
           : (motionRect?.height ?? 0) / 2,
         transition: [
-          `top ${MOTION_DURATION_MS}ms ${MOTION_EASE}`,
-          `left ${MOTION_DURATION_MS}ms ${MOTION_EASE}`,
-          `width ${MOTION_DURATION_MS}ms ${MOTION_EASE}`,
-          `height ${MOTION_DURATION_MS}ms ${MOTION_EASE}`,
-          `border-radius ${MOTION_DURATION_MS}ms ${MOTION_EASE}`,
+          `top ${MOTION_DURATION_MS}ms ${motionEase}`,
+          `left ${MOTION_DURATION_MS}ms ${motionEase}`,
+          `width ${MOTION_DURATION_MS}ms ${motionEase}`,
+          `height ${MOTION_DURATION_MS}ms ${motionEase}`,
+          `border-radius ${MOTION_DURATION_MS}ms ${motionEase}`,
         ].join(", "),
       }
     : undefined;
@@ -348,6 +521,7 @@ export default function LandingHeroActionButton() {
           09.20 SUN&nbsp;&nbsp;10:00 - 17:00
         </p>
       </div>
+      <div className="landing-hero-action__scroll-spacer" aria-hidden="true" />
     </div>
   ) : null;
 
