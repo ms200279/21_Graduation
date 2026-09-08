@@ -7,8 +7,10 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 
+import { useIsMobileViewport } from "@/app/utils/useIsMobileViewport";
 import "@/app/styles/projects-cylinder-gallery.css";
 import {
   BUTTON_INTERACTION_RELEASE_MS,
@@ -18,6 +20,9 @@ import {
   getCylinderRadius,
   getNearestCardCenteredRotation,
   getSnappedRotation,
+  getRotationStepTowardIndex,
+  pickFrontCylinderCardIndex,
+  pickScreenNeighborCardIndex,
   HOVER_MISS_LIMIT,
   HOVER_SNAP_INTERVAL_MS,
   isCardVisible,
@@ -27,6 +32,34 @@ import {
   WHEEL_ROTATION_SCALE,
   WHEEL_SNAP_DELAY_MS,
 } from "./projectsCylinderConfig";
+
+const MOBILE_SWIPE_DISTANCE = 48;
+const MOBILE_SWIPE_DOMINANCE = 1.15;
+
+function isMobileViewport() {
+  return window.matchMedia("(max-width: 767px)").matches;
+}
+
+function readVisibleCylinderScreenCards(row: HTMLElement) {
+  return Array.from(
+    row.querySelectorAll<HTMLElement>(".projects-cylinder-card--visible"),
+  ).flatMap((card) => {
+    const index = Number(card.dataset.projectCardIndex);
+
+    if (!Number.isInteger(index)) {
+      return [];
+    }
+
+    const rect = card.getBoundingClientRect();
+
+    return [
+      {
+        index,
+        centerX: rect.left + rect.width / 2,
+      },
+    ];
+  });
+}
 
 export type CylinderRowProps = {
   cards: ProjectCard[];
@@ -73,7 +106,19 @@ export default function CylinderRow({
   >(() => {});
   const directionRef = useRef(direction);
   const isPausedRef = useRef(isPaused);
+  const swipeStartRef = useRef<{
+    x: number;
+    y: number;
+    rotation: number;
+    cardWidth: number;
+    rotationStepTowardRight: 1 | -1;
+    leftNeighborIndex: number | null;
+    rightNeighborIndex: number | null;
+  } | null>(null);
+  const swipeAxisRef = useRef<"x" | "y" | null>(null);
+  const skipClickRef = useRef(false);
   const [rotation, setRotation] = useState(0);
+  const isMobile = useIsMobileViewport();
   const cardCount = cards.length;
   const cardAngle = 360 / cardCount;
 
@@ -294,7 +339,7 @@ export default function CylinderRow({
   };
 
   const startHoverSnapTimer = () => {
-    if (hoverSnapTimerRef.current !== null) {
+    if (isMobileViewport() || hoverSnapTimerRef.current !== null) {
       return;
     }
 
@@ -398,6 +443,10 @@ export default function CylinderRow({
     };
 
     const handleWheel = (event: WheelEvent) => {
+      if (isMobileViewport()) {
+        return;
+      }
+
       const isProjectDetailOpen =
         document.documentElement.hasAttribute("data-project-detail-open") ||
         (event.target instanceof Element &&
@@ -490,21 +539,178 @@ export default function CylinderRow({
     };
   }, [flushPendingRecycleIndexes]);
 
+  const releaseSwipePointer = (event: ReactPointerEvent<HTMLElement>) => {
+    const start = swipeStartRef.current;
+    const axis = swipeAxisRef.current;
+    const deltaX = start ? event.clientX - start.x : 0;
+
+    swipeStartRef.current = null;
+    swipeAxisRef.current = null;
+
+    if (axis === "x" && start) {
+      const neighborIndex =
+        deltaX < 0 ? start.rightNeighborIndex : start.leftNeighborIndex;
+      const targetRotation =
+        Math.abs(deltaX) < MOBILE_SWIPE_DISTANCE
+          ? getSnappedRotation(start.rotation, cardAngle)
+          : neighborIndex === null
+            ? getSnappedRotation(start.rotation, cardAngle) +
+              (deltaX < 0 ? 1 : -1) *
+                start.rotationStepTowardRight *
+                cardAngle
+            : getNearestCardCenteredRotation(
+                neighborIndex,
+                cardAngle,
+                start.rotation,
+              );
+
+      animateSnapToRotation(targetRotation);
+
+      if (wheelSnapTimerRef.current !== null) {
+        clearTimeout(wheelSnapTimerRef.current);
+      }
+
+      wheelSnapTimerRef.current = setTimeout(() => {
+        isWheelInteractingRef.current = false;
+        wheelSnapTimerRef.current = null;
+      }, BUTTON_INTERACTION_RELEASE_MS);
+
+      window.setTimeout(() => {
+        skipClickRef.current = false;
+      }, 0);
+    } else {
+      skipClickRef.current = false;
+    }
+
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // Ignore capture release errors from synthetic pointers.
+      }
+    }
+  };
+
+  const handleRowPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if (!isMobileViewport()) {
+      return;
+    }
+
+    if (event.pointerType === "mouse" && event.button !== 0) {
+      return;
+    }
+
+    const visibleCard = event.currentTarget.querySelector<HTMLElement>(
+      ".projects-cylinder-card--visible",
+    );
+    const screenCards = readVisibleCylinderScreenCards(event.currentTarget);
+    const frontIndex = pickFrontCylinderCardIndex(
+      screenCards,
+      window.innerWidth / 2,
+    );
+    const rightNeighborIndex =
+      frontIndex === null
+        ? null
+        : pickScreenNeighborCardIndex(screenCards, frontIndex, "right");
+    const leftNeighborIndex =
+      frontIndex === null
+        ? null
+        : pickScreenNeighborCardIndex(screenCards, frontIndex, "left");
+
+    swipeStartRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      rotation: rotationRef.current,
+      cardWidth: Math.max(visibleCard?.getBoundingClientRect().width ?? 1, 1),
+      rotationStepTowardRight:
+        rightNeighborIndex === null
+          ? 1
+          : getRotationStepTowardIndex(
+              rightNeighborIndex,
+              cardAngle,
+              rotationRef.current,
+            ),
+      leftNeighborIndex,
+      rightNeighborIndex,
+    };
+    swipeAxisRef.current = null;
+    skipClickRef.current = false;
+    cancelSnapAnimation();
+  };
+
+  const handleRowPointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+    if (!isMobileViewport()) {
+      pointerPositionRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+      };
+      startHoverSnapTimer();
+      return;
+    }
+
+    const start = swipeStartRef.current;
+
+    if (!start) {
+      return;
+    }
+
+    const deltaX = event.clientX - start.x;
+    const deltaY = event.clientY - start.y;
+
+    if (!swipeAxisRef.current) {
+      if (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) {
+        return;
+      }
+
+      if (Math.abs(deltaX) > Math.abs(deltaY) * MOBILE_SWIPE_DOMINANCE) {
+        swipeAxisRef.current = "x";
+        skipClickRef.current = true;
+        isWheelInteractingRef.current = true;
+
+        try {
+          event.currentTarget.setPointerCapture(event.pointerId);
+        } catch {
+          // Synthetic or already-released pointers can throw; dragging still applies.
+        }
+      } else {
+        swipeAxisRef.current = "y";
+        return;
+      }
+    }
+
+    if (swipeAxisRef.current !== "x") {
+      return;
+    }
+
+    event.preventDefault();
+    commitRotation(
+      start.rotation -
+        start.rotationStepTowardRight * (deltaX / start.cardWidth) * cardAngle,
+      false,
+    );
+  };
+
   return (
     <section
       ref={rowRef}
       className="projects-cylinder-row"
       aria-label={label}
-      onPointerMove={(event) => {
-        pointerPositionRef.current = {
-          x: event.clientX,
-          y: event.clientY,
-        };
-        startHoverSnapTimer();
-      }}
-      onPointerLeave={() => {
-        stopHoverTracking();
-      }}
+      onPointerDownCapture={isMobile ? handleRowPointerDown : undefined}
+      onPointerMoveCapture={isMobile ? handleRowPointerMove : undefined}
+      onPointerUpCapture={isMobile ? releaseSwipePointer : undefined}
+      onPointerCancelCapture={isMobile ? releaseSwipePointer : undefined}
+      onPointerMove={
+        isMobile
+          ? undefined
+          : (event) => {
+              pointerPositionRef.current = {
+                x: event.clientX,
+                y: event.clientY,
+              };
+              startHoverSnapTimer();
+            }
+      }
+      onPointerLeave={isMobile ? undefined : () => stopHoverTracking()}
     >
       <button
         type="button"
@@ -587,8 +793,18 @@ export default function CylinderRow({
                 aria-hidden={!isVisible}
                 aria-label={`Open ${getProjectName(card.id)}`}
                 tabIndex={isVisible ? 0 : -1}
-                onClick={() => onCardSelect(card.id)}
+                onClick={() => {
+                  if (skipClickRef.current) {
+                    return;
+                  }
+
+                  onCardSelect(card.id);
+                }}
                 onPointerEnter={(event) => {
+                  if (isMobileViewport()) {
+                    return;
+                  }
+
                   pointerPositionRef.current = {
                     x: event.clientX,
                     y: event.clientY,
@@ -604,7 +820,7 @@ export default function CylinderRow({
                     src={getProjectThumbnail(card.id)}
                     alt=""
                     fill
-                    sizes="(min-width: 1536px) 376px, (min-width: 1024px) 23vw, 46vw"
+                    sizes="(max-width: 767px) 70vw, (min-width: 1536px) 376px, (min-width: 1024px) 23vw, 46vw"
                     className="projects-cylinder-card__image"
                     onError={(event) => {
                       event.currentTarget.style.display = "none";
