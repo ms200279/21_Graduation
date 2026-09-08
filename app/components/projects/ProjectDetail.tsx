@@ -28,6 +28,16 @@ const PROJECT_DETAIL_CLOSE_DURATION_MS = 560;
 const PROJECT_DETAIL_REDUCED_MOTION_DURATION_MS = 160;
 const PROJECT_DETAIL_SECTION_COUNT = 7;
 
+function getSectionScrollTop(
+  scrollContainer: HTMLElement,
+  section: HTMLElement,
+) {
+  const containerRect = scrollContainer.getBoundingClientRect();
+  const sectionRect = section.getBoundingClientRect();
+
+  return sectionRect.top - containerRect.top + scrollContainer.scrollTop;
+}
+
 type ProjectMediaProps = {
   src: string | null;
   label: string;
@@ -166,21 +176,26 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
   }, [closeProject]);
 
   const scrollToThumbnail = () => {
-    scrollRef.current?.scrollTo({
+    const scrollContainer = scrollRef.current;
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    scrollContainer?.scrollTo({
       top: 0,
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "auto"
-        : "smooth",
+      left: 0,
+      behavior: reducedMotion ? "auto" : "smooth",
     });
   };
 
-  const updateActiveSection = () => {
+  const updateActiveSection = useCallback(() => {
     const scrollContainer = scrollRef.current;
 
     if (!scrollContainer) {
       return;
     }
 
+    const origin = scrollContainer.scrollTop;
     const sections = Array.from(
       scrollContainer.querySelectorAll<HTMLElement>(
         ".project-detail-section",
@@ -190,7 +205,9 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
     let closestDistance = Number.POSITIVE_INFINITY;
 
     sections.forEach((section, index) => {
-      const distance = Math.abs(section.offsetTop - scrollContainer.scrollTop);
+      const distance = Math.abs(
+        getSectionScrollTop(scrollContainer, section) - origin,
+      );
 
       if (distance < closestDistance) {
         closestDistance = distance;
@@ -201,7 +218,7 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
     setActiveSectionIndex((currentIndex) =>
       currentIndex === closestSectionIndex ? currentIndex : closestSectionIndex,
     );
-  };
+  }, []);
 
   const scrollToSection = (sectionIndex: number) => {
     const scrollContainer = scrollRef.current;
@@ -213,13 +230,25 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
       return;
     }
 
+    const origin = getSectionScrollTop(scrollContainer, targetSection);
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
     scrollContainer.scrollTo({
-      top: targetSection.offsetTop,
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "auto"
-        : "smooth",
+      top: origin,
+      behavior: reducedMotion ? "auto" : "smooth",
     });
   };
+
+  useEffect(() => {
+    updateActiveSection();
+    window.addEventListener("resize", updateActiveSection);
+
+    return () => {
+      window.removeEventListener("resize", updateActiveSection);
+    };
+  }, [updateActiveSection]);
 
   if (!isMounted) {
     return null;

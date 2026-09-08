@@ -447,6 +447,20 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
     border-radius: 22px 22px 0 0;
   }
 
+  .project-detail-scroll {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scroll-snap-type: y mandatory;
+    touch-action: pan-x pan-y;
+  }
+
+  .project-detail-section {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+
   .project-detail-close {
     top: 16px;
     right: 16px;
@@ -457,14 +471,20 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   .project-detail-progress {
     right: 0.5rem;
     gap: 8px;
+    align-items: center;
   }
 
   .project-detail-progress__bar {
-    width: 12px;
+    width: 5px;
+    height: 5px;
+    transition:
+      height 220ms ease,
+      background-color 220ms ease;
   }
 
   .project-detail-progress__bar--active {
-    width: 22px;
+    width: 5px;
+    height: 16px;
   }
 
   .project-detail-head {
@@ -505,9 +525,12 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   }
 
   .project-detail-authors {
+    width: 100%;
     gap: 12px 16px;
     margin-top: 1.5rem;
     padding-top: 0;
+    justify-content: flex-end;
+    align-self: flex-end;
   }
 
   .project-detail-author__name {
@@ -534,7 +557,14 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   }
 
   .project-detail-final {
+    overflow: hidden;
     padding: 5rem 1.25rem 2.5rem;
+  }
+
+  .project-detail-final__content {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 
   .project-detail-final__content > .project-detail-title {
@@ -542,18 +572,39 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   }
 
   .project-detail-final__grid {
-    grid-auto-flow: column;
-    grid-auto-columns: min(78vw, 484px);
-    grid-template-columns: none;
-    justify-content: start;
+    display: flex;
+    flex-flow: row nowrap;
+    align-items: flex-start;
+    gap: 1rem;
+    width: 100%;
+    min-width: 0;
     overflow-x: auto;
+    overflow-y: hidden;
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
     padding-bottom: 0.75rem;
+    touch-action: pan-x;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .project-detail-final__grid::-webkit-scrollbar {
+    display: none;
   }
 
   .project-detail-final__item {
+    box-sizing: border-box;
+    flex: 0 0 min(78vw, 22rem);
+    width: min(78vw, 22rem);
+    min-width: min(78vw, 22rem);
     scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  .project-detail-media--detail {
+    width: 100%;
+    max-width: none;
   }
 }
 
