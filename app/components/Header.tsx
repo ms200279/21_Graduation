@@ -947,7 +947,7 @@ export default function Header() {
         "desktop-header group fixed z-50 flex",
         isShowroomPage ? "showroom-header" : "",
         isMobile
-          ? "right-[max(1rem,var(--safe-right))] top-[max(1rem,var(--safe-top))] z-[80] max-w-[var(--safe-content-w)] justify-end isolate"
+          ? "right-[max(1rem,var(--safe-right))] top-[calc(var(--vv-top)+var(--mobile-header-top))] z-[80] max-w-[var(--safe-content-w)] justify-end isolate"
           : "left-1/2 top-[10px] h-[var(--header-height)] w-[var(--header-width)] -translate-x-1/2 items-center justify-center",
       ].join(" ")}
       style={

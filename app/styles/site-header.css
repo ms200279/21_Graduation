@@ -98,7 +98,8 @@
 @media (max-width: 767px) {
   .typo-logo-button {
     top: calc(
-      var(--safe-top) +
+      var(--vv-top) +
+        var(--safe-top) +
         var(--typo-logo-viewport-top) +
         (var(--typo-logo-block-height) - var(--typo-logo-height)) / 2
     );

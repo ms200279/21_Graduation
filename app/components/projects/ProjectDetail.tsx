@@ -38,34 +38,50 @@ function getSectionScrollTop(
   return sectionRect.top - containerRect.top + scrollContainer.scrollTop;
 }
 
+const PROJECT_MEDIA_SIZE = {
+  thumbnail: { width: 1080, height: 608 },
+  story: { width: 776, height: 460 },
+  detail: { width: 484, height: 363 },
+} as const;
+
 type ProjectMediaProps = {
   src: string | null;
   label: string;
-  variant: "thumbnail" | "story" | "detail";
+  variant: keyof typeof PROJECT_MEDIA_SIZE;
 };
 
 function ProjectMedia({ src, label, variant }: ProjectMediaProps) {
   const [hasImageError, setHasImageError] = useState(false);
+  const size = PROJECT_MEDIA_SIZE[variant];
 
   return (
     <div
       className={`project-detail-media project-detail-media--${variant}`}
       aria-label={src && !hasImageError ? undefined : `${label} image placeholder`}
     >
-      {src && !hasImageError ? (
-        <Image
-          src={src}
-          alt={label}
-          fill
-          sizes={variant === "story" ? "(min-width: 768px) 52vw, 100vw" : "(min-width: 768px) 62vw, 100vw"}
-          className="project-detail-media__image"
-          onError={() => setHasImageError(true)}
-        />
-      ) : (
-        <span className="project-detail-media__placeholder" aria-hidden="true">
-          {label}
-        </span>
-      )}
+      <div className="project-detail-media__frame">
+        {src && !hasImageError ? (
+          <Image
+            src={src}
+            alt={label}
+            width={size.width}
+            height={size.height}
+            sizes={
+              variant === "detail"
+                ? "(max-width: 767px) 52vw, 484px"
+                : "(max-width: 767px) 100vw, (min-width: 768px) 62vw, 100vw"
+            }
+            loading="eager"
+            priority={variant === "thumbnail"}
+            className="project-detail-media__image"
+            onError={() => setHasImageError(true)}
+          />
+        ) : (
+          <span className="project-detail-media__placeholder" aria-hidden="true">
+            {label}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

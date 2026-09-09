@@ -130,11 +130,22 @@
 }
 
 @media (max-width: 767px) {
+  .scene {
+    height: 100vh;
+    min-height: 100vh;
+    max-height: 100vh;
+  }
+
   .inputWrap {
-    bottom: calc(var(--safe-bottom) + 2rem);
+    bottom: calc(var(--safe-bottom) + 2rem + var(--particle-keyboard-shift, 0px));
     grid-template-columns: minmax(0, 1fr);
     gap: 0.9rem;
     width: min(32rem, calc(var(--safe-content-w) - 2rem));
+    transition:
+      opacity 560ms ease,
+      filter 560ms ease,
+      transform 560ms cubic-bezier(0.22, 1, 0.36, 1),
+      bottom 220ms ease;
   }
 
   .inputForm,
@@ -148,11 +159,17 @@
   }
 
   .particleDescription {
-    top: calc(var(--safe-top) + (var(--safe-content-h) * 0.57));
+    top: calc(
+      var(--safe-top) +
+        (
+          (100vh - var(--safe-top) - var(--safe-bottom)) * 0.57
+        ) - var(--particle-keyboard-shift, 0px)
+    );
     right: calc(var(--safe-right) + 1.5rem);
     left: calc(var(--safe-left) + 1.5rem);
     width: auto;
     text-align: center;
+    transition: top 220ms ease;
   }
 
   .particleDescription strong {

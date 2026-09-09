@@ -5,6 +5,8 @@
   --app-vw: 100vw;
   --vv-top: 0px;
   --vv-left: 0px;
+  --vv-bottom: 0px;
+  --app-lvh: 100vh;
   --safe-top-js: 0px;
   --safe-right-js: 0px;
   --safe-bottom-js: 0px;
@@ -36,6 +38,25 @@
   :root {
     --app-dvh: 100dvh;
     --app-vh: 100dvh;
+  }
+}
+
+@supports (height: 100lvh) {
+  :root {
+    --app-lvh: 100lvh;
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --header-height: 44px;
+    --mobile-header-top: max(1rem, var(--safe-top));
+    --mobile-header-gap: 0.75rem;
+    --mobile-header-stack: calc(
+      var(--vv-top) + var(--mobile-header-top) + var(--header-height) +
+        var(--mobile-header-gap)
+    );
+    --snap-h: var(--app-svh);
   }
 }
 

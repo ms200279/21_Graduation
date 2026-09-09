@@ -204,6 +204,10 @@
     --carousel-copy-padding-top: 14px;
     --carousel-heading-margin-bottom: 12px;
     --carousel-paragraph-gap: 10px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
   }
 
   .landing-carousel__slide-card {

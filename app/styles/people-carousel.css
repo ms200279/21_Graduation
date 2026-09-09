@@ -163,7 +163,7 @@
 
 @media (max-width: 767px) {
   .people-page {
-    --people-category-filter-top: calc(var(--safe-top) + var(--safe-content-h) / 6);
+    --people-category-filter-top: calc(var(--mobile-header-stack) + 1.25rem);
     min-height: var(--snap-h);
   }
 
@@ -174,12 +174,12 @@
 
   .people-page .people-carousel-wrap,
   .people-carousel-wrap {
-    top: calc(var(--safe-top) + var(--header-height, 46px));
-    height: calc(var(--safe-content-h) - var(--header-height, 46px));
+    top: var(--mobile-header-stack);
+    height: calc(var(--snap-h) - var(--mobile-header-stack) - var(--safe-bottom));
   }
 
   .people-carousel-empty {
-    min-height: calc(var(--safe-content-h) - var(--header-height, 46px));
+    min-height: calc(var(--snap-h) - var(--mobile-header-stack) - var(--safe-bottom));
   }
 
   .people-carousel-step-nav {

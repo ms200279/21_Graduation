@@ -11,10 +11,17 @@ describe("computeCarouselLayout", () => {
 
     expect(layout.isMobile).toBe(true);
     expect(layout.scale).toBe(1);
-    expect(layout.slideHeight / layout.slideWidth).toBeGreaterThanOrEqual(1.5);
-    expect(layout.slideHeight / layout.slideWidth).toBeLessThanOrEqual(1.68);
+    expect(layout.slideHeight / layout.slideWidth).toBeCloseTo(1.5, 5);
     expect(layout.slideWidth).toBeLessThan(390);
     expect(layout.stageHeight).toBeLessThanOrEqual(844);
+  });
+
+  it("reserves header space at the top of the mobile stage", () => {
+    const layout = computeCarouselLayout(390, 720, 88);
+
+    expect(layout.topPadding).toBeGreaterThanOrEqual(88);
+    expect(layout.slideHeight / layout.slideWidth).toBeCloseTo(1.5, 5);
+    expect(layout.stageHeight).toBeLessThanOrEqual(720);
   });
 
   it("keeps the landscape design canvas on desktop", () => {

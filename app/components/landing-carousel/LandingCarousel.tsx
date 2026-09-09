@@ -22,17 +22,39 @@ import {
   computeTrackOffset,
   type CarouselLayout,
 } from "./landingCarouselLayout";
-import { MOBILE_VIEWPORT_EVENT } from "../mobile-shell/viewportMetrics";
+import { MOBILE_VIEWPORT_EVENT, measureCssLength } from "../mobile-shell/viewportMetrics";
 
 const SWIPE_DISTANCE = 48;
 const SWIPE_DOMINANCE = 1.15;
 const NAV_BUTTON_SIZE = 44;
 const NAV_BUTTON_GAP = 80;
-const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
+const DEFAULT_VIEWPORT = { width: 1440, height: 900, headerInset: 0 };
 const DEFAULT_LAYOUT = computeCarouselLayout(
   DEFAULT_VIEWPORT.width,
   DEFAULT_VIEWPORT.height,
 );
+
+function readViewportSize() {
+  if (typeof document === "undefined") {
+    return DEFAULT_VIEWPORT;
+  }
+
+  const snapWidth = measureCssLength(
+    "var(--snap-w)",
+    window.visualViewport?.width ?? window.innerWidth,
+  );
+  const snapHeight = measureCssLength(
+    "var(--snap-h)",
+    window.visualViewport?.height ?? window.innerHeight,
+  );
+  const headerInset = measureCssLength("var(--mobile-header-stack)");
+
+  return {
+    width: snapWidth,
+    height: snapHeight,
+    headerInset,
+  };
+}
 
 type CarouselNavButtonProps = {
   direction: "prev" | "next";
@@ -146,13 +168,7 @@ const CarouselSlide = memo(function CarouselSlide({
 let cachedLayoutSnapshot = DEFAULT_LAYOUT;
 let cachedLayoutViewportWidth = DEFAULT_VIEWPORT.width;
 let cachedLayoutViewportHeight = DEFAULT_VIEWPORT.height;
-
-function readViewportSize() {
-  return {
-    width: window.visualViewport?.width ?? window.innerWidth,
-    height: window.visualViewport?.height ?? window.innerHeight,
-  };
-}
+let cachedLayoutHeaderInset = DEFAULT_VIEWPORT.headerInset;
 
 function subscribeToCarouselLayout(onStoreChange: () => void) {
   let resizeRaf = 0;
@@ -171,11 +187,13 @@ function subscribeToCarouselLayout(onStoreChange: () => void) {
   window.addEventListener("resize", handleResize);
   window.addEventListener(MOBILE_VIEWPORT_EVENT, handleResize);
   window.visualViewport?.addEventListener("resize", handleResize);
+  window.visualViewport?.addEventListener("scroll", handleResize);
 
   return () => {
     window.removeEventListener("resize", handleResize);
     window.removeEventListener(MOBILE_VIEWPORT_EVENT, handleResize);
     window.visualViewport?.removeEventListener("resize", handleResize);
+    window.visualViewport?.removeEventListener("scroll", handleResize);
 
     if (resizeRaf) {
       cancelAnimationFrame(resizeRaf);
@@ -184,18 +202,20 @@ function subscribeToCarouselLayout(onStoreChange: () => void) {
 }
 
 function getCarouselLayoutSnapshot() {
-  const { width, height } = readViewportSize();
+  const { width, height, headerInset } = readViewportSize();
 
   if (
     width === cachedLayoutViewportWidth &&
-    height === cachedLayoutViewportHeight
+    height === cachedLayoutViewportHeight &&
+    headerInset === cachedLayoutHeaderInset
   ) {
     return cachedLayoutSnapshot;
   }
 
   cachedLayoutViewportWidth = width;
   cachedLayoutViewportHeight = height;
-  cachedLayoutSnapshot = computeCarouselLayout(width, height);
+  cachedLayoutHeaderInset = headerInset;
+  cachedLayoutSnapshot = computeCarouselLayout(width, height, headerInset);
 
   return cachedLayoutSnapshot;
 }
@@ -342,7 +362,7 @@ export default function LandingCarousel({
   return (
     <div
       className={`landing-carousel relative z-10 w-full overflow-visible pointer-events-auto ${className}`.trim()}
-      style={{ height: stageHeight }}
+      style={{ height: layout.isMobile ? "100%" : stageHeight }}
     >
       {layout.isMobile ? null : (
         <div

@@ -249,12 +249,20 @@
 
 @media (max-width: 767px) {
   .projects-cylinder-gallery {
-    --projects-cylinder-card-width: min(70vw, 292px);
-    min-height: calc(var(--safe-content-h) - var(--header-height, 46px));
-    gap: clamp(0.875rem, 2.4vh, 1.375rem);
-    padding-top: clamp(5rem, 13vh, 6.5rem);
+    --projects-cylinder-shadow-room: clamp(0.45rem, 1.35dvh, 0.8rem);
+    --projects-cylinder-card-width: min(62vw, 30dvh, 252px);
+    --projects-bottom-pad: calc(
+      max(var(--vv-bottom), var(--safe-bottom)) + clamp(1.25rem, 4.5dvh, 2.25rem)
+    );
+    min-height: 0;
+    flex: 1 1 auto;
+    gap: clamp(0.12rem, 0.7dvh, 0.32rem);
+    padding-top: 0;
+    padding-bottom: var(--projects-bottom-pad);
+    justify-content: flex-end;
     overflow: hidden;
     isolation: isolate;
+    transform: none;
   }
 
   .projects-cylinder-row,

@@ -821,6 +821,7 @@ export default function CylinderRow({
                     alt=""
                     fill
                     sizes="(max-width: 767px) 70vw, (min-width: 1536px) 376px, (min-width: 1024px) 23vw, 46vw"
+                    loading={isVisible ? "eager" : "lazy"}
                     className="projects-cylinder-card__image"
                     onError={(event) => {
                       event.currentTarget.style.display = "none";

@@ -26,7 +26,7 @@ export default function ProjectsGridGallery({
 
   return (
     <section className="projects-grid-gallery" aria-label="Project grid">
-      {cards.map((card) => {
+      {cards.map((card, cardIndex) => {
         const isPreview = isMobile && previewId === card.id;
 
         return (
@@ -60,6 +60,7 @@ export default function ProjectsGridGallery({
               alt=""
               fill
               sizes="(max-width: 767px) 92vw, (min-width: 1536px) 376px, (min-width: 1024px) 23vw, 46vw"
+              loading={cardIndex === 0 ? "eager" : "lazy"}
               className="projects-grid-card__image"
               onError={(event) => {
                 event.currentTarget.style.display = "none";

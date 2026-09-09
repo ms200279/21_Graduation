@@ -49,26 +49,25 @@ export function computeTrackOffset(
 export function computeCarouselLayout(
   viewportWidth: number,
   viewportHeight: number,
+  headerInset = 0,
 ): CarouselLayout {
   const isMobile = viewportWidth < MOBILE_BREAKPOINT;
 
   if (isMobile) {
     const sideInset = 8;
-    const topPadding = 6;
+    const extraBelowHeader = Math.round(headerInset * 0.12);
+    const topPadding = Math.max(6, Math.round(headerInset + extraBelowHeader));
     const dotsOffset = 14;
     const shadowBleed = 10;
     const edgeFade = 8;
+    const bottomSafe = 12;
     const availableWidth = Math.max(220, viewportWidth - sideInset * 2);
     const availableHeight = Math.max(
-      320,
-      viewportHeight - 48 - topPadding - dotsOffset - DOT_SIZE,
+      280,
+      viewportHeight - topPadding - dotsOffset - DOT_SIZE - bottomSafe - shadowBleed * 2,
     );
     let slideWidth = availableWidth - edgeFade * 2;
     let slideHeight = slideWidth * 1.5;
-
-    if (slideHeight < availableHeight) {
-      slideHeight = Math.min(availableHeight, slideWidth * 1.68);
-    }
 
     if (slideHeight > availableHeight) {
       slideHeight = availableHeight;

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   applySafeAreaMetrics,
   applyViewportMetrics,
+  measureCssLength,
   readSafeAreaFromProbe,
   readVisualViewportMetrics,
   resetViewportMetricsMemory,
@@ -17,7 +18,7 @@ describe("readVisualViewportMetrics", () => {
   it("prefers visualViewport size when present", () => {
     const metrics = readVisualViewportMetrics({
       innerWidth: 430,
-      innerHeight: 932,
+      innerHeight: 760,
       visualViewport: {
         width: 390,
         height: 700,
@@ -31,8 +32,10 @@ describe("readVisualViewportMetrics", () => {
       height: 700,
       offsetTop: 48,
       offsetLeft: 0,
+      offsetBottom: 12,
       svh: 700,
       dvh: 700,
+      lvh: 760,
     });
   });
 
@@ -61,6 +64,35 @@ describe("readVisualViewportMetrics", () => {
 
     expect(afterChrome.svh).toBe(720);
     expect(afterChrome.dvh).toBe(720);
+    expect(afterChrome.offsetBottom).toBe(124);
+  });
+
+  it("does not shrink svh when the software keyboard covers the bottom", () => {
+    readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 844,
+      visualViewport: {
+        width: 390,
+        height: 844,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    const withKeyboard = readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 844,
+      visualViewport: {
+        width: 390,
+        height: 520,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    expect(withKeyboard.svh).toBe(844);
+    expect(withKeyboard.dvh).toBe(520);
+    expect(withKeyboard.offsetBottom).toBe(324);
   });
 
   it("falls back to innerWidth/innerHeight without visualViewport", () => {
@@ -73,8 +105,12 @@ describe("readVisualViewportMetrics", () => {
     ).toMatchObject({
       width: 360,
       height: 640,
+      offsetTop: 0,
+      offsetLeft: 0,
+      offsetBottom: 0,
       svh: 640,
       dvh: 640,
+      lvh: 640,
     });
   });
 });
@@ -88,16 +124,20 @@ describe("applyViewportMetrics", () => {
       height: 720,
       offsetTop: 12,
       offsetLeft: 4,
+      offsetBottom: 28,
       svh: 700,
       dvh: 720,
+      lvh: 844,
     });
 
     expect(root.style.getPropertyValue("--app-vw")).toBe("390px");
     expect(root.style.getPropertyValue("--app-vh")).toBe("720px");
     expect(root.style.getPropertyValue("--app-svh")).toBe("700px");
     expect(root.style.getPropertyValue("--app-dvh")).toBe("720px");
+    expect(root.style.getPropertyValue("--app-lvh")).toBe("844px");
     expect(root.style.getPropertyValue("--vv-top")).toBe("12px");
     expect(root.style.getPropertyValue("--vv-left")).toBe("4px");
+    expect(root.style.getPropertyValue("--vv-bottom")).toBe("28px");
   });
 });
 
@@ -127,6 +167,12 @@ describe("safe area probe", () => {
     } finally {
       window.getComputedStyle = originalGetComputedStyle;
     }
+  });
+});
+
+describe("measureCssLength", () => {
+  it("resolves a pixel length on a probe element", () => {
+    expect(measureCssLength("48px")).toBe(48);
   });
 });
 

@@ -3,6 +3,7 @@ import path from "path";
 
 const nextConfig: NextConfig = {
   agentRules: false,
+  allowedDevOrigins: ["192.168.196.27", "192.168.43.118"],
   images: {
     remotePatterns: [
       {

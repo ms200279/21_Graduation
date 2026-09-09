@@ -58,6 +58,10 @@
     min-height: var(--snap-h);
   }
 
+  .site-page-shell-frame:has([data-showroom-scene]) {
+    min-height: 100vh;
+  }
+
   .site-page-shell,
   .site-page-shell:has(.people-page) .people-category-filter,
   .site-page-shell:has(.people-page) .people-carousel-wrap {

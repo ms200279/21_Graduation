@@ -499,6 +499,11 @@ body.landing-fullpage-active {
     height: var(--snap-h);
   }
 
+  .landing-concept .snap-screen__content--center {
+    justify-content: flex-start;
+    align-items: stretch;
+  }
+
   .landing-hero {
     --landing-hero-action-height: 30px;
     --landing-hero-action-width: 72px;
