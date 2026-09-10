@@ -344,6 +344,16 @@ export function shouldOmitWrappedCarouselSlot({
   );
 }
 
+export function isCarouselCardFacingFront(
+  worldAngleDeg: number,
+  limitDeg = 96,
+) {
+  const normalized = ((worldAngleDeg % 360) + 360) % 360;
+  const fromFront = Math.min(normalized, 360 - normalized);
+
+  return fromFront <= limitDeg;
+}
+
 export function isSlotInGlassEffectWindow(
   slotIndex: number,
   activeSlotIndex: number,

@@ -29,10 +29,26 @@ type ViewportSource = Pick<Window, "innerWidth" | "innerHeight"> & {
 
 let minSeenHeight = Number.POSITIVE_INFINITY;
 let maxSeenHeight = 0;
+let memoryWidth = 0;
 
 export function resetViewportMetricsMemory() {
   minSeenHeight = Number.POSITIVE_INFINITY;
   maxSeenHeight = 0;
+  memoryWidth = 0;
+}
+
+function isLikelySoftwareKeyboard(
+  offsetBottom: number,
+  height: number,
+  knownLayoutHeight: number,
+) {
+  if (offsetBottom > KEYBOARD_COVER_PX) {
+    return true;
+  }
+
+  return (
+    knownLayoutHeight > 0 && knownLayoutHeight - height > KEYBOARD_COVER_PX
+  );
 }
 
 export function readVisualViewportMetrics(
@@ -45,12 +61,30 @@ export function readVisualViewportMetrics(
   const offsetLeft = visualViewport?.offsetLeft ?? 0;
   const layoutHeight = view.innerHeight;
   const offsetBottom = Math.max(0, layoutHeight - offsetTop - height);
-  const likelyKeyboard = offsetBottom > KEYBOARD_COVER_PX;
+
+  if (memoryWidth > 0 && Math.abs(width - memoryWidth) > 64) {
+    minSeenHeight = Number.POSITIVE_INFINITY;
+    maxSeenHeight = 0;
+  }
+
+  const likelyKeyboard = isLikelySoftwareKeyboard(
+    offsetBottom,
+    height,
+    maxSeenHeight,
+  );
 
   if (!likelyKeyboard) {
     minSeenHeight = Math.min(minSeenHeight, height);
     maxSeenHeight = Math.max(maxSeenHeight, layoutHeight, height + offsetTop);
+
+    // A keyboard-sized hole under the known layout height means the shrink
+    // was recorded while iOS hid the keyboard in offsetTop / innerHeight.
+    if (maxSeenHeight - minSeenHeight > KEYBOARD_COVER_PX) {
+      minSeenHeight = height;
+    }
   }
+
+  memoryWidth = width;
 
   const svh = Number.isFinite(minSeenHeight) ? minSeenHeight : height;
   const lvh = maxSeenHeight > 0 ? maxSeenHeight : layoutHeight;

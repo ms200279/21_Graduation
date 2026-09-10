@@ -95,6 +95,200 @@ describe("readVisualViewportMetrics", () => {
     expect(withKeyboard.offsetBottom).toBe(324);
   });
 
+  it("does not lock svh to the keyboard after iOS pans the visual viewport", () => {
+    readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 844,
+      visualViewport: {
+        width: 390,
+        height: 844,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    const withKeyboard = readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 844,
+      visualViewport: {
+        width: 390,
+        height: 520,
+        offsetTop: 200,
+        offsetLeft: 0,
+      },
+    });
+
+    expect(withKeyboard.offsetBottom).toBe(124);
+    expect(withKeyboard.svh).toBe(844);
+    expect(withKeyboard.dvh).toBe(520);
+
+    const afterDismiss = readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 844,
+      visualViewport: {
+        width: 390,
+        height: 844,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    expect(afterDismiss.svh).toBe(844);
+    expect(afterDismiss.dvh).toBe(844);
+    expect(afterDismiss.offsetBottom).toBe(0);
+  });
+
+  it("does not lock svh when innerHeight shrinks with the keyboard", () => {
+    readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 844,
+      visualViewport: {
+        width: 390,
+        height: 844,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    const withKeyboard = readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 520,
+      visualViewport: {
+        width: 390,
+        height: 520,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    expect(withKeyboard.offsetBottom).toBe(0);
+    expect(withKeyboard.svh).toBe(844);
+    expect(withKeyboard.dvh).toBe(520);
+
+    const afterDismiss = readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 844,
+      visualViewport: {
+        width: 390,
+        height: 844,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    expect(afterDismiss.svh).toBe(844);
+    expect(afterDismiss.offsetBottom).toBe(0);
+  });
+
+  it("keeps chrome svh stable through a keyboard that innerHeight also follows", () => {
+    readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 844,
+      visualViewport: {
+        width: 390,
+        height: 844,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    const afterChrome = readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 844,
+      visualViewport: {
+        width: 390,
+        height: 720,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    expect(afterChrome.svh).toBe(720);
+
+    const withKeyboard = readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 520,
+      visualViewport: {
+        width: 390,
+        height: 520,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    expect(withKeyboard.svh).toBe(720);
+    expect(withKeyboard.dvh).toBe(520);
+
+    const afterDismiss = readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 844,
+      visualViewport: {
+        width: 390,
+        height: 844,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    expect(afterDismiss.svh).toBe(720);
+    expect(afterDismiss.dvh).toBe(844);
+  });
+
+  it("recovers svh if the first reading was already keyboard-sized", () => {
+    readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 520,
+      visualViewport: {
+        width: 390,
+        height: 520,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    const afterDismiss = readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 844,
+      visualViewport: {
+        width: 390,
+        height: 844,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    expect(afterDismiss.svh).toBe(844);
+    expect(afterDismiss.dvh).toBe(844);
+    expect(afterDismiss.offsetBottom).toBe(0);
+  });
+
+  it("resets height memory when the viewport width changes for orientation", () => {
+    readVisualViewportMetrics({
+      innerWidth: 390,
+      innerHeight: 844,
+      visualViewport: {
+        width: 390,
+        height: 844,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    const landscape = readVisualViewportMetrics({
+      innerWidth: 844,
+      innerHeight: 390,
+      visualViewport: {
+        width: 844,
+        height: 390,
+        offsetTop: 0,
+        offsetLeft: 0,
+      },
+    });
+
+    expect(landscape.svh).toBe(390);
+    expect(landscape.lvh).toBe(390);
+  });
+
   it("falls back to innerWidth/innerHeight without visualViewport", () => {
     expect(
       readVisualViewportMetrics({

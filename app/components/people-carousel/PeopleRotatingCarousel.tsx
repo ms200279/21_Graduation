@@ -52,6 +52,7 @@ import {
   resolveStepOriginItemIndex,
   shouldOmitWrappedCarouselSlot,
   INITIAL_ROTATION_OFFSET_DEG,
+  isCarouselCardFacingFront,
   isLikelyDiscreteMouseWheel,
   isSlotInGlassEffectWindow,
   measureExpandAnchorMetrics,
@@ -1449,9 +1450,19 @@ export default function PeopleRotatingCarousel({
         ),
         isInZone: slotIndex === zoneSlotInBatch,
         angle: -slotIndex * slotAngleStep,
+        isFacingFront: isCarouselCardFacingFront(
+          displayRotation - slotIndex * slotAngleStep,
+        ),
       };
     }).filter((slot): slot is NonNullable<typeof slot> => slot !== null);
-  }, [activeSlotInBatch, batchIndex, items, slotAngleStep, zoneSlotInBatch]);
+  }, [
+    activeSlotInBatch,
+    batchIndex,
+    displayRotation,
+    items,
+    slotAngleStep,
+    zoneSlotInBatch,
+  ]);
 
   const scrollTrackHeight = `${getPeopleCarouselTrackHeightVh(items.length, { isMobile })}vh`;
 
@@ -1558,11 +1569,16 @@ export default function PeopleRotatingCarousel({
                 className="people-carousel-stage"
                 style={{ transform: `rotateX(${displayRotation}deg)` }}
               >
-                {visibleSlots.map(({ slotIndex, item, itemIndex, isActive, isVisibleGlass, isInZone, angle }, entryIndex) => (
+                {visibleSlots.map(({ slotIndex, item, itemIndex, isActive, isVisibleGlass, isInZone, angle, isFacingFront }, entryIndex) => (
                   <article
                     key={`${batchIndex}-${slotIndex}-${item.id}`}
                     ref={isInZone ? zoneCardRef : undefined}
-                    className="people-carousel-card"
+                    className={[
+                      "people-carousel-card",
+                      isFacingFront ? "" : "people-carousel-card--back",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                     style={{
                       transform: `rotateX(${angle}deg) translateZ(${carouselRadius}px)`,
                     }}

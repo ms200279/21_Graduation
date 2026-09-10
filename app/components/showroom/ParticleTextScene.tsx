@@ -7,7 +7,11 @@ import styles from "./ParticleTextScene.module.css";
 import {
   getLiftedOriginY,
   JELLYFISH_ORIGIN_RATIO,
+  MIN_ORIGIN_RATIO,
+  MOBILE_INPUT_RESERVE,
+  MOBILE_ORIGIN_SHIFT,
   readBottomOverlap,
+  sceneTracksVisualViewport,
   TEXT_ORIGIN_RATIO,
 } from "./particleKeyboard";
 import {
@@ -226,15 +230,20 @@ export default function ParticleTextScene() {
     const syncKeyboardShift = () => {
       const scene = sceneRef.current;
       const visualViewport = window.visualViewport;
-      const next = readBottomOverlap(
-        scene?.getBoundingClientRect().bottom ?? window.innerHeight,
-        visualViewport
-          ? {
-              offsetTop: visualViewport.offsetTop,
-              height: visualViewport.height,
-            }
-          : null,
-      );
+      const viewport = visualViewport
+        ? {
+            offsetTop: visualViewport.offsetTop,
+            height: visualViewport.height,
+          }
+        : null;
+      const sceneRect = scene?.getBoundingClientRect();
+      const next =
+        sceneRect && sceneTracksVisualViewport(sceneRect, viewport)
+          ? 0
+          : readBottomOverlap(
+              sceneRect?.bottom ?? window.innerHeight,
+              viewport,
+            );
 
       setKeyboardShift((current) => (current === next ? current : next));
     };
@@ -311,6 +320,15 @@ export default function ParticleTextScene() {
       }
     };
 
+    const originYFor = (baseRatio: number) =>
+      getLiftedOriginY(
+        height,
+        baseRatio,
+        keyboardShiftRef.current,
+        MIN_ORIGIN_RATIO,
+        width < 768 ? MOBILE_INPUT_RESERVE : 0,
+      ) + (width < 768 ? MOBILE_ORIGIN_SHIFT : 0);
+
     const morphText = (text: string, immediate = false) => {
       currentText = text;
 
@@ -324,11 +342,7 @@ export default function ParticleTextScene() {
               sampleContext,
               width,
               height,
-              getLiftedOriginY(
-                height,
-                JELLYFISH_ORIGIN_RATIO,
-                keyboardShiftRef.current,
-              ),
+              originYFor(JELLYFISH_ORIGIN_RATIO),
             )
           : sampleTextPixels(
               sampleContext,
@@ -336,7 +350,7 @@ export default function ParticleTextScene() {
               height,
               text,
               fontFamily,
-              getLiftedOriginY(height, TEXT_ORIGIN_RATIO, keyboardShiftRef.current),
+              originYFor(TEXT_ORIGIN_RATIO),
             ),
       );
 
@@ -364,11 +378,7 @@ export default function ParticleTextScene() {
       while (particles.length < targets.length) {
         const angle = Math.random() * Math.PI * 2;
         const distance = Math.max(width, height) * (0.22 + Math.random() * 0.28);
-        const originY = getLiftedOriginY(
-          height,
-          TEXT_ORIGIN_RATIO,
-          keyboardShiftRef.current,
-        );
+        const originY = originYFor(TEXT_ORIGIN_RATIO);
         particles.push({
           x: width / 2 + Math.cos(angle) * distance,
           y: originY + Math.sin(angle) * distance,
@@ -606,7 +616,6 @@ export default function ParticleTextScene() {
           className={styles.particleDescription}
           aria-live="polite"
         >
-          <strong>{activeDescription.title}</strong>
           {activeDescription.category ? (
             <span>{activeDescription.category}</span>
           ) : null}

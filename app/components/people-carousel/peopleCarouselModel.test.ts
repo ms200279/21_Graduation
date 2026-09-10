@@ -7,6 +7,7 @@ import {
   getPeopleCarouselTrackHeightVh,
   getScrollProgressForItemIndex,
   getZoneRotationForItemIndex,
+  isCarouselCardFacingFront,
   isSlotInGlassEffectWindow,
   mod,
   resolveStepOriginItemIndex,
@@ -89,5 +90,13 @@ describe("peopleCarouselModel", () => {
     expect(isSlotInGlassEffectWindow(10, 0, 11)).toBe(true);
     expect(isSlotInGlassEffectWindow(2, 0, 11)).toBe(true);
     expect(isSlotInGlassEffectWindow(3, 0, 11)).toBe(false);
+  });
+
+  it("hides cards on the far side of the cylinder", () => {
+    expect(isCarouselCardFacingFront(0)).toBe(true);
+    expect(isCarouselCardFacingFront(90)).toBe(true);
+    expect(isCarouselCardFacingFront(180)).toBe(false);
+    expect(isCarouselCardFacingFront(-163)).toBe(false);
+    expect(isCarouselCardFacingFront(350)).toBe(true);
   });
 });

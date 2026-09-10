@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   getLiftedOriginY,
   JELLYFISH_ORIGIN_RATIO,
+  MIN_ORIGIN_RATIO,
+  MOBILE_ORIGIN_SHIFT,
   readBottomOverlap,
+  sceneTracksVisualViewport,
   TEXT_ORIGIN_RATIO,
 } from "./particleKeyboard";
 
@@ -40,13 +43,52 @@ describe("readBottomOverlap", () => {
   });
 });
 
-describe("getLiftedOriginY", () => {
-  it("raises the particle origin by the keyboard shift", () => {
-    expect(getLiftedOriginY(844, TEXT_ORIGIN_RATIO, 80)).toBe(844 * 0.47 - 80);
+describe("sceneTracksVisualViewport", () => {
+  it("detects when the scene already matches the visual viewport", () => {
+    expect(
+      sceneTracksVisualViewport(
+        { top: 0, height: 520 },
+        { offsetTop: 0, height: 520 },
+      ),
+    ).toBe(true);
   });
 
-  it("keeps jellyfish and text origins above the header band", () => {
-    expect(getLiftedOriginY(844, TEXT_ORIGIN_RATIO, 500)).toBe(844 * 0.18);
+  it("is false when the keyboard still covers the scene", () => {
+    expect(
+      sceneTracksVisualViewport(
+        { top: 0, height: 844 },
+        { offsetTop: 0, height: 520 },
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("getLiftedOriginY", () => {
+  it("keeps the particle origin in the remaining visible band", () => {
+    expect(getLiftedOriginY(844, TEXT_ORIGIN_RATIO, 80)).toBe((844 - 80) * 0.47);
+  });
+
+  it("centers jellyfish and text in the unobscured viewport", () => {
+    expect(getLiftedOriginY(844, TEXT_ORIGIN_RATIO, 324)).toBe((844 - 324) * 0.47);
     expect(getLiftedOriginY(844, JELLYFISH_ORIGIN_RATIO, 0)).toBe(844 * 0.39);
+  });
+
+  it("does not pin particles into the header when the keyboard is tall", () => {
+    expect(getLiftedOriginY(844, TEXT_ORIGIN_RATIO, 500)).toBeGreaterThan(844 * 0.18);
+    expect(getLiftedOriginY(844, TEXT_ORIGIN_RATIO, 500)).toBe((844 - 500) * 0.47);
+  });
+
+  it("centers the group above a reserved input stack", () => {
+    expect(getLiftedOriginY(520, TEXT_ORIGIN_RATIO, 0, MIN_ORIGIN_RATIO, 136)).toBe(
+      (520 - 136) * 0.47,
+    );
+  });
+
+  it("shifts the group down by the same amount the input is lowered", () => {
+    expect(MOBILE_ORIGIN_SHIFT).toBe(32);
+    expect(
+      getLiftedOriginY(844, TEXT_ORIGIN_RATIO, 0, MIN_ORIGIN_RATIO, 136) +
+        MOBILE_ORIGIN_SHIFT,
+    ).toBe((844 - 136) * 0.47 + 32);
   });
 });

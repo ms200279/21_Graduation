@@ -131,13 +131,18 @@
 
 @media (max-width: 767px) {
   .scene {
-    height: 100vh;
-    min-height: 100vh;
-    max-height: 100vh;
+    position: fixed;
+    top: var(--vv-top);
+    right: 0;
+    left: 0;
+    z-index: 1;
+    height: var(--app-dvh);
+    min-height: var(--app-dvh);
+    max-height: var(--app-dvh);
   }
 
   .inputWrap {
-    bottom: calc(var(--safe-bottom) + 2rem + var(--particle-keyboard-shift, 0px));
+    bottom: max(0.25rem, calc(var(--safe-bottom) - var(--vv-bottom)));
     grid-template-columns: minmax(0, 1fr);
     gap: 0.9rem;
     width: min(32rem, calc(var(--safe-content-w) - 2rem));
@@ -161,13 +166,13 @@
   .particleDescription {
     top: calc(
       var(--safe-top) +
-        (
-          (100vh - var(--safe-top) - var(--safe-bottom)) * 0.57
-        ) - var(--particle-keyboard-shift, 0px)
+        ((100% - var(--safe-top) - var(--safe-bottom) - 8.5rem) * 0.57) + 2rem
     );
     right: calc(var(--safe-right) + 1.5rem);
     left: calc(var(--safe-left) + 1.5rem);
     width: auto;
+    max-height: 6.75rem;
+    overflow: hidden;
     text-align: center;
     transition: top 220ms ease;
   }
@@ -185,7 +190,7 @@
   }
 
   .input {
-    font-size: 0.9375rem;
+    font-size: 16px;
   }
 }
 

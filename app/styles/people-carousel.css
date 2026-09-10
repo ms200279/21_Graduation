@@ -197,6 +197,21 @@
     height: var(--people-carousel-portrait-h);
     flex: 0 0 calc(var(--people-carousel-card-w) * 0.25 * 9 / 8);
   }
+
+  .people-carousel-card__surface {
+    isolation: auto;
+  }
+
+  .people-carousel-card--back {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .people-carousel-card--back .people-carousel-card__surface {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 
 .people-carousel-header {
@@ -315,6 +330,7 @@
   height: var(--people-carousel-card-h);
   transform-style: preserve-3d;
   pointer-events: none;
+  -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
 }
 
@@ -336,6 +352,7 @@
   box-shadow: 0 10px 32px rgba(8, 16, 48, 0.12);
   opacity: 0.72;
   user-select: none;
+  -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   pointer-events: none;
   transform: translateZ(0);
