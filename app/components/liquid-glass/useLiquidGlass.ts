@@ -132,25 +132,57 @@ function hasMotionSizeChange(
   );
 }
 
+const FALLBACK_BLUR_PX = 18;
+
 let canUseUrlFilter: boolean | null = null;
+
+export function isAppleMobileWebKit(
+  userAgent: string,
+  platform = "",
+  maxTouchPoints = 0,
+) {
+  return (
+    /iP(ad|hone|od)/i.test(userAgent) ||
+    (platform === "MacIntel" && maxTouchPoints > 1)
+  );
+}
+
+export function readsBackdropUrlFilter(backdropFilter: string) {
+  return backdropFilter === "url(#test)" || backdropFilter === 'url("#test")';
+}
 
 function getCanUseUrlFilter() {
   if (canUseUrlFilter !== null) {
     return canUseUrlFilter;
   }
 
-  if (typeof document === "undefined") {
+  if (typeof document === "undefined" || typeof navigator === "undefined") {
+    canUseUrlFilter = false;
+    return canUseUrlFilter;
+  }
+
+  // iOS WebKit accepts url() in the style object but drops the whole
+  // backdrop-filter when the SVG displacement map cannot be applied.
+  if (
+    isAppleMobileWebKit(
+      navigator.userAgent,
+      navigator.platform,
+      navigator.maxTouchPoints,
+    )
+  ) {
     canUseUrlFilter = false;
     return canUseUrlFilter;
   }
 
   const testEl = document.createElement("div");
   testEl.style.cssText = "backdrop-filter: url(#test)";
-  canUseUrlFilter =
-    testEl.style.backdropFilter === "url(#test)" ||
-    testEl.style.backdropFilter === 'url("#test")';
+  canUseUrlFilter = readsBackdropUrlFilter(testEl.style.backdropFilter);
 
   return canUseUrlFilter;
+}
+
+function getCssGlassFallback(saturate: number, brightness: number, blur: number) {
+  return `blur(${Math.max(blur, FALLBACK_BLUR_PX)}px) saturate(${saturate}) brightness(${brightness})`;
 }
 
 function clearBackdropFilter(el: HTMLElement) {
@@ -405,7 +437,7 @@ export function useLiquidGlass(
           `blur(${blur / 2}px) url('${filter}') blur(${blur}px) brightness(${brightness}) saturate(${saturate})`,
         );
       } else {
-        apply(`blur(${Math.max(width, height) / 20}px)`);
+        apply(getCssGlassFallback(saturate, brightness, blur));
       }
     };
 
@@ -439,7 +471,7 @@ export function useLiquidGlass(
           `blur(${Math.max(blur, 12)}px) brightness(${brightness}) saturate(${saturate})`,
         );
       } else {
-        apply(`blur(${Math.max(width, height) / 20}px)`);
+        apply(getCssGlassFallback(saturate, brightness, blur));
       }
     };
 

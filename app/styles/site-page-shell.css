@@ -52,3 +52,22 @@
   transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
 }
+
+@media (max-width: 767px) {
+  .site-page-shell-frame {
+    min-height: var(--snap-h);
+  }
+
+  .site-page-shell-frame:has([data-showroom-scene]) {
+    min-height: 100vh;
+  }
+
+  .site-page-shell,
+  .site-page-shell:has(.people-page) .people-category-filter,
+  .site-page-shell:has(.people-page) .people-carousel-wrap {
+    --site-footer-lift: calc(
+      -1 * var(--landing-footer-reveal, 0) * var(--landing-footer-ratio, 0.4) *
+        var(--snap-h)
+    );
+  }
+}

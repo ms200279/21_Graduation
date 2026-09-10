@@ -5,7 +5,10 @@ import {
   getCenteredAngleDistance,
   getNearestCardCenteredRotation,
   getProjectDeck,
+  getRotationStepTowardIndex,
   getSnappedRotation,
+  pickFrontCylinderCardIndex,
+  pickScreenNeighborCardIndex,
   ROW_CARD_COUNT,
 } from "./projectsCylinderConfig";
 
@@ -35,5 +38,19 @@ describe("projectsCylinderConfig", () => {
     expect(getCenteredAngleDistance(725)).toBe(5);
     expect(getSnappedRotation(44, 30)).toBe(30);
     expect(getNearestCardCenteredRotation(3, 30, 280)).toBe(270);
+    expect(getRotationStepTowardIndex(1, 30, 0)).toBe(-1);
+    expect(getRotationStepTowardIndex(11, 30, 0)).toBe(1);
+  });
+
+  it("picks the screen-space neighbor regardless of cylinder rotation sign", () => {
+    const cards = [
+      { index: 0, centerX: 200 },
+      { index: 1, centerX: 80 },
+      { index: 2, centerX: 330 },
+    ];
+
+    expect(pickFrontCylinderCardIndex(cards, 195)).toBe(0);
+    expect(pickScreenNeighborCardIndex(cards, 0, "left")).toBe(1);
+    expect(pickScreenNeighborCardIndex(cards, 0, "right")).toBe(2);
   });
 });

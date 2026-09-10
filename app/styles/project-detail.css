@@ -338,6 +338,11 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   border-radius: 12px;
 }
 
+.project-detail-media__frame {
+  position: absolute;
+  inset: 0;
+}
+
 .project-detail-media--thumbnail {
   aspect-ratio: 1080 / 608;
 }
@@ -353,7 +358,17 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
 }
 
 .project-detail-media__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+}
+
+.project-detail-media > span,
+.project-detail-media__frame > span {
+  position: absolute;
+  inset: 0;
 }
 
 .project-detail-media__placeholder {
@@ -440,11 +455,42 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
 
 @media (max-width: 767px) {
   .project-detail-layer {
-    --project-detail-panel-top: 60px;
+    --project-detail-panel-top: calc(
+      var(--mobile-header-top) + var(--header-height) + var(--mobile-header-gap)
+    );
+    --detail-pad-top: clamp(3rem, 7.5dvh, 4.25rem);
+    --detail-pad-bottom: clamp(1rem, 3.2dvh, 1.75rem);
+    inset: auto;
+    top: var(--vv-top);
+    right: 0;
+    left: 0;
+    height: var(--app-dvh);
   }
 
   .project-detail-panel {
     border-radius: 22px 22px 0 0;
+    padding-bottom: 0;
+    box-sizing: border-box;
+  }
+
+  .project-detail-scroll {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scroll-snap-type: y mandatory;
+    touch-action: pan-x pan-y;
+    padding-bottom: 0;
+    box-sizing: border-box;
+  }
+
+  .project-detail-section {
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    align-content: stretch;
+    align-items: stretch;
   }
 
   .project-detail-close {
@@ -457,14 +503,20 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   .project-detail-progress {
     right: 0.5rem;
     gap: 8px;
+    align-items: center;
   }
 
   .project-detail-progress__bar {
-    width: 12px;
+    width: 5px;
+    height: 5px;
+    transition:
+      height 220ms ease,
+      background-color 220ms ease;
   }
 
   .project-detail-progress__bar--active {
-    width: 22px;
+    width: 5px;
+    height: 16px;
   }
 
   .project-detail-head {
@@ -494,20 +546,117 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   .project-detail-story,
   .project-detail-story--image-first {
     grid-template-columns: 1fr;
-    align-content: center;
-    gap: 2rem;
-    padding: 5rem 1.25rem 2.5rem;
+    align-content: stretch;
+    align-items: stretch;
+    gap: clamp(0.55rem, 1.5dvh, 0.95rem);
+    padding: var(--detail-pad-top) 1.25rem
+      calc(var(--detail-pad-bottom) + var(--safe-bottom));
+  }
+
+  .project-detail-thumbnail {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    min-height: 0;
+  }
+
+  .project-detail-story,
+  .project-detail-story--image-first {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    align-content: start;
+    justify-content: flex-start;
+    gap: clamp(0.55rem, 1.5dvh, 0.95rem);
   }
 
   .project-detail-thumbnail__copy {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0 0 6.25rem;
+  }
+
+  .project-detail-thumbnail__copy .project-detail-body {
+    margin-top: clamp(0.5rem, 1.6dvh, 0.9rem);
+  }
+
+  .project-detail-thumbnail__visual {
+    display: block;
+    flex: 0 0 auto;
+    align-self: stretch;
+    min-width: 0;
     height: auto;
-    padding: 0;
+  }
+
+  .project-detail-media--thumbnail,
+  .project-detail-media--story {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    max-height: none;
+    aspect-ratio: auto;
+    overflow: visible;
+    background: transparent;
+  }
+
+  .project-detail-media--thumbnail .project-detail-media__frame,
+  .project-detail-media--story .project-detail-media__frame,
+  .project-detail-media--thumbnail > span,
+  .project-detail-media--story > span,
+  .project-detail-media--thumbnail .project-detail-media__frame > span,
+  .project-detail-media--story .project-detail-media__frame > span {
+    position: static;
+    display: block;
+    width: 100%;
+    height: auto;
+    inset: auto;
+    overflow: hidden;
+    border-radius: 12px;
+  }
+
+  .project-detail-layer .project-detail-media--thumbnail .project-detail-media__image,
+  .project-detail-layer .project-detail-media--story .project-detail-media__image {
+    position: static;
+    inset: auto;
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    max-height: none;
+    object-fit: contain;
+    border-radius: 12px;
+  }
+
+  .project-detail-media--story {
+    order: -1;
+    flex: 0 0 auto;
+    flex-shrink: 0;
+    align-self: stretch;
+    width: 100%;
+    height: max-content;
+    min-height: max-content;
+    overflow: visible;
   }
 
   .project-detail-authors {
+    position: absolute;
+    right: 1.25rem;
+    bottom: calc(var(--detail-pad-bottom) + var(--safe-bottom));
+    left: auto;
+    z-index: 1;
+    width: auto;
+    max-width: calc(100% - 2.5rem);
     gap: 12px 16px;
-    margin-top: 1.5rem;
+    margin-top: 0;
     padding-top: 0;
+    justify-content: flex-end;
+    flex-shrink: 0;
   }
 
   .project-detail-author__name {
@@ -520,40 +669,129 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
     font-size: clamp(0.8125rem, 3.6vw, 0.9375rem);
   }
 
-  .project-detail-story--image-first .project-detail-story__copy,
   .project-detail-story--image-first .project-detail-media {
+    order: -1;
+  }
+
+  .project-detail-story--image-first .project-detail-story__copy {
     order: initial;
   }
 
   .project-detail-story__copy {
-    padding-top: 0;
+    flex: 1 1 0%;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .project-detail-story__copy .project-detail-lead {
+    margin-top: clamp(0.4rem, 1.2dvh, 0.75rem);
   }
 
   .project-detail-story__copy .project-detail-body {
-    margin-top: 1.25rem;
+    margin-top: clamp(0.5rem, 1.4dvh, 0.85rem);
   }
 
   .project-detail-final {
-    padding: 5rem 1.25rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    overflow: hidden;
+    padding: var(--detail-pad-top) 1.25rem
+      calc(var(--detail-pad-bottom) + var(--safe-bottom));
+  }
+
+  .project-detail-final__content {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
   }
 
   .project-detail-final__content > .project-detail-title {
-    margin-bottom: 1.5rem;
+    flex: 0 0 auto;
+    margin-bottom: clamp(0.55rem, 1.4dvh, 0.85rem);
   }
 
   .project-detail-final__grid {
-    grid-auto-flow: column;
-    grid-auto-columns: min(78vw, 484px);
-    grid-template-columns: none;
-    justify-content: start;
+    display: flex;
+    flex-flow: row nowrap;
+    flex: 1 1 auto;
+    align-items: stretch;
+    gap: 0.55rem;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
     overflow-x: auto;
+    overflow-y: hidden;
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
-    padding-bottom: 0.75rem;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .project-detail-final__grid::-webkit-scrollbar {
+    display: none;
   }
 
   .project-detail-final__item {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-sizing: border-box;
+    flex: 0 0 88%;
+    width: 88%;
+    min-width: 88%;
+    max-width: 88%;
+    height: auto;
+    min-height: 100%;
     scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+
+  .project-detail-final__item .project-detail-body {
+    display: block;
+    margin-top: 18px;
+    overflow: visible;
+    font-size: clamp(0.9375rem, 4.2vw, 1.125rem);
+    line-height: 1.4;
+  }
+
+  .project-detail-media--detail {
+    position: relative;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    aspect-ratio: 484 / 363;
+    overflow: hidden;
+    border-radius: 12px;
+  }
+
+  .project-detail-media--detail .project-detail-media__frame,
+  .project-detail-media--detail .project-detail-media__image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+  }
+
+  .project-detail-to-top {
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    margin-top: auto;
+    margin-right: auto;
+    margin-bottom: 0;
+    margin-left: auto;
   }
 }
 

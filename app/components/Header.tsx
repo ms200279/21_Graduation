@@ -48,7 +48,7 @@ const orbInsideTransform =
 const orbScrollCollapsedTransform = "translate(-50%, -50%)";
 const transitionEaseClassName =
   "duration-700 ease-[cubic-bezier(0.34,1.56,0.64,1)]";
-const headerNavLabelSizeClassName = "text-[20px] leading-none";
+const headerNavLabelSizeClassName = "text-[14px] leading-none md:text-[20px]";
 const headerNavLabelBoldClassName = "font-bold";
 const movingLabelClassName = [
   "pointer-events-none absolute left-1/2 top-1/2 z-10 text-systemNavy",
@@ -82,15 +82,15 @@ function measureOrbCenterDeltaPx(
 }
 
 const mobileHeaderStyle = {
-  "--header-width": "min(300px, calc(100vw - 32px))",
-  "--header-inner-width": "calc(var(--header-width) - 40px)",
+  "--header-width": "min(calc(100vw - 2rem), 22.5rem)",
+  "--header-inner-width": "calc(var(--header-width) - 1.5rem)",
   "--collapsed-header-width": "44px",
   "--orb-size": "44px",
   "--landing-orb-offset": "0px",
 } as CSSProperties;
 
 const mobileExpandedNavListClassName =
-  "flex w-full items-center justify-between gap-[12px] whitespace-nowrap";
+  "flex w-full min-w-0 items-center justify-between gap-[6px] whitespace-nowrap";
 
 const desktopExpandedNavListClassName =
   "w-full whitespace-nowrap max-lg:grid max-lg:grid-cols-4 max-lg:items-center lg:flex lg:items-center lg:justify-between lg:gap-[20px]";
@@ -947,7 +947,7 @@ export default function Header() {
         "desktop-header group fixed z-50 flex",
         isShowroomPage ? "showroom-header" : "",
         isMobile
-          ? "right-4 top-4 max-w-[calc(100vw-32px)] justify-end"
+          ? "right-[max(1rem,var(--safe-right))] top-[calc(var(--vv-top)+var(--mobile-header-top))] z-[80] max-w-[var(--safe-content-w)] justify-end isolate"
           : "left-1/2 top-[10px] h-[var(--header-height)] w-[var(--header-width)] -translate-x-1/2 items-center justify-center",
       ].join(" ")}
       style={
@@ -1143,7 +1143,7 @@ export default function Header() {
                     : undefined,
               }}
               className={[
-                "max-lg:w-full lg:w-auto text-center touch-manipulation",
+                "max-lg:w-full lg:w-auto max-md:min-w-0 text-center touch-manipulation",
                 "transition-[color,opacity,transform,text-shadow]",
                 transitionEaseClassName,
                 headerNavLabelSizeClassName,

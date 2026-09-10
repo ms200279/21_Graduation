@@ -79,7 +79,13 @@ function ConceptCarouselSlideContent({
           <div
             className="landing-carousel__slide-video"
             onWheel={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
+            onPointerDown={(event) => {
+              if (window.matchMedia("(max-width: 767px)").matches) {
+                return;
+              }
+
+              event.stopPropagation();
+            }}
           >
             <video
               ref={videoRef}

@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { clamp } from "@/app/utils/numbers";
+import { useIsMobileViewport } from "@/app/utils/useIsMobileViewport";
 import { normalizeWheelDelta } from "@/app/utils/wheel";
 import type { PeopleCarouselItem } from "./items";
 import { PeopleCarouselCardSurface } from "./PeopleCarouselCard";
@@ -44,18 +45,19 @@ import {
   getExpandAlignTransform,
   getExpandedTargetRect,
   getExpandedTargetRectFallback,
+  getPeopleCarouselTrackHeightVh,
   getScrollMetrics,
   getScrollProgressForItemIndex,
   getSnappedCarouselStateForItemIndex,
   resolveStepOriginItemIndex,
   shouldOmitWrappedCarouselSlot,
   INITIAL_ROTATION_OFFSET_DEG,
+  isCarouselCardFacingFront,
   isLikelyDiscreteMouseWheel,
   isSlotInGlassEffectWindow,
   measureExpandAnchorMetrics,
   mod,
   resolveZoneSnapItemIndex,
-  SCROLL_VH_PER_CARD,
   SNAP_DURATION_MS,
   SNAP_POSITION_TOLERANCE_PX,
   type CardRect,
@@ -88,6 +90,7 @@ export default function PeopleRotatingCarousel({
   header,
   initialMemberSlug,
 }: PeopleRotatingCarouselProps) {
+  const isMobile = useIsMobileViewport();
   const trackRef = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -1447,12 +1450,21 @@ export default function PeopleRotatingCarousel({
         ),
         isInZone: slotIndex === zoneSlotInBatch,
         angle: -slotIndex * slotAngleStep,
+        isFacingFront: isCarouselCardFacingFront(
+          displayRotation - slotIndex * slotAngleStep,
+        ),
       };
     }).filter((slot): slot is NonNullable<typeof slot> => slot !== null);
-  }, [activeSlotInBatch, batchIndex, items, slotAngleStep, zoneSlotInBatch]);
+  }, [
+    activeSlotInBatch,
+    batchIndex,
+    displayRotation,
+    items,
+    slotAngleStep,
+    zoneSlotInBatch,
+  ]);
 
-  const scrollTrackHeight =
-    items.length > 0 ? `${items.length * SCROLL_VH_PER_CARD}vh` : "100vh";
+  const scrollTrackHeight = `${getPeopleCarouselTrackHeightVh(items.length, { isMobile })}vh`;
 
   const expandedTargetLayoutRect =
     expandedTargetRect ?? getExpandedTargetRectFallback();
@@ -1557,11 +1569,16 @@ export default function PeopleRotatingCarousel({
                 className="people-carousel-stage"
                 style={{ transform: `rotateX(${displayRotation}deg)` }}
               >
-                {visibleSlots.map(({ slotIndex, item, itemIndex, isActive, isVisibleGlass, isInZone, angle }, entryIndex) => (
+                {visibleSlots.map(({ slotIndex, item, itemIndex, isActive, isVisibleGlass, isInZone, angle, isFacingFront }, entryIndex) => (
                   <article
                     key={`${batchIndex}-${slotIndex}-${item.id}`}
                     ref={isInZone ? zoneCardRef : undefined}
-                    className="people-carousel-card"
+                    className={[
+                      "people-carousel-card",
+                      isFacingFront ? "" : "people-carousel-card--back",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
                     style={{
                       transform: `rotateX(${angle}deg) translateZ(${carouselRadius}px)`,
                     }}

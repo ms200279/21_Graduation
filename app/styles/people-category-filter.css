@@ -6,7 +6,7 @@
   --people-search-icon-size: calc(var(--people-search-orb-size) * 0.42);
   --category-filter-button-font-size: clamp(0.875rem, 1.6vw, 1.125rem);
   position: sticky;
-  top: var(--people-category-filter-top, calc(100vh / 6));
+  top: var(--people-category-filter-top, calc(var(--safe-top) + var(--safe-content-h) / 6));
   z-index: 30;
   width: 100%;
   height: 0;

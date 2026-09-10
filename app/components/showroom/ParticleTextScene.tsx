@@ -1,7 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { MOBILE_VIEWPORT_EVENT } from "../mobile-shell/viewportMetrics";
+import { useIsMobileViewport } from "@/app/utils/useIsMobileViewport";
 import styles from "./ParticleTextScene.module.css";
+import {
+  getLiftedOriginY,
+  JELLYFISH_ORIGIN_RATIO,
+  MIN_ORIGIN_RATIO,
+  MOBILE_INPUT_RESERVE,
+  MOBILE_ORIGIN_SHIFT,
+  readBottomOverlap,
+  sceneTracksVisualViewport,
+  TEXT_ORIGIN_RATIO,
+} from "./particleKeyboard";
 import {
   getParticleDescription,
   INITIAL_PARTICLE_TEXT,
@@ -66,6 +78,7 @@ function sampleTextPixels(
   height: number,
   text: string,
   fontFamily: string,
+  originY: number,
 ) {
   if (!text) {
     return [];
@@ -87,7 +100,7 @@ function sampleTextPixels(
     fontSize -= 2;
   }
 
-  context.fillText(text, width / 2, height * 0.47);
+  context.fillText(text, width / 2, originY);
   return collectParticleTargets(context, width, height);
 }
 
@@ -95,6 +108,7 @@ function sampleJellyfishPixels(
   context: CanvasRenderingContext2D,
   width: number,
   height: number,
+  originY: number,
 ) {
   context.clearRect(0, 0, width, height);
   context.fillStyle = "#ffffff";
@@ -103,7 +117,7 @@ function sampleJellyfishPixels(
   context.lineJoin = "round";
 
   const centerX = width / 2;
-  const centerY = height * 0.39;
+  const centerY = originY;
   const radius = Math.min(width * (width < 768 ? 0.2 : 0.14), height * 0.18);
 
   context.beginPath();
@@ -187,14 +201,73 @@ function shufflePoints(points: Point[]) {
 
 export default function ParticleTextScene() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const sceneRef = useRef<HTMLElement>(null);
   const morphTextRef = useRef<(text: string, immediate?: boolean) => void>(() => {});
+  const remorphRef = useRef<() => void>(() => {});
+  const keyboardShiftRef = useRef(0);
+  const syncKeyboardShiftRef = useRef<() => void>(() => {});
   const descriptionIdRef = useRef(0);
   const hasFocusedInputRef = useRef(false);
+  const isMobile = useIsMobileViewport();
+  const [keyboardShift, setKeyboardShift] = useState(0);
   const [inputValue, setInputValue] = useState(INITIAL_PARTICLE_TEXT);
   const [renderedText, setRenderedText] = useState(INITIAL_PARTICLE_TEXT);
   const [isInputVisible, setIsInputVisible] = useState(false);
   const [activeDescription, setActiveDescription] =
     useState<ParticleDescription | null>(null);
+
+  useEffect(() => {
+    keyboardShiftRef.current = keyboardShift;
+    remorphRef.current();
+  }, [keyboardShift]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setKeyboardShift(0);
+      return;
+    }
+
+    const syncKeyboardShift = () => {
+      const scene = sceneRef.current;
+      const visualViewport = window.visualViewport;
+      const viewport = visualViewport
+        ? {
+            offsetTop: visualViewport.offsetTop,
+            height: visualViewport.height,
+          }
+        : null;
+      const sceneRect = scene?.getBoundingClientRect();
+      const next =
+        sceneRect && sceneTracksVisualViewport(sceneRect, viewport)
+          ? 0
+          : readBottomOverlap(
+              sceneRect?.bottom ?? window.innerHeight,
+              viewport,
+            );
+
+      setKeyboardShift((current) => (current === next ? current : next));
+    };
+
+    syncKeyboardShiftRef.current = syncKeyboardShift;
+
+    syncKeyboardShift();
+    window.addEventListener("resize", syncKeyboardShift);
+    window.addEventListener(MOBILE_VIEWPORT_EVENT, syncKeyboardShift);
+    window.visualViewport?.addEventListener("resize", syncKeyboardShift);
+    window.visualViewport?.addEventListener("scroll", syncKeyboardShift);
+
+    const settleTimers = [50, 180, 360].map((delay) =>
+      window.setTimeout(syncKeyboardShift, delay),
+    );
+
+    return () => {
+      window.removeEventListener("resize", syncKeyboardShift);
+      window.removeEventListener(MOBILE_VIEWPORT_EVENT, syncKeyboardShift);
+      window.visualViewport?.removeEventListener("resize", syncKeyboardShift);
+      window.visualViewport?.removeEventListener("scroll", syncKeyboardShift);
+      settleTimers.forEach((timer) => window.clearTimeout(timer));
+    };
+  }, [isMobile]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -247,6 +320,15 @@ export default function ParticleTextScene() {
       }
     };
 
+    const originYFor = (baseRatio: number) =>
+      getLiftedOriginY(
+        height,
+        baseRatio,
+        keyboardShiftRef.current,
+        MIN_ORIGIN_RATIO,
+        width < 768 ? MOBILE_INPUT_RESERVE : 0,
+      ) + (width < 768 ? MOBILE_ORIGIN_SHIFT : 0);
+
     const morphText = (text: string, immediate = false) => {
       currentText = text;
 
@@ -256,8 +338,20 @@ export default function ParticleTextScene() {
 
       const targets = shufflePoints(
         text === "해파리"
-          ? sampleJellyfishPixels(sampleContext, width, height)
-          : sampleTextPixels(sampleContext, width, height, text, fontFamily),
+          ? sampleJellyfishPixels(
+              sampleContext,
+              width,
+              height,
+              originYFor(JELLYFISH_ORIGIN_RATIO),
+            )
+          : sampleTextPixels(
+              sampleContext,
+              width,
+              height,
+              text,
+              fontFamily,
+              originYFor(TEXT_ORIGIN_RATIO),
+            ),
       );
 
       textBounds = targets.length
@@ -284,11 +378,12 @@ export default function ParticleTextScene() {
       while (particles.length < targets.length) {
         const angle = Math.random() * Math.PI * 2;
         const distance = Math.max(width, height) * (0.22 + Math.random() * 0.28);
+        const originY = originYFor(TEXT_ORIGIN_RATIO);
         particles.push({
           x: width / 2 + Math.cos(angle) * distance,
-          y: height * 0.47 + Math.sin(angle) * distance,
+          y: originY + Math.sin(angle) * distance,
           targetX: width / 2,
-          targetY: height * 0.47,
+          targetY: originY,
           velocityX: 0,
           velocityY: 0,
           alpha: immediate ? 0.88 : 0,
@@ -320,6 +415,11 @@ export default function ParticleTextScene() {
     };
 
     morphTextRef.current = morphText;
+    remorphRef.current = () => {
+      if (hasStarted) {
+        morphText(currentText, false);
+      }
+    };
 
     const prepareFont = async () => {
       fontFamily = window.getComputedStyle(document.body).fontFamily;
@@ -489,11 +589,23 @@ export default function ParticleTextScene() {
       window.removeEventListener("blur", deactivatePointer);
       resizeObserver.disconnect();
       morphTextRef.current = () => {};
+      remorphRef.current = () => {};
     };
   }, []);
 
   return (
-    <main className={styles.scene}>
+    <main
+      ref={sceneRef}
+      data-showroom-scene=""
+      className={styles.scene}
+      style={
+        isMobile
+          ? ({
+              "--particle-keyboard-shift": `${keyboardShift}px`,
+            } as CSSProperties)
+          : undefined
+      }
+    >
       <canvas ref={canvasRef} className={styles.canvas} aria-hidden="true" />
       <p className="sr-only" aria-live="polite">
         {renderedText}
@@ -504,7 +616,6 @@ export default function ParticleTextScene() {
           className={styles.particleDescription}
           aria-live="polite"
         >
-          <strong>{activeDescription.title}</strong>
           {activeDescription.category ? (
             <span>{activeDescription.category}</span>
           ) : null}
@@ -553,6 +664,7 @@ export default function ParticleTextScene() {
               }
 
               hasFocusedInputRef.current = true;
+              syncKeyboardShiftRef.current();
             }}
             onChange={(event) => setInputValue(event.target.value)}
           />

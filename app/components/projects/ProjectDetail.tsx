@@ -28,34 +28,60 @@ const PROJECT_DETAIL_CLOSE_DURATION_MS = 560;
 const PROJECT_DETAIL_REDUCED_MOTION_DURATION_MS = 160;
 const PROJECT_DETAIL_SECTION_COUNT = 7;
 
+function getSectionScrollTop(
+  scrollContainer: HTMLElement,
+  section: HTMLElement,
+) {
+  const containerRect = scrollContainer.getBoundingClientRect();
+  const sectionRect = section.getBoundingClientRect();
+
+  return sectionRect.top - containerRect.top + scrollContainer.scrollTop;
+}
+
+const PROJECT_MEDIA_SIZE = {
+  thumbnail: { width: 1080, height: 608 },
+  story: { width: 776, height: 460 },
+  detail: { width: 484, height: 363 },
+} as const;
+
 type ProjectMediaProps = {
   src: string | null;
   label: string;
-  variant: "thumbnail" | "story" | "detail";
+  variant: keyof typeof PROJECT_MEDIA_SIZE;
 };
 
 function ProjectMedia({ src, label, variant }: ProjectMediaProps) {
   const [hasImageError, setHasImageError] = useState(false);
+  const size = PROJECT_MEDIA_SIZE[variant];
 
   return (
     <div
       className={`project-detail-media project-detail-media--${variant}`}
       aria-label={src && !hasImageError ? undefined : `${label} image placeholder`}
     >
-      {src && !hasImageError ? (
-        <Image
-          src={src}
-          alt={label}
-          fill
-          sizes={variant === "story" ? "(min-width: 768px) 52vw, 100vw" : "(min-width: 768px) 62vw, 100vw"}
-          className="project-detail-media__image"
-          onError={() => setHasImageError(true)}
-        />
-      ) : (
-        <span className="project-detail-media__placeholder" aria-hidden="true">
-          {label}
-        </span>
-      )}
+      <div className="project-detail-media__frame">
+        {src && !hasImageError ? (
+          <Image
+            src={src}
+            alt={label}
+            width={size.width}
+            height={size.height}
+            sizes={
+              variant === "detail"
+                ? "(max-width: 767px) 52vw, 484px"
+                : "(max-width: 767px) 100vw, (min-width: 768px) 62vw, 100vw"
+            }
+            loading="eager"
+            priority={variant === "thumbnail"}
+            className="project-detail-media__image"
+            onError={() => setHasImageError(true)}
+          />
+        ) : (
+          <span className="project-detail-media__placeholder" aria-hidden="true">
+            {label}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -166,21 +192,26 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
   }, [closeProject]);
 
   const scrollToThumbnail = () => {
-    scrollRef.current?.scrollTo({
+    const scrollContainer = scrollRef.current;
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    scrollContainer?.scrollTo({
       top: 0,
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "auto"
-        : "smooth",
+      left: 0,
+      behavior: reducedMotion ? "auto" : "smooth",
     });
   };
 
-  const updateActiveSection = () => {
+  const updateActiveSection = useCallback(() => {
     const scrollContainer = scrollRef.current;
 
     if (!scrollContainer) {
       return;
     }
 
+    const origin = scrollContainer.scrollTop;
     const sections = Array.from(
       scrollContainer.querySelectorAll<HTMLElement>(
         ".project-detail-section",
@@ -190,7 +221,9 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
     let closestDistance = Number.POSITIVE_INFINITY;
 
     sections.forEach((section, index) => {
-      const distance = Math.abs(section.offsetTop - scrollContainer.scrollTop);
+      const distance = Math.abs(
+        getSectionScrollTop(scrollContainer, section) - origin,
+      );
 
       if (distance < closestDistance) {
         closestDistance = distance;
@@ -201,7 +234,7 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
     setActiveSectionIndex((currentIndex) =>
       currentIndex === closestSectionIndex ? currentIndex : closestSectionIndex,
     );
-  };
+  }, []);
 
   const scrollToSection = (sectionIndex: number) => {
     const scrollContainer = scrollRef.current;
@@ -213,13 +246,25 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
       return;
     }
 
+    const origin = getSectionScrollTop(scrollContainer, targetSection);
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
     scrollContainer.scrollTo({
-      top: targetSection.offsetTop,
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "auto"
-        : "smooth",
+      top: origin,
+      behavior: reducedMotion ? "auto" : "smooth",
     });
   };
+
+  useEffect(() => {
+    updateActiveSection();
+    window.addEventListener("resize", updateActiveSection);
+
+    return () => {
+      window.removeEventListener("resize", updateActiveSection);
+    };
+  }, [updateActiveSection]);
 
   if (!isMounted) {
     return null;

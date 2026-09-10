@@ -12,6 +12,25 @@ const GLASS_EFFECT_SLOT_COUNT = 4;
 
 /** Scroll distance assigned to each card along the track. */
 export const SCROLL_VH_PER_CARD = 12;
+
+export function getPeopleCarouselTrackHeightVh(
+  itemCount: number,
+  options?: { isMobile?: boolean },
+) {
+  if (itemCount <= 0) {
+    return 100;
+  }
+
+  if (options?.isMobile) {
+    if (itemCount <= 1) {
+      return 100;
+    }
+
+    return 100 + (itemCount - 1) * SCROLL_VH_PER_CARD;
+  }
+
+  return itemCount * SCROLL_VH_PER_CARD;
+}
 export const SNAP_DURATION_MS = 420;
 export const SNAP_POSITION_TOLERANCE_PX = 4;
 export const WHEEL_GESTURE_RELEASE_MS = 120;
@@ -323,6 +342,16 @@ export function shouldOmitWrappedCarouselSlot({
     slotIndex === 0 &&
     lastItemZoneSlot > 0
   );
+}
+
+export function isCarouselCardFacingFront(
+  worldAngleDeg: number,
+  limitDeg = 96,
+) {
+  const normalized = ((worldAngleDeg % 360) + 360) % 360;
+  const fromFront = Math.min(normalized, 360 - normalized);
+
+  return fromFront <= limitDeg;
 }
 
 export function isSlotInGlassEffectWindow(

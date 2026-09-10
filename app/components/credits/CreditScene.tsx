@@ -6,6 +6,7 @@ import * as THREE from "three";
 
 import "@/app/styles/credits-scene.css";
 import { SITE_PATHS } from "@/app/utils/routes";
+import { detectWebGLSupport } from "@/app/components/mobile-shell/webglSupport";
 import CreditContentOverlay from "./CreditContentOverlay";
 import {
   CREDIT_FRAGMENT_POLYGONS,
@@ -413,6 +414,24 @@ export default function CreditScene({
     initialFragmentId,
   );
   const [contentVisible, setContentVisible] = useState(Boolean(initialFragmentId));
+  const [webglSupport, setWebglSupport] = useState<"ok" | "fallback" | null>(
+    null,
+  );
+  const webglSupportRef = useRef<"ok" | "fallback">("ok");
+
+  const selectFragmentFallback = useCallback((id: CreditFragmentId) => {
+    const fragment = getCreditFragmentById(id);
+
+    if (!fragment) {
+      return;
+    }
+
+    selectedIdRef.current = id;
+    phaseRef.current = "SELECTED";
+    setSelectedId(id);
+    setContentVisible(true);
+    router.push(`${SITE_PATHS.credits}/${fragment.slug}`, { scroll: false });
+  }, [router]);
 
   const selectFragment = useCallback((id: CreditFragmentId) => {
     if (phaseRef.current !== "IDLE") {
@@ -439,11 +458,26 @@ export default function CreditScene({
       return;
     }
 
+    if (webglSupportRef.current === "fallback") {
+      selectedIdRef.current = null;
+      phaseRef.current = "IDLE";
+      setSelectedId(null);
+      setContentVisible(false);
+      router.push(SITE_PATHS.credits, { scroll: false });
+      return;
+    }
+
     phaseRef.current = "CLOSING";
     transitionStartedAtRef.current = performance.now();
     setContentVisible(false);
     router.push(SITE_PATHS.credits, { scroll: false });
   }, [router]);
+
+  useEffect(() => {
+    const support = detectWebGLSupport();
+    webglSupportRef.current = support;
+    setWebglSupport(support);
+  }, []);
 
   useEffect(() => {
     selectFragmentRef.current = selectFragment;
@@ -502,7 +536,7 @@ export default function CreditScene({
   useEffect(() => {
     const container = containerRef.current;
 
-    if (!container) {
+    if (webglSupport !== "ok" || !container) {
       return;
     }
 
@@ -892,7 +926,7 @@ export default function CreditScene({
       disposeCreditFragmentTextures(fragmentTextures);
       disposeCreditSceneBase(sceneBase);
     };
-  }, []);
+  }, [webglSupport]);
 
   return (
     <section
@@ -904,7 +938,23 @@ export default function CreditScene({
         .join(" ")}
       aria-label="Credits"
     >
-      <div ref={containerRef} className="credits-scene__canvas-wrap" />
+          {webglSupport === "ok" ? (
+        <div ref={containerRef} className="credits-scene__canvas-wrap" />
+      ) : null}
+      {webglSupport === "fallback" && !selectedId ? (
+        <div className="credits-scene__fallback">
+          {creditFragments.map((fragment) => (
+            <button
+              key={fragment.id}
+              type="button"
+              className="credits-scene__fallback-button"
+              onClick={() => selectFragmentFallback(fragment.id)}
+            >
+              {fragment.title}
+            </button>
+          ))}
+        </div>
+      ) : null}
       <CreditContentOverlay
         selectedId={selectedId}
         isVisible={contentVisible}

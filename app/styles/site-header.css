@@ -96,6 +96,16 @@
 }
 
 @media (max-width: 767px) {
+  .typo-logo-button {
+    top: calc(
+      var(--vv-top) +
+        var(--safe-top) +
+        var(--typo-logo-viewport-top) +
+        (var(--typo-logo-block-height) - var(--typo-logo-height)) / 2
+    );
+    left: calc(var(--safe-left) + var(--typo-logo-viewport-left));
+  }
+
   .typo-logo-button.typo-logo-button--blurred {
     filter: blur(8px);
     opacity: 0.55;

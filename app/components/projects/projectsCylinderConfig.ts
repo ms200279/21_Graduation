@@ -90,6 +90,71 @@ export function getNearestCardCenteredRotation(
   return baseRotation + loopOffset;
 }
 
+export type CylinderScreenCard = {
+  index: number;
+  centerX: number;
+};
+
+export function pickFrontCylinderCardIndex(
+  cards: CylinderScreenCard[],
+  originX: number,
+) {
+  if (cards.length === 0) {
+    return null;
+  }
+
+  return cards.reduce((front, card) =>
+    Math.abs(card.centerX - originX) < Math.abs(front.centerX - originX)
+      ? card
+      : front,
+  ).index;
+}
+
+export function pickScreenNeighborCardIndex(
+  cards: CylinderScreenCard[],
+  frontIndex: number,
+  side: "left" | "right",
+) {
+  const front = cards.find((card) => card.index === frontIndex);
+
+  if (!front) {
+    return null;
+  }
+
+  const neighbors = cards.filter((card) =>
+    side === "right"
+      ? card.centerX > front.centerX
+      : card.centerX < front.centerX,
+  );
+
+  if (neighbors.length === 0) {
+    return null;
+  }
+
+  return neighbors.reduce((nearest, card) =>
+    Math.abs(card.centerX - front.centerX) <
+    Math.abs(nearest.centerX - front.centerX)
+      ? card
+      : nearest,
+  ).index;
+}
+
+export function getRotationStepTowardIndex(
+  targetIndex: number,
+  cardAngle: number,
+  currentRotation: number,
+): 1 | -1 {
+  const targetRotation = getNearestCardCenteredRotation(
+    targetIndex,
+    cardAngle,
+    currentRotation,
+  );
+
+  return getCenteredAngleDistance(targetRotation - currentRotation) >= 0
+    ? 1
+    : -1;
+}
+
 export function easeOutCubic(progress: number) {
   return 1 - Math.pow(1 - progress, 3);
 }

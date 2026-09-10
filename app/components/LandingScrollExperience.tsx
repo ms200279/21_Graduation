@@ -10,6 +10,7 @@ import {
   LANDING_FULLPAGE_SCROLL_TO_EVENT,
   setLandingScrollGestureMaxProgress,
 } from "./landingScrollContract";
+import { MOBILE_VIEWPORT_EVENT } from "./mobile-shell/viewportMetrics";
 
 export {
   clearLandingScrollDepthOnLeave,
@@ -458,6 +459,15 @@ export default function LandingScrollExperience({
     };
 
     const handleTouchStart = (event: TouchEvent) => {
+      if (
+        window.matchMedia("(max-width: 767px)").matches &&
+        event.target instanceof Element &&
+        event.target.closest(".landing-carousel")
+      ) {
+        touchStartYRef.current = null;
+        return;
+      }
+
       touchStartYRef.current = event.touches[0]?.clientY ?? null;
       touchGestureConsumedRef.current = false;
     };
@@ -572,6 +582,8 @@ export default function LandingScrollExperience({
     };
 
     window.addEventListener("resize", handleResize);
+    window.addEventListener(MOBILE_VIEWPORT_EVENT, handleResize);
+    window.visualViewport?.addEventListener("resize", handleResize);
     window.addEventListener(LANDING_FULLPAGE_SCROLL_TO_EVENT, handleScrollTo);
 
     return () => {
@@ -600,6 +612,8 @@ export default function LandingScrollExperience({
       container.removeEventListener("touchend", handleTouchEnd);
       container.removeEventListener("scrollend", handleScrollEnd);
       window.removeEventListener("resize", handleResize);
+      window.removeEventListener(MOBILE_VIEWPORT_EVENT, handleResize);
+      window.visualViewport?.removeEventListener("resize", handleResize);
       window.removeEventListener(LANDING_FULLPAGE_SCROLL_TO_EVENT, handleScrollTo);
     };
   }, [media, footer]);
