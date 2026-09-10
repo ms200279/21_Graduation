@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import GlobalFooterReveal from "./components/GlobalFooterReveal";
 import Header from "./components/Header";
 import SitePageShell from "./components/SitePageShell";
@@ -37,6 +38,7 @@ export default function RootLayout({
         <Header />
         <SitePageShell>{children}</SitePageShell>
         <GlobalFooterReveal />
+        <SpeedInsights />
       </body>
     </html>
   );
