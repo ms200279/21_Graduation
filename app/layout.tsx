@@ -43,6 +43,8 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <head>
+        {/* Keep GTM in the initial HTML head so Google's installation checker can detect it. */}
+        {/* eslint-disable-next-line @next/next/next-script-for-ga */}
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':

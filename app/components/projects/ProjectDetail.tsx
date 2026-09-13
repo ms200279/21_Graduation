@@ -258,6 +258,8 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
   };
 
   useEffect(() => {
+    // Read the already-mounted scroll position before subscribing to later changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     updateActiveSection();
     window.addEventListener("resize", updateActiveSection);
 

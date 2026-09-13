@@ -476,6 +476,8 @@ export default function CreditScene({
   useEffect(() => {
     const support = detectWebGLSupport();
     webglSupportRef.current = support;
+    // Client-only capability detection must update the rendered fallback immediately.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWebglSupport(support);
   }, []);
 
