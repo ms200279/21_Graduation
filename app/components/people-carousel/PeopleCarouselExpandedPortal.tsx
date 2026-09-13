@@ -10,6 +10,7 @@ import type {
 import { PeopleCarouselCardSurface } from "./PeopleCarouselCard";
 
 type Props = {
+  isMobile: boolean;
   expandedCard: ExpandedCardState;
   bodyAnchorRect: CardRect;
   expandedTargetLayoutRect: CardRect;
@@ -34,6 +35,7 @@ type Props = {
 };
 
 export default function PeopleCarouselExpandedPortal({
+  isMobile,
   expandedCard,
   bodyAnchorRect,
   expandedTargetLayoutRect,
@@ -71,12 +73,21 @@ export default function PeopleCarouselExpandedPortal({
       <button
         type="button"
         className="people-carousel-expand__backdrop"
-        onClick={onClose}
+        onClick={
+          isMobile ? onClose : (event) => event.stopPropagation()
+        }
         aria-label="Close expanded card"
       />
       <div
         ref={expand3dRootRef}
-        className="people-carousel-expand-3d-root"
+        className={[
+          "people-carousel-expand-3d-root",
+          isMobile && expandIsOpen
+            ? "people-carousel-expand-3d-root--mobile-open"
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" ")}
         style={{
           top: bodyAnchorRect.top,
           left: bodyAnchorRect.left,
@@ -87,7 +98,7 @@ export default function PeopleCarouselExpandedPortal({
         role="dialog"
         aria-modal="true"
         aria-label={expandedCard.item.name}
-        onClick={(event) => event.stopPropagation()}
+        onClick={onClose}
       >
         <div
           ref={expandAlignRef}
@@ -149,6 +160,7 @@ export default function PeopleCarouselExpandedPortal({
                     ? expandCarouselSlotTransform
                     : "none",
                 }}
+                onClick={(event) => event.stopPropagation()}
               >
                 <PeopleCarouselCardSurface
                   ref={expandSurfaceRef}
@@ -182,6 +194,28 @@ export default function PeopleCarouselExpandedPortal({
           </div>
         </div>
       </div>
+      {isMobile && expandIsOpen ? (
+        <article
+          className="people-carousel-expand__mobile-card"
+          style={{
+            top: expandedTargetLayoutRect.top,
+            left: expandedTargetLayoutRect.left,
+            width: expandedTargetLayoutRect.width,
+            height: expandedTargetLayoutRect.height,
+          }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <PeopleCarouselCardSurface
+            ref={expandSurfaceRef}
+            className={[
+              "people-carousel-card__surface",
+              "people-carousel-card__surface--in-zone",
+              "people-carousel-expand__surface--open",
+            ].join(" ")}
+            item={expandedCard.item}
+          />
+        </article>
+      ) : null}
       {expandIsOpen && expandCloseReady ? (
         <button
           type="button"

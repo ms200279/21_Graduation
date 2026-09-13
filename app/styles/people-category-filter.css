@@ -167,3 +167,21 @@
   outline: 2px solid var(--color-systemNavy);
   outline-offset: 4px;
 }
+
+@media (max-width: 767px) {
+  .people-category-filter {
+    --people-search-open-height: 2.75rem;
+  }
+
+  .people-category-filter__search-morph--open {
+    height: var(--people-search-open-height);
+    padding-inline: 1rem;
+  }
+
+  .people-category-filter__search-input {
+    /* iOS Safari zooms the page when a focused input is smaller than 16px. */
+    height: var(--people-search-open-height);
+    font-size: 16px;
+    line-height: normal;
+  }
+}

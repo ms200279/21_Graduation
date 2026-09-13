@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  easeOutCubic,
   getBatchCount,
+  getCarouselRigTransform,
+  getExpandedTargetRect,
+  isMobileCarouselSlotVisible,
+  MOBILE_SCROLL_VH_PER_CARD,
   getCarouselStateFromItemPosition,
   getItemIndexFromScrollProgress,
   getPeopleCarouselTrackHeightVh,
@@ -49,10 +54,10 @@ describe("peopleCarouselModel", () => {
     expect(getPeopleCarouselTrackHeightVh(0, { isMobile: true })).toBe(100);
     expect(getPeopleCarouselTrackHeightVh(1, { isMobile: true })).toBe(100);
     expect(getPeopleCarouselTrackHeightVh(2, { isMobile: true })).toBe(
-      100 + SCROLL_VH_PER_CARD,
+      100 + MOBILE_SCROLL_VH_PER_CARD,
     );
     expect(getPeopleCarouselTrackHeightVh(98, { isMobile: true })).toBe(
-      100 + 97 * SCROLL_VH_PER_CARD,
+      100 + 97 * MOBILE_SCROLL_VH_PER_CARD,
     );
   });
 
@@ -60,6 +65,7 @@ describe("peopleCarouselModel", () => {
     expect(resolveZoneSnapItemIndex(4.1, 10)).toBe(4);
     expect(resolveZoneSnapItemIndex(4.49, 10)).toBeNull();
     expect(resolveStepOriginItemIndex(4.6, 10)).toBe(5);
+    expect(resolveZoneSnapItemIndex(4.49, 10, { threshold: 0.5 })).toBe(4);
   });
 
   it("keeps a single search result visible in the first slot", () => {
@@ -98,5 +104,34 @@ describe("peopleCarouselModel", () => {
     expect(isCarouselCardFacingFront(180)).toBe(false);
     expect(isCarouselCardFacingFront(-163)).toBe(false);
     expect(isCarouselCardFacingFront(350)).toBe(true);
+  });
+
+  it("centers the mobile cylinder without the desktop yaw", () => {
+    expect(getCarouselRigTransform({ isMobile: true })).toContain("rotateY(0deg)");
+    expect(getCarouselRigTransform({ isMobile: true })).toContain("scale(0.7)");
+    expect(getCarouselRigTransform({ isMobile: true })).toContain("translate(0,");
+    expect(getCarouselRigTransform()).toContain("rotateY(10deg)");
+  });
+
+  it("hides wrapped cards above the front mobile slot", () => {
+    expect(isMobileCarouselSlotVisible(0, 0, 11)).toBe(true);
+    expect(isMobileCarouselSlotVisible(2, 0, 11)).toBe(true);
+    expect(isMobileCarouselSlotVisible(3, 0, 11)).toBe(false);
+    expect(isMobileCarouselSlotVisible(10, 0, 11)).toBe(false);
+  });
+
+  it("sizes the mobile expanded profile as a portrait playing card", () => {
+    const rect = getExpandedTargetRect(390, 844, { isMobile: true });
+
+    expect(rect.width).toBe(320);
+    expect(rect.width / rect.height).toBeCloseTo(5 / 7);
+    expect(rect.left).toBeGreaterThan(0);
+    expect(rect.left + rect.width).toBeLessThanOrEqual(390);
+  });
+
+  it("eases mobile snaps without overshoot", () => {
+    expect(easeOutCubic(0)).toBe(0);
+    expect(easeOutCubic(1)).toBe(1);
+    expect(easeOutCubic(0.5)).toBeLessThan(0.9);
   });
 });

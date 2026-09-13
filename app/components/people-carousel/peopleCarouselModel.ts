@@ -12,6 +12,9 @@ const GLASS_EFFECT_SLOT_COUNT = 4;
 
 /** Scroll distance assigned to each card along the track. */
 export const SCROLL_VH_PER_CARD = 12;
+export const MOBILE_SCROLL_VH_PER_CARD = 12;
+export const MOBILE_ZONE_SNAP_THRESHOLD = 0.5;
+const MOBILE_VISIBLE_FORWARD_SLOTS = 2;
 
 export function getPeopleCarouselTrackHeightVh(
   itemCount: number,
@@ -26,15 +29,17 @@ export function getPeopleCarouselTrackHeightVh(
       return 100;
     }
 
-    return 100 + (itemCount - 1) * SCROLL_VH_PER_CARD;
+    return 100 + (itemCount - 1) * MOBILE_SCROLL_VH_PER_CARD;
   }
 
   return itemCount * SCROLL_VH_PER_CARD;
 }
 export const SNAP_DURATION_MS = 420;
+export const MOBILE_SNAP_DURATION_MS = 520;
 export const SNAP_POSITION_TOLERANCE_PX = 4;
 export const WHEEL_GESTURE_RELEASE_MS = 120;
 export const CAROUSEL_SCALE = 0.96;
+export const MOBILE_CAROUSEL_SCALE = 0.7;
 export const VIEW_ROTATE_Y_DEG = 10;
 export const VIEW_ROTATE_X_DEG = 0;
 export const RIG_CENTER_OFFSET_X = "-4%";
@@ -102,7 +107,11 @@ export function captureExpandRestPose(
   };
 }
 
-export function getCarouselRigTransform() {
+export function getCarouselRigTransform(options?: { isMobile?: boolean }) {
+  if (options?.isMobile) {
+    return `translate(0, ${RIG_CENTER_OFFSET_Y}) rotateY(0deg) rotateX(${VIEW_ROTATE_X_DEG}deg) scale(${MOBILE_CAROUSEL_SCALE})`;
+  }
+
   return `translate(${RIG_CENTER_OFFSET_X}, ${RIG_CENTER_OFFSET_Y}) rotateY(${VIEW_ROTATE_Y_DEG}deg) rotateX(${VIEW_ROTATE_X_DEG}deg) scale(${CAROUSEL_SCALE})`;
 }
 
@@ -196,7 +205,27 @@ export function getExpandAlignTransform(
 export function getExpandedTargetRect(
   viewportWidth: number,
   viewportHeight: number,
+  options?: { isMobile?: boolean },
 ): CardRect {
+  if (options?.isMobile) {
+    const horizontalPadding = 40;
+    const verticalPadding = 96;
+    const aspectRatio = 5 / 7;
+    const maxHeight = Math.max(0, viewportHeight - verticalPadding);
+    const width = Math.max(
+      0,
+      Math.min(viewportWidth - horizontalPadding, 320, maxHeight * aspectRatio),
+    );
+    const height = width / aspectRatio;
+
+    return {
+      top: (viewportHeight - height) / 2,
+      left: (viewportWidth - width) / 2,
+      width,
+      height,
+    };
+  }
+
   const aspect = EXPANDED_CARD_WIDTH_PX / EXPANDED_CARD_HEIGHT_PX;
   const horizontalPadding = 48;
   const verticalPadding = 48;
@@ -227,7 +256,9 @@ export function getExpandedTargetRect(
 
 export function getExpandedTargetRectFallback(): CardRect {
   if (typeof window !== "undefined") {
-    return getExpandedTargetRect(window.innerWidth, window.innerHeight);
+    return getExpandedTargetRect(window.innerWidth, window.innerHeight, {
+      isMobile: window.matchMedia("(max-width: 767px)").matches,
+    });
   }
 
   return {
@@ -294,6 +325,10 @@ export function easeOutBack(
   );
 }
 
+export function easeOutCubic(progress: number) {
+  return 1 - Math.pow(1 - progress, 3);
+}
+
 export function getBatchCount(itemCount: number, batchSize: number) {
   if (itemCount <= 0 || batchSize <= 0) {
     return 0;
@@ -352,6 +387,20 @@ export function isCarouselCardFacingFront(
   const fromFront = Math.min(normalized, 360 - normalized);
 
   return fromFront <= limitDeg;
+}
+
+export function isMobileCarouselSlotVisible(
+  slotIndex: number,
+  zoneSlotIndex: number,
+  slotCount: number,
+) {
+  if (slotCount <= 0) {
+    return false;
+  }
+
+  const forwardDistance = mod(slotIndex - zoneSlotIndex, slotCount);
+
+  return forwardDistance <= MOBILE_VISIBLE_FORWARD_SLOTS;
 }
 
 export function isSlotInGlassEffectWindow(
@@ -451,6 +500,7 @@ export function getSnappedCarouselStateForItemIndex(
 export function resolveZoneSnapItemIndex(
   itemPositionFloat: number,
   maxItemIndex: number,
+  options?: { threshold?: number },
 ) {
   if (maxItemIndex <= 0) {
     return 0;
@@ -459,12 +509,13 @@ export function resolveZoneSnapItemIndex(
   const clampedPosition = clamp(itemPositionFloat, 0, maxItemIndex);
   let targetIndex = Math.round(clampedPosition);
   const pageEndSnapMinFloat = maxItemIndex - PAGE_END_SNAP_ZONE_FRACTION;
+  const threshold = options?.threshold ?? ZONE_SNAP_THRESHOLD;
 
   if (targetIndex === maxItemIndex && clampedPosition < pageEndSnapMinFloat) {
     targetIndex = maxItemIndex - 1;
   }
 
-  if (Math.abs(clampedPosition - targetIndex) > ZONE_SNAP_THRESHOLD) {
+  if (Math.abs(clampedPosition - targetIndex) > threshold) {
     return null;
   }
 
