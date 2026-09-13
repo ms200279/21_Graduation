@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { clamp } from "@/app/utils/numbers";
+import { MOBILE_VIEWPORT_EVENT } from "@/app/components/mobile-shell/viewportMetrics";
 import { useIsMobileViewport } from "@/app/utils/useIsMobileViewport";
 import { normalizeWheelDelta } from "@/app/utils/wheel";
 import type { PeopleCarouselItem } from "./items";
@@ -33,7 +34,7 @@ import {
   CAROUSEL_ENTRY_DURATION_MS,
   computeExpandAlignBaseRect,
   domRectToCardRect,
-  easeOutBack,
+  easeOutCubic,
   expandAnchorMetricsEqual,
   EXPAND_DURATION_MS,
   EXPAND_MORPH_TRANSFORM_END_COUNT,
@@ -46,6 +47,7 @@ import {
   getExpandedTargetRect,
   getExpandedTargetRectFallback,
   getPeopleCarouselTrackHeightVh,
+  getSnapDurationMs,
   getScrollMetrics,
   getScrollProgressForItemIndex,
   getSnappedCarouselStateForItemIndex,
@@ -54,11 +56,12 @@ import {
   INITIAL_ROTATION_OFFSET_DEG,
   isCarouselCardFacingFront,
   isLikelyDiscreteMouseWheel,
+  isMobileCarouselSlotVisible,
+  MOBILE_ZONE_SNAP_THRESHOLD,
   isSlotInGlassEffectWindow,
   measureExpandAnchorMetrics,
   mod,
   resolveZoneSnapItemIndex,
-  SNAP_DURATION_MS,
   SNAP_POSITION_TOLERANCE_PX,
   type CardRect,
   type CarouselEntryPhase,
@@ -186,10 +189,19 @@ export default function PeopleRotatingCarousel({
   const zoneItem = items[zoneItemIndex];
 
   const updateExpandedTargetRect = useCallback(() => {
-    setExpandedTargetRect(
-      getExpandedTargetRect(window.innerWidth, window.innerHeight),
+    const visualViewport = isMobile ? window.visualViewport : null;
+    const targetRect = getExpandedTargetRect(
+      visualViewport?.width ?? window.innerWidth,
+      visualViewport?.height ?? window.innerHeight,
+      { isMobile },
     );
-  }, []);
+
+    setExpandedTargetRect({
+      ...targetRect,
+      top: targetRect.top + (visualViewport?.offsetTop ?? 0),
+      left: targetRect.left + (visualViewport?.offsetLeft ?? 0),
+    });
+  }, [isMobile]);
 
   const clearExpandTimers = useCallback(() => {
     if (expandOpenFrameRef.current !== null) {
@@ -427,14 +439,19 @@ export default function PeopleRotatingCarousel({
   );
 
   const openExpandedCard = useCallback(() => {
-    if (!isZoneHovered || expandedCard || !zoneItem) {
+    if (expandedCard || !zoneItem) {
       return;
     }
 
-    beginExpandedCardAtIndex(zoneItemIndex, { openWithHover: true });
+    if (!isMobile && !isZoneHovered) {
+      return;
+    }
+
+    beginExpandedCardAtIndex(zoneItemIndex, { openWithHover: !isMobile });
   }, [
     beginExpandedCardAtIndex,
     expandedCard,
+    isMobile,
     isZoneHovered,
     zoneItem,
     zoneItemIndex,
@@ -529,7 +546,7 @@ export default function PeopleRotatingCarousel({
       });
     };
 
-    if (!surface) {
+    if (isMobile || !surface) {
       beginCloseAnimation();
       return;
     }
@@ -568,6 +585,7 @@ export default function PeopleRotatingCarousel({
     displayRotation,
     expandedCard?.isClosing,
     expandedCard?.pendingClose,
+    isMobile,
     slotAngleStep,
     zoneSlotInBatch,
   ]);
@@ -851,10 +869,12 @@ export default function PeopleRotatingCarousel({
 
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("resize", updateExpandedTargetRect);
+    window.addEventListener(MOBILE_VIEWPORT_EVENT, updateExpandedTargetRect);
 
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", updateExpandedTargetRect);
+      window.removeEventListener(MOBILE_VIEWPORT_EVENT, updateExpandedTargetRect);
     };
   }, [closeExpandedCard, expandedCard, updateExpandedTargetRect]);
 
@@ -1011,17 +1031,14 @@ export default function PeopleRotatingCarousel({
       cancelSnapAnimation();
       isSnapAnimatingRef.current = true;
 
-      let startItemIndex = clamp(
-        Math.round(actualStartItemPosition),
-        0,
-        maxItemIndex,
-      );
+      let startItemPosition = actualStartItemPosition;
 
       if (options?.useSnappedStart) {
-        startItemIndex = resolveStepOriginItemIndex(
+        const startItemIndex = resolveStepOriginItemIndex(
           actualStartItemPosition,
           maxItemIndex,
         );
+        startItemPosition = startItemIndex;
 
         if (
           Math.abs(
@@ -1035,14 +1052,18 @@ export default function PeopleRotatingCarousel({
       }
 
       const animationStart = performance.now();
+      const snapDuration = getSnapDurationMs(
+        clampedTargetIndex - startItemPosition,
+        isMobile,
+      );
 
       const tick = (now: number) => {
         const elapsed = now - animationStart;
-        const linearT = clamp(elapsed / SNAP_DURATION_MS, 0, 1);
-        const easedT =
-          linearT >= 1 ? 1 : Math.min(easeOutBack(linearT), 1);
+        const linearT = clamp(elapsed / snapDuration, 0, 1);
+        const easedT = linearT >= 1 ? 1 : easeOutCubic(linearT);
         const nextItemPosition =
-          startItemIndex + (clampedTargetIndex - startItemIndex) * easedT;
+          startItemPosition +
+          (clampedTargetIndex - startItemPosition) * easedT;
         const nextProgress = clamp(nextItemPosition / maxItemIndex, 0, 1);
         const nextScrollY = trackTop + nextProgress * loopHeight;
 
@@ -1074,6 +1095,7 @@ export default function PeopleRotatingCarousel({
       applySnappedItemIndexState,
       cancelSnapAnimation,
       finishProgrammaticSnap,
+      isMobile,
       items.length,
     ],
   );
@@ -1141,8 +1163,11 @@ export default function PeopleRotatingCarousel({
 
       if (carouselScrollIdleRef.current) {
         const snappedIndex =
-          resolveZoneSnapItemIndex(itemPositionFloat, maxItemIndex) ??
-          Math.round(itemPositionFloat);
+          resolveZoneSnapItemIndex(
+            itemPositionFloat,
+            maxItemIndex,
+            isMobile ? { threshold: MOBILE_ZONE_SNAP_THRESHOLD } : undefined,
+          ) ?? Math.round(itemPositionFloat);
 
         applySnappedItemIndexState(snappedIndex, trackTop, loopHeight);
         return;
@@ -1156,6 +1181,7 @@ export default function PeopleRotatingCarousel({
       applyRotationFromScrollProgress,
       applySnappedItemIndexState,
       batchCount,
+      isMobile,
       items.length,
     ],
   );
@@ -1189,17 +1215,19 @@ export default function PeopleRotatingCarousel({
     const progress = clamp((window.scrollY - trackTop) / loopHeight, 0, 1);
     const maxItemIndex = items.length - 1;
     const itemPositionFloat = progress * maxItemIndex;
-    const targetIndex = resolveZoneSnapItemIndex(
-      itemPositionFloat,
-      maxItemIndex,
-    );
+    const targetIndex =
+      resolveZoneSnapItemIndex(
+        itemPositionFloat,
+        maxItemIndex,
+        isMobile ? { threshold: MOBILE_ZONE_SNAP_THRESHOLD } : undefined,
+      ) ?? (isMobile ? Math.round(itemPositionFloat) : null);
 
     if (targetIndex === null) {
       return;
     }
 
     animateSnapToItemIndex(targetIndex, trackTop, loopHeight);
-  }, [animateSnapToItemIndex, expandedCard, items.length]);
+  }, [animateSnapToItemIndex, expandedCard, isMobile, items.length]);
 
   const stepCarousel = useCallback(
     (direction: -1 | 1) => {
@@ -1384,6 +1412,7 @@ export default function PeopleRotatingCarousel({
         onWheel,
         onScroll,
         onScrollEnd,
+        enableScrollEndFallback: !("onscrollend" in window),
       });
 
     return () => {
@@ -1412,6 +1441,7 @@ export default function PeopleRotatingCarousel({
     cancelSnapAnimation,
     expandedCard,
     getScrollItemIndex,
+    isMobile,
     items.length,
     snapToZoneCard,
     stepCarousel,
@@ -1431,7 +1461,13 @@ export default function PeopleRotatingCarousel({
           zoneSlotInBatch,
           itemCount: items.length,
           batchSize: VISIBLE_CAROUSEL_SLOTS,
-        })
+        }) ||
+        (isMobile &&
+          !isMobileCarouselSlotVisible(
+            slotIndex,
+            zoneSlotInBatch,
+            VISIBLE_CAROUSEL_SLOTS,
+          ))
       ) {
         return null;
       }
@@ -1459,6 +1495,7 @@ export default function PeopleRotatingCarousel({
     activeSlotInBatch,
     batchIndex,
     displayRotation,
+    isMobile,
     items,
     slotAngleStep,
     zoneSlotInBatch,
@@ -1520,7 +1557,7 @@ export default function PeopleRotatingCarousel({
       !expandedCard?.pendingClose,
   );
 
-  const expandCarouselRigTransform = getCarouselRigTransform();
+  const expandCarouselRigTransform = getCarouselRigTransform({ isMobile });
   const expandCarouselStageTransform = expandRestPose
     ? `rotateX(${expandRestPose.displayRotation}deg)`
     : undefined;
@@ -1562,7 +1599,7 @@ export default function PeopleRotatingCarousel({
           >
             <div
               className="people-carousel-rig"
-              style={{ transform: getCarouselRigTransform() }}
+              style={{ transform: getCarouselRigTransform({ isMobile }) }}
             >
               <div
                 ref={stageRef}
@@ -1653,7 +1690,11 @@ export default function PeopleRotatingCarousel({
                 width: zoneHitRect.width,
                 height: zoneHitRect.height,
               }}
-              onPointerEnter={() => setIsZoneHovered(true)}
+              onPointerEnter={() => {
+                if (!isMobile) {
+                  setIsZoneHovered(true);
+                }
+              }}
               onPointerLeave={() => setIsZoneHovered(false)}
               onClick={openExpandedCard}
               aria-label={
@@ -1663,7 +1704,7 @@ export default function PeopleRotatingCarousel({
           ) : null}
         </div>
 
-        {!expandedCard && items.length > 1 ? (
+        {!isMobile && !expandedCard && items.length > 1 ? (
           <nav
             className="people-carousel-step-nav"
             aria-label="Carousel step navigation"
@@ -1720,6 +1761,7 @@ export default function PeopleRotatingCarousel({
 
       {expandedCard && bodyAnchorRect && expandAnchor && expandRestPose ? (
         <PeopleCarouselExpandedPortal
+          isMobile={isMobile}
           expandedCard={expandedCard}
           bodyAnchorRect={bodyAnchorRect}
           expandedTargetLayoutRect={expandedTargetLayoutRect}

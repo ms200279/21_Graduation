@@ -121,11 +121,12 @@
   .projects-category-filter__items {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.5rem 0.75rem;
-    padding: var(--mobile-header-stack) max(0.75rem, var(--safe-right)) 0.85rem
-      max(0.75rem, var(--safe-left));
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: stretch;
+    gap: 0.4rem;
+    padding: calc(var(--mobile-header-stack) + 1.75rem)
+      max(0.75rem, var(--safe-right)) 0.15rem max(0.75rem, var(--safe-left));
     transform: none;
   }
 
@@ -147,12 +148,7 @@
   }
 
   .projects-page:has(.projects-cylinder-gallery) .projects-category-filter__items {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    align-items: stretch;
-    gap: 0.4rem;
-    padding: calc(var(--mobile-header-stack) + 1.25rem)
-      max(0.75rem, var(--safe-right)) 0.15rem max(0.75rem, var(--safe-left));
+    padding-top: calc(var(--mobile-header-stack) + 1.75rem);
   }
 
   .projects-page:has(.projects-cylinder-gallery) .projects-category-filter__actions {

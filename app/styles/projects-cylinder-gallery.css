@@ -251,15 +251,13 @@
   .projects-cylinder-gallery {
     --projects-cylinder-shadow-room: clamp(0.45rem, 1.35dvh, 0.8rem);
     --projects-cylinder-card-width: min(62vw, 30dvh, 252px);
-    --projects-bottom-pad: calc(
-      max(var(--vv-bottom), var(--safe-bottom)) + clamp(1.25rem, 4.5dvh, 2.25rem)
-    );
+    --projects-bottom-pad: max(var(--vv-bottom), var(--safe-bottom));
     min-height: 0;
     flex: 1 1 auto;
     gap: clamp(0.12rem, 0.7dvh, 0.32rem);
     padding-top: 0;
     padding-bottom: var(--projects-bottom-pad);
-    justify-content: flex-end;
+    justify-content: center;
     overflow: hidden;
     isolation: isolate;
     transform: none;

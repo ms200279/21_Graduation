@@ -53,6 +53,35 @@ export function getPolygonBounds(points: readonly FragmentPoint[]) {
   );
 }
 
+export function getPerspectiveFitDistance({
+  viewportWidth,
+  viewportHeight,
+  contentWidth,
+  contentHeight,
+  verticalFovDeg,
+  fillRatio = 1,
+}: {
+  viewportWidth: number;
+  viewportHeight: number;
+  contentWidth: number;
+  contentHeight: number;
+  verticalFovDeg: number;
+  fillRatio?: number;
+}) {
+  const safeViewportWidth = Math.max(1, viewportWidth);
+  const safeViewportHeight = Math.max(1, viewportHeight);
+  const safeFillRatio = Math.max(Number.EPSILON, Math.min(fillRatio, 1));
+  const aspect = safeViewportWidth / safeViewportHeight;
+  const halfVerticalFov = (verticalFovDeg * Math.PI) / 360;
+  const verticalTangent = Math.tan(halfVerticalFov);
+  const verticalDistance =
+    contentHeight / 2 / (verticalTangent * safeFillRatio);
+  const horizontalDistance =
+    contentWidth / 2 / (verticalTangent * aspect * safeFillRatio);
+
+  return Math.max(verticalDistance, horizontalDistance);
+}
+
 export function scoreLabelPosition(
   x: number,
   y: number,
@@ -72,7 +101,7 @@ export function getSelectedFragmentPosition(
   isMobile: boolean,
 ) {
   const horizontalEdge = isMobile ? 2.35 : 4.55;
-  const topEdge = isMobile ? 1.58 : 1.9;
+  const topEdge = isMobile ? 3.75 : 1.9;
   const x =
     centroidX <= 0
       ? -horizontalEdge - bounds.minX * selectedScale

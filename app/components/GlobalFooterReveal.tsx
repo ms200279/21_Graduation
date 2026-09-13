@@ -30,6 +30,7 @@ const PEOPLE_FOOTER_ARM_COOLDOWN_MS = 320;
 /** Extra scroll lock after footer dismiss so trackpad lift doesn't scroll to #98. */
 const PEOPLE_FOOTER_DISMISS_SCROLL_LOCK_MS = 420;
 const TOUCH_SWIPE_THRESHOLD = 56;
+const MOBILE_TOUCH_SWIPE_THRESHOLD = 72;
 const SCROLL_BOTTOM_THRESHOLD_PX = 12;
 
 function isDocumentScrollAtBottom(threshold = SCROLL_BOTTOM_THRESHOLD_PX) {
@@ -352,7 +353,11 @@ export default function GlobalFooterReveal() {
 
       const deltaY = touchY - touchStartY;
 
-      if (Math.abs(deltaY) < TOUCH_SWIPE_THRESHOLD) {
+      const swipeThreshold = window.matchMedia("(max-width: 767px)").matches
+        ? MOBILE_TOUCH_SWIPE_THRESHOLD
+        : TOUCH_SWIPE_THRESHOLD;
+
+      if (Math.abs(deltaY) < swipeThreshold) {
         return;
       }
 

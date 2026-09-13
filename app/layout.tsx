@@ -13,6 +13,7 @@ import "./styles/landing.css";
 import "./styles/site-page-shell.css";
 import "./styles/landing-footer.css";
 import "./styles/site-header.css";
+import "./styles/landing-splash.css";
 import "./styles/category-filter-buttons.css";
 
 const pretendard = localFont({
@@ -41,8 +42,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if((location.pathname==="/"||location.pathname==="")&&!sessionStorage.getItem("landing-splash-shown-v2")){document.documentElement.classList.add("landing-splash-pending");window.__LANDING_SPLASH_PLAY=true;var s=document.createElement("style");s.id="landing-splash-boot";s.textContent=".desktop-header{visibility:hidden!important;pointer-events:none!important}";document.documentElement.appendChild(s);}}catch(e){}})();`,
+          }}
+        />
+        {/* Keep GTM in the initial HTML head so Google's installation checker can detect it. */}
+        {/* eslint-disable-next-line @next/next/next-script-for-ga */}
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':

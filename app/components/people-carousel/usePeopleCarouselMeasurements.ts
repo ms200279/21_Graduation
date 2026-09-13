@@ -13,6 +13,7 @@ import {
   MIN_CAROUSEL_RADIUS_PX,
   VISIBLE_CAROUSEL_SLOTS,
 } from "./peopleCarouselModel";
+import { MOBILE_VIEWPORT_EVENT } from "@/app/components/mobile-shell/viewportMetrics";
 
 export type ZoneHitRect = {
   top: number;
@@ -98,11 +99,15 @@ export function usePeopleCarouselMeasurements({
     window.addEventListener("scroll", updateZoneHitRect, { passive: true });
     window.addEventListener("resize", updateZoneHitRect);
     window.addEventListener("resize", updateCarouselRadius);
+    window.addEventListener(MOBILE_VIEWPORT_EVENT, updateZoneHitRect);
+    window.addEventListener(MOBILE_VIEWPORT_EVENT, updateCarouselRadius);
 
     return () => {
       window.removeEventListener("scroll", updateZoneHitRect);
       window.removeEventListener("resize", updateZoneHitRect);
       window.removeEventListener("resize", updateCarouselRadius);
+      window.removeEventListener(MOBILE_VIEWPORT_EVENT, updateZoneHitRect);
+      window.removeEventListener(MOBILE_VIEWPORT_EVENT, updateCarouselRadius);
     };
   }, [updateCarouselRadius, updateZoneHitRect]);
 

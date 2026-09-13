@@ -317,6 +317,10 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   padding-top: 0;
 }
 
+.project-detail-story__copy .project-detail-title {
+  font-size: 20pt;
+}
+
 .project-detail-story__copy .project-detail-lead {
   max-width: 100%;
   margin-top: 20px;
@@ -527,6 +531,10 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
     font-size: clamp(1.5rem, 7.5vw, 2rem);
   }
 
+  .project-detail-story__copy .project-detail-title {
+    font-size: clamp(1.25rem, 6.5vw, 1.75rem);
+  }
+
   .project-detail-body {
     max-width: none;
     font-size: clamp(0.9375rem, 4.2vw, 1.125rem);
@@ -719,9 +727,13 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   }
 
   .project-detail-final__grid {
-    display: flex;
-    flex-flow: row nowrap;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 88%;
+    grid-template-columns: none;
+    grid-template-rows: max-content;
     flex: 1 1 auto;
+    align-content: center;
     align-items: stretch;
     gap: 0.55rem;
     width: 100%;
@@ -732,7 +744,8 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
-    touch-action: pan-x;
+    /* Keep horizontal detail paging while allowing the parent to pan upward. */
+    touch-action: pan-x pan-y;
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
@@ -744,14 +757,13 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   .project-detail-final__item {
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     box-sizing: border-box;
-    flex: 0 0 88%;
-    width: 88%;
-    min-width: 88%;
-    max-width: 88%;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
     height: auto;
-    min-height: 100%;
+    min-height: 0;
     scroll-snap-align: start;
     scroll-snap-stop: always;
   }

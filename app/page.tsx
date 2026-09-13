@@ -3,14 +3,24 @@ import LandingHeroActionButton from "./components/LandingHeroActionButton";
 import LandingFooter from "./components/LandingFooter";
 import { LandingCarousel } from "./components/landing-carousel";
 import LandingDeployClickBlock from "./components/LandingDeployClickBlock";
+import LandingSplash from "./components/LandingSplash";
+import { LANDING_HERO_VIDEO_SRC } from "./components/landingSplashModel";
+import "./styles/landing-splash.css";
 
-const HERO_BACKGROUND_SRC = "/images/bg.webm";
+const HERO_BACKGROUND_SRC = LANDING_HERO_VIDEO_SRC;
 const CONCEPT_BACKGROUND_SRC = "/images/bg2.webm";
 const MAIN_FILM_SRC = "/images/landing-main-player.webm";
 
 export default function LandingPage() {
   return (
     <>
+      <link
+        rel="preload"
+        href={LANDING_HERO_VIDEO_SRC}
+        as="video"
+        type="video/webm"
+      />
+      <LandingSplash />
       {/* TEMP: delete LandingDeployClickBlock.tsx, this line, and middleware.ts to restore the site. */}
       <LandingDeployClickBlock />
       <LandingScrollExperience
@@ -19,12 +29,14 @@ export default function LandingPage() {
           <div className="snap-screen__backdrop">
             <video
               src={HERO_BACKGROUND_SRC}
+              preload="auto"
               autoPlay
               muted
               loop
               playsInline
               disablePictureInPicture
               aria-hidden="true"
+              data-landing-first-screen-video
               className="landing-hero__background pointer-events-none block h-full w-full max-w-none object-cover object-center select-none"
             />
             <div className="landing-hero__gradient" aria-hidden="true" />

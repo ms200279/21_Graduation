@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   forwardRef,
@@ -26,19 +27,40 @@ function PeopleCarouselCardContent({
           <span className="people-carousel-card__role">{item.role}</span>
         ) : null}
         <span className="people-carousel-card__label">{item.name}</span>
+        {item.isGraduationCommittee ? (
+          <span className="people-carousel-card__committee-label people-carousel-card__committee-label--compact">
+            sensibility
+          </span>
+        ) : null}
       </div>
 
       <div className="people-carousel-card__profile">
         <div
           className="people-carousel-card__portrait"
-          style={
-            portraitSrc ? { backgroundImage: `url(${portraitSrc})` } : undefined
-          }
           role={portraitSrc ? "img" : undefined}
           aria-label={portraitSrc ? `${item.name} portrait` : undefined}
-        />
+        >
+          {portraitSrc ? (
+            <Image
+              src={portraitSrc}
+              alt=""
+              width={675}
+              height={900}
+              sizes="(max-width: 767px) calc(100vw - 3.75rem), 25vw"
+              className="people-carousel-card__portrait-image"
+              priority
+            />
+          ) : null}
+        </div>
         <div className="people-carousel-card__profile-copy">
-          <h2 className="people-carousel-card__profile-name">{item.name}</h2>
+          <div className="people-carousel-card__profile-heading">
+            <h2 className="people-carousel-card__profile-name">{item.name}</h2>
+            {item.isGraduationCommittee ? (
+              <span className="people-carousel-card__committee-label people-carousel-card__committee-label--profile">
+                sensibility
+              </span>
+            ) : null}
+          </div>
           {item.role ? (
             <p className="people-carousel-card__profile-affiliation">
               {item.role}

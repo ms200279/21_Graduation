@@ -499,6 +499,14 @@ body.landing-fullpage-active {
     height: var(--snap-h);
   }
 
+  .landing-carousel__dot {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translate3d(0, 0, 0);
+    will-change: width, opacity;
+    contain: paint;
+  }
+
   .landing-concept .snap-screen__content--center {
     justify-content: flex-start;
     align-items: stretch;
@@ -588,3 +596,4 @@ body.landing-fullpage-active {
     aspect-ratio: 16 / 9;
   }
 }
+

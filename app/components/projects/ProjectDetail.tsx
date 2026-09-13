@@ -111,11 +111,8 @@ function ProjectStoryPage({
           id={`project-section-${section.id}`}
           className="project-detail-title"
         >
-          {section.title}
+          {section.subtitle}
         </h2>
-        {section.subtitle ? (
-          <p className="project-detail-lead">{section.subtitle}</p>
-        ) : null}
         <p className="project-detail-body">{section.body}</p>
       </div>
       <ProjectMedia
@@ -258,6 +255,8 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
   };
 
   useEffect(() => {
+    // Read the already-mounted scroll position before subscribing to later changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     updateActiveSection();
     window.addEventListener("resize", updateActiveSection);
 

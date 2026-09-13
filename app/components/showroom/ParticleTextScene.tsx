@@ -593,6 +593,22 @@ export default function ParticleTextScene() {
     };
   }, []);
 
+  const submitInputValue = () => {
+    const submittedText = inputValue.trim();
+    morphTextRef.current(submittedText);
+    const specialDescription = getParticleDescription(submittedText);
+
+    if (specialDescription) {
+      descriptionIdRef.current += 1;
+      setActiveDescription({
+        id: descriptionIdRef.current,
+        ...specialDescription,
+      });
+    } else {
+      setActiveDescription(null);
+    }
+  };
+
   return (
     <main
       ref={sceneRef}
@@ -629,19 +645,7 @@ export default function ParticleTextScene() {
           className={styles.inputForm}
           onSubmit={(event) => {
             event.preventDefault();
-            const submittedText = inputValue.trim();
-            morphTextRef.current(submittedText);
-            const specialDescription = getParticleDescription(submittedText);
-
-            if (specialDescription) {
-              descriptionIdRef.current += 1;
-              setActiveDescription({
-                id: descriptionIdRef.current,
-                ...specialDescription,
-              });
-            } else {
-              setActiveDescription(null);
-            }
+            submitInputValue();
           }}
         >
           <label htmlFor="showroom-particle-text" className="sr-only">
@@ -655,6 +659,7 @@ export default function ParticleTextScene() {
             maxLength={56}
             autoComplete="off"
             spellCheck="false"
+            enterKeyHint="done"
             onFocus={() => {
               if (
                 !hasFocusedInputRef.current &&
@@ -667,6 +672,18 @@ export default function ParticleTextScene() {
               syncKeyboardShiftRef.current();
             }}
             onChange={(event) => setInputValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (
+                event.key !== "Enter" ||
+                event.nativeEvent.isComposing ||
+                event.keyCode === 229
+              ) {
+                return;
+              }
+
+              event.preventDefault();
+              submitInputValue();
+            }}
           />
         </form>
         <aside className={styles.inputGuide} aria-live="polite">

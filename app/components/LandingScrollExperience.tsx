@@ -65,6 +65,7 @@ const SECTION_SCROLL_DURATION_MS = 720;
 const FOOTER_REVEAL_MS = 420;
 const WHEEL_DELTA_THRESHOLD = 50;
 const TOUCH_SWIPE_THRESHOLD = 56;
+const MOBILE_TOUCH_SWIPE_THRESHOLD = 72;
 const SCROLL_END_FALLBACK_MS = 120;
 /** Brief cooldown after scroll settles to absorb trackpad momentum tail. */
 const POST_SETTLE_LOCK_MS = 180;
@@ -500,7 +501,11 @@ export default function LandingScrollExperience({
 
       const deltaY = touchY - touchStartY;
 
-      if (Math.abs(deltaY) < TOUCH_SWIPE_THRESHOLD) {
+      const swipeThreshold = window.matchMedia("(max-width: 767px)").matches
+        ? MOBILE_TOUCH_SWIPE_THRESHOLD
+        : TOUCH_SWIPE_THRESHOLD;
+
+      if (Math.abs(deltaY) < swipeThreshold) {
         return;
       }
 

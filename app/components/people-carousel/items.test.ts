@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { getMemberDetailPath, getProjectDetailPath } from "@/app/utils/routes";
 
-import { getProjectAuthors, PEOPLE_CAROUSEL_ITEMS } from "./items";
+import {
+  getProjectAuthors,
+  GRADUATION_COMMITTEE_STUDENT_IDS,
+  PEOPLE_CAROUSEL_ITEMS,
+} from "./items";
 
 describe("PEOPLE_CAROUSEL_ITEMS", () => {
   it("sorts the roster by Korean name and fills contact fields", () => {
@@ -64,6 +68,41 @@ describe("PEOPLE_CAROUSEL_ITEMS", () => {
       "조세빈",
       "신진경",
       "조희연",
+    ]);
+  });
+
+  it("marks graduation committee cards by student id", () => {
+    const committeeMembers = PEOPLE_CAROUSEL_ITEMS.filter(
+      (person) => person.isGraduationCommittee,
+    );
+
+    expect(GRADUATION_COMMITTEE_STUDENT_IDS.size).toBe(11);
+    expect(committeeMembers).toHaveLength(11);
+    expect(new Set(committeeMembers.map((person) => person.name))).toEqual(
+      new Set([
+        "김민석",
+        "김세훈",
+        "김은서",
+        "김지효",
+        "박민수",
+        "송민철",
+        "신채희",
+        "이새연",
+        "조세빈",
+        "조희연",
+        "채종은",
+      ]),
+    );
+    expect(
+      PEOPLE_CAROUSEL_ITEMS.filter((person) => person.name === "김은서").map(
+        (person) => ({
+          projectNo: person.projectNo,
+          isGraduationCommittee: person.isGraduationCommittee,
+        }),
+      ),
+    ).toEqual([
+      { projectNo: 50, isGraduationCommittee: false },
+      { projectNo: 48, isGraduationCommittee: true },
     ]);
   });
 });
