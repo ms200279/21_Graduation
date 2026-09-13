@@ -9,6 +9,20 @@ import { getDepartment, type PeopleDepartmentId } from "./peopleCategories";
 import { parsePeopleRoster } from "./peopleDataSchema";
 import { getPeoplePhotoSrc } from "./peopleImages";
 
+export const GRADUATION_COMMITTEE_STUDENT_IDS: ReadonlySet<string> = new Set([
+  "2021190004",
+  "2021192004",
+  "2021192037",
+  "2021194016",
+  "2022190020",
+  "2023190030",
+  "2023190031",
+  "2023190040",
+  "2023190041",
+  "2023192031",
+  "2023192037",
+]);
+
 export type PeopleCarouselItem = {
   id: string;
   name: string;
@@ -21,6 +35,7 @@ export type PeopleCarouselItem = {
   projectHref: string;
   memberHref: string;
   authorOrder: number;
+  isGraduationCommittee: boolean;
 };
 
 export const PEOPLE_CAROUSEL_ITEMS: PeopleCarouselItem[] = parsePeopleRoster(
@@ -53,6 +68,9 @@ export const PEOPLE_CAROUSEL_ITEMS: PeopleCarouselItem[] = parsePeopleRoster(
       projectHref: getProjectDetailPath(person.projectNo),
       memberHref: getMemberDetailPath(index),
       authorOrder: person.authorOrder ?? 1,
+      isGraduationCommittee: GRADUATION_COMMITTEE_STUDENT_IDS.has(
+        person.studentId,
+      ),
     };
   });
 
