@@ -27,9 +27,9 @@ function PeopleCarouselCardContent({
           <span className="people-carousel-card__role">{item.role}</span>
         ) : null}
         <span className="people-carousel-card__label">{item.name}</span>
-        {item.isGraduationCommittee ? (
+        {item.committeeTitle ? (
           <span className="people-carousel-card__committee-label people-carousel-card__committee-label--compact">
-            sensibility
+            {item.committeeTitle}
           </span>
         ) : null}
       </div>
@@ -55,9 +55,9 @@ function PeopleCarouselCardContent({
         <div className="people-carousel-card__profile-copy">
           <div className="people-carousel-card__profile-heading">
             <h2 className="people-carousel-card__profile-name">{item.name}</h2>
-            {item.isGraduationCommittee ? (
+            {item.committeeTitle ? (
               <span className="people-carousel-card__committee-label people-carousel-card__committee-label--profile">
-                sensibility
+                {item.committeeTitle}
               </span>
             ) : null}
           </div>
