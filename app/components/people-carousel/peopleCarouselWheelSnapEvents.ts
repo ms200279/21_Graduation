@@ -5,7 +5,7 @@ type WheelSnapListeners = {
   enableScrollEndFallback?: boolean;
 };
 
-const SCROLL_END_FALLBACK_MS = 140;
+const SCROLL_END_FALLBACK_MS = 180;
 
 export function registerPeopleCarouselWheelSnapListeners({
   onWheel,

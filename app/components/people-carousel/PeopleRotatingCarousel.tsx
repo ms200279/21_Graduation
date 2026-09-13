@@ -34,7 +34,6 @@ import {
   CAROUSEL_ENTRY_DURATION_MS,
   computeExpandAlignBaseRect,
   domRectToCardRect,
-  easeOutBack,
   easeOutCubic,
   expandAnchorMetricsEqual,
   EXPAND_DURATION_MS,
@@ -48,6 +47,7 @@ import {
   getExpandedTargetRect,
   getExpandedTargetRectFallback,
   getPeopleCarouselTrackHeightVh,
+  getSnapDurationMs,
   getScrollMetrics,
   getScrollProgressForItemIndex,
   getSnappedCarouselStateForItemIndex,
@@ -57,13 +57,11 @@ import {
   isCarouselCardFacingFront,
   isLikelyDiscreteMouseWheel,
   isMobileCarouselSlotVisible,
-  MOBILE_SNAP_DURATION_MS,
   MOBILE_ZONE_SNAP_THRESHOLD,
   isSlotInGlassEffectWindow,
   measureExpandAnchorMetrics,
   mod,
   resolveZoneSnapItemIndex,
-  SNAP_DURATION_MS,
   SNAP_POSITION_TOLERANCE_PX,
   type CardRect,
   type CarouselEntryPhase,
@@ -1033,17 +1031,14 @@ export default function PeopleRotatingCarousel({
       cancelSnapAnimation();
       isSnapAnimatingRef.current = true;
 
-      let startItemIndex = clamp(
-        Math.round(actualStartItemPosition),
-        0,
-        maxItemIndex,
-      );
+      let startItemPosition = actualStartItemPosition;
 
       if (options?.useSnappedStart) {
-        startItemIndex = resolveStepOriginItemIndex(
+        const startItemIndex = resolveStepOriginItemIndex(
           actualStartItemPosition,
           maxItemIndex,
         );
+        startItemPosition = startItemIndex;
 
         if (
           Math.abs(
@@ -1057,19 +1052,18 @@ export default function PeopleRotatingCarousel({
       }
 
       const animationStart = performance.now();
+      const snapDuration = getSnapDurationMs(
+        clampedTargetIndex - startItemPosition,
+        isMobile,
+      );
 
       const tick = (now: number) => {
         const elapsed = now - animationStart;
-        const snapDuration = isMobile
-          ? MOBILE_SNAP_DURATION_MS
-          : SNAP_DURATION_MS;
         const linearT = clamp(elapsed / snapDuration, 0, 1);
-        const easedT =
-          linearT >= 1
-            ? 1
-            : Math.min((isMobile ? easeOutCubic : easeOutBack)(linearT), 1);
+        const easedT = linearT >= 1 ? 1 : easeOutCubic(linearT);
         const nextItemPosition =
-          startItemIndex + (clampedTargetIndex - startItemIndex) * easedT;
+          startItemPosition +
+          (clampedTargetIndex - startItemPosition) * easedT;
         const nextProgress = clamp(nextItemPosition / maxItemIndex, 0, 1);
         const nextScrollY = trackTop + nextProgress * loopHeight;
 
@@ -1418,7 +1412,7 @@ export default function PeopleRotatingCarousel({
         onWheel,
         onScroll,
         onScrollEnd,
-        enableScrollEndFallback: isMobile,
+        enableScrollEndFallback: !("onscrollend" in window),
       });
 
     return () => {

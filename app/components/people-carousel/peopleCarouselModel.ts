@@ -40,6 +40,7 @@ export function getPeopleCarouselTrackHeightVh(
 }
 export const SNAP_DURATION_MS = 420;
 export const MOBILE_SNAP_DURATION_MS = 520;
+export const MIN_SNAP_DURATION_MS = 180;
 export const SNAP_POSITION_TOLERANCE_PX = 4;
 export const WHEEL_GESTURE_RELEASE_MS = 120;
 export const CAROUSEL_SCALE = 0.96;
@@ -331,6 +332,16 @@ export function easeOutBack(
 
 export function easeOutCubic(progress: number) {
   return 1 - Math.pow(1 - progress, 3);
+}
+
+export function getSnapDurationMs(itemDistance: number, isMobile: boolean) {
+  const maxDuration = isMobile ? MOBILE_SNAP_DURATION_MS : SNAP_DURATION_MS;
+
+  return clamp(
+    Math.abs(itemDistance) * maxDuration,
+    MIN_SNAP_DURATION_MS,
+    maxDuration,
+  );
 }
 
 export function getBatchCount(itemCount: number, batchSize: number) {

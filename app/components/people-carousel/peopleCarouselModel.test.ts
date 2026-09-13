@@ -11,6 +11,7 @@ import {
   getItemIndexFromScrollProgress,
   getPeopleCarouselTrackHeightVh,
   getScrollProgressForItemIndex,
+  getSnapDurationMs,
   getZoneRotationForItemIndex,
   isCarouselCardFacingFront,
   isSlotInGlassEffectWindow,
@@ -134,9 +135,16 @@ describe("peopleCarouselModel", () => {
     expect(rect.left + rect.width).toBeLessThanOrEqual(390);
   });
 
-  it("eases mobile snaps without overshoot", () => {
+  it("eases snaps without overshoot", () => {
     expect(easeOutCubic(0)).toBe(0);
     expect(easeOutCubic(1)).toBe(1);
     expect(easeOutCubic(0.5)).toBeLessThan(0.9);
+  });
+
+  it("scales snap duration to the remaining card distance", () => {
+    expect(getSnapDurationMs(0.1, false)).toBe(180);
+    expect(getSnapDurationMs(0.75, false)).toBe(315);
+    expect(getSnapDurationMs(2, false)).toBe(420);
+    expect(getSnapDurationMs(0.75, true)).toBe(390);
   });
 });
