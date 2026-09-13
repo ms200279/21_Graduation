@@ -33,7 +33,7 @@ export const CONCEPT_CAROUSEL_SLIDES: LandingCarouselSlide[] = [
   {
     id: "symbol",
     title: "Symbol",
-    headingSymbols: ["navy", "black", "outlined"],
+    headingSymbols: ["navy"],
     paragraphs: [
       "심볼은 해파리 촉수에서 착안하여, 주변의 미세한 변화와 가능성을 감지하는 감각의 흐름을 데이터의 형태로 재해석 한 것이다. \n유기적으로 이어지는 선은 감각이 정보를 받아들이고 연결되는 과정을, \n독립적으로 배치된 점은 감지를 통해 발견되는 새로운 가능성과 시작의 순간을 의미한다. \n이는 <sensibility>가 바라보는 미래의 움직임과 가능성을 상징한다.",
     ],
