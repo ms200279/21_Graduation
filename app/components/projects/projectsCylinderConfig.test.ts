@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createCylinderRows,
   getCenteredAngleDistance,
+  getHoveredCylinderCardIndex,
   getNearestCardCenteredRotation,
   getProjectDeck,
   getRotationStepTowardIndex,
@@ -52,5 +53,22 @@ describe("projectsCylinderConfig", () => {
     expect(pickFrontCylinderCardIndex(cards, 195)).toBe(0);
     expect(pickScreenNeighborCardIndex(cards, 0, "left")).toBe(1);
     expect(pickScreenNeighborCardIndex(cards, 0, "right")).toBe(2);
+  });
+
+  it("reads the visible cylinder card under a nested pointer target", () => {
+    const row = document.createElement("section");
+    const hidden = document.createElement("button");
+    hidden.className = "projects-cylinder-card";
+    hidden.dataset.projectCardIndex = "2";
+    const visible = document.createElement("button");
+    visible.className =
+      "projects-cylinder-card projects-cylinder-card--visible";
+    visible.dataset.projectCardIndex = "4";
+    const child = document.createElement("span");
+    visible.append(child);
+    row.append(hidden, visible);
+
+    expect(getHoveredCylinderCardIndex(child, row)).toBe(4);
+    expect(getHoveredCylinderCardIndex(hidden, row)).toBeNull();
   });
 });

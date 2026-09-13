@@ -164,7 +164,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .projects-cylinder-card:hover .projects-card-overlay,
+  .projects-cylinder-card--hovered .projects-card-overlay,
   .projects-grid-card:hover .projects-card-overlay {
     opacity: 1;
   }
