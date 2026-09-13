@@ -25,7 +25,9 @@ import {
 import { MOBILE_VIEWPORT_EVENT, measureCssLength } from "../mobile-shell/viewportMetrics";
 
 const SWIPE_DISTANCE = 48;
+const MOBILE_SWIPE_DISTANCE = 64;
 const SWIPE_DOMINANCE = 1.15;
+const MOBILE_SWIPE_DOMINANCE = 1.25;
 const NAV_BUTTON_SIZE = 44;
 const NAV_BUTTON_GAP = 80;
 const DEFAULT_VIEWPORT = { width: 1440, height: 900, headerInset: 0 };
@@ -281,10 +283,16 @@ export default function LandingCarousel({
 
       const deltaX = event.clientX - start.x;
       const deltaY = event.clientY - start.y;
+      const swipeDistance = layout.isMobile
+        ? MOBILE_SWIPE_DISTANCE
+        : SWIPE_DISTANCE;
+      const swipeDominance = layout.isMobile
+        ? MOBILE_SWIPE_DOMINANCE
+        : SWIPE_DOMINANCE;
 
       if (
-        Math.abs(deltaX) < SWIPE_DISTANCE ||
-        Math.abs(deltaX) < Math.abs(deltaY) * SWIPE_DOMINANCE
+        Math.abs(deltaX) < swipeDistance ||
+        Math.abs(deltaX) < Math.abs(deltaY) * swipeDominance
       ) {
         return;
       }
@@ -300,7 +308,7 @@ export default function LandingCarousel({
       event.preventDefault();
       goToIndex(activeIndex + (deltaX < 0 ? 1 : -1));
     },
-    [activeIndex, goToIndex],
+    [activeIndex, goToIndex, layout.isMobile],
   );
 
   const handlePointerUp = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
