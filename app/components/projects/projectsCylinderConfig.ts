@@ -90,6 +90,29 @@ export function getNearestCardCenteredRotation(
   return baseRotation + loopOffset;
 }
 
+export function getHoveredCylinderCardIndex(
+  target: EventTarget | null,
+  row: HTMLElement | null,
+) {
+  if (!(target instanceof Element) || !row) {
+    return null;
+  }
+
+  const card = target.closest(".projects-cylinder-card");
+
+  if (!(card instanceof HTMLElement) || !row.contains(card)) {
+    return null;
+  }
+
+  if (!card.classList.contains("projects-cylinder-card--visible")) {
+    return null;
+  }
+
+  const index = Number(card.dataset.projectCardIndex);
+
+  return Number.isInteger(index) ? index : null;
+}
+
 export type CylinderScreenCard = {
   index: number;
   centerX: number;

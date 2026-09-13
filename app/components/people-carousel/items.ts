@@ -9,19 +9,23 @@ import { getDepartment, type PeopleDepartmentId } from "./peopleCategories";
 import { parsePeopleRoster } from "./peopleDataSchema";
 import { getPeoplePhotoSrc } from "./peopleImages";
 
-export const GRADUATION_COMMITTEE_STUDENT_IDS: ReadonlySet<string> = new Set([
-  "2021190004",
-  "2021192004",
-  "2021192037",
-  "2021194016",
-  "2022190020",
-  "2023190030",
-  "2023190031",
-  "2023190040",
-  "2023190041",
-  "2023192031",
-  "2023192037",
-]);
+export const GRADUATION_COMMITTEE_TITLES: Readonly<Record<string, string>> = {
+  "2023190041": "위원장",
+  "2021194016": "부위원장",
+  "2021190004": "기획팀장",
+  "2023190040": "기획팀원",
+  "2023192031": "기획팀원",
+  "2021192037": "디자인팀장",
+  "2023190031": "디자인팀원",
+  "2021192004": "웹사이트팀장",
+  "2023192037": "총무팀장",
+  "2022190020": "홍보팀장",
+  "2023190030": "홍보팀원",
+};
+
+export const GRADUATION_COMMITTEE_STUDENT_IDS: ReadonlySet<string> = new Set(
+  Object.keys(GRADUATION_COMMITTEE_TITLES),
+);
 
 export type PeopleCarouselItem = {
   id: string;
@@ -36,6 +40,7 @@ export type PeopleCarouselItem = {
   memberHref: string;
   authorOrder: number;
   isGraduationCommittee: boolean;
+  committeeTitle?: string;
 };
 
 export const PEOPLE_CAROUSEL_ITEMS: PeopleCarouselItem[] = parsePeopleRoster(
@@ -71,6 +76,7 @@ export const PEOPLE_CAROUSEL_ITEMS: PeopleCarouselItem[] = parsePeopleRoster(
       isGraduationCommittee: GRADUATION_COMMITTEE_STUDENT_IDS.has(
         person.studentId,
       ),
+      committeeTitle: GRADUATION_COMMITTEE_TITLES[person.studentId],
     };
   });
 

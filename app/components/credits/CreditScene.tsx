@@ -60,7 +60,7 @@ const SIDE_FRAGMENT_SEAM_OFFSET = 0.075;
 const MOBILE_LABEL_LINES: Record<CreditFragmentId, readonly string[]> = {
   "01": ["sensibility"],
   "02": ["학부장님", "한마디"],
-  "03": ["졸업 전시", "준비 위원회"],
+  "03": ["21대", "준비위원회"],
   "04": ["웹사이트", "제작후기"],
   "05": ["Archive"],
 };

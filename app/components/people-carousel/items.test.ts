@@ -5,6 +5,7 @@ import { getMemberDetailPath, getProjectDetailPath } from "@/app/utils/routes";
 import {
   getProjectAuthors,
   GRADUATION_COMMITTEE_STUDENT_IDS,
+  GRADUATION_COMMITTEE_TITLES,
   PEOPLE_CAROUSEL_ITEMS,
 } from "./items";
 
@@ -98,11 +99,32 @@ describe("PEOPLE_CAROUSEL_ITEMS", () => {
         (person) => ({
           projectNo: person.projectNo,
           isGraduationCommittee: person.isGraduationCommittee,
+          committeeTitle: person.committeeTitle,
         }),
       ),
     ).toEqual([
-      { projectNo: 50, isGraduationCommittee: false },
-      { projectNo: 48, isGraduationCommittee: true },
+      {
+        projectNo: 50,
+        isGraduationCommittee: false,
+        committeeTitle: undefined,
+      },
+      {
+        projectNo: 48,
+        isGraduationCommittee: true,
+        committeeTitle: "총무팀장",
+      },
     ]);
+    expect(
+      PEOPLE_CAROUSEL_ITEMS.find((person) => person.name === "이새연")
+        ?.committeeTitle,
+    ).toBe("위원장");
+    expect(
+      PEOPLE_CAROUSEL_ITEMS.find((person) => person.name === "김민석")
+        ?.committeeTitle,
+    ).toBe("웹사이트팀장");
+    expect(
+      PEOPLE_CAROUSEL_ITEMS.some((person) => person.name === "김지윤"),
+    ).toBe(false);
+    expect(Object.keys(GRADUATION_COMMITTEE_TITLES)).toHaveLength(11);
   });
 });

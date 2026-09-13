@@ -31,7 +31,7 @@ const SENSE_DESCRIPTIONS = {
 const EASTER_EGG_DESCRIPTIONS = {
   졸준위: "고생하셨습니다",
   감각: "오늘 기억에 남는 여러분의 감각은 어떤 감각인가요?",
-  sensibility: "한국공학대학교 디자인 공학부 21대 졸업 전시",
+  sensibility: "한국공학대학교 디자인 공학부 21회 전시",
   졸업: "모든 졸업생들의 안녕을 기원합니다",
   이새연: "위원장",
   송민철: "부위원장",

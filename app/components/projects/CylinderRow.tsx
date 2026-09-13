@@ -18,6 +18,7 @@ import {
   getBackCycle,
   getCenteredAngleDistance,
   getCylinderRadius,
+  getHoveredCylinderCardIndex,
   getNearestCardCenteredRotation,
   getSnappedRotation,
   getRotationStepTowardIndex,
@@ -120,6 +121,7 @@ export default function CylinderRow({
   const swipeAxisRef = useRef<"x" | "y" | null>(null);
   const skipClickRef = useRef(false);
   const [rotation, setRotation] = useState(0);
+  const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
   const isMobile = useIsMobileViewport();
   const cardCount = cards.length;
   const cardAngle = 360 / cardCount;
@@ -161,7 +163,7 @@ export default function CylinderRow({
       }
     }
 
-    if (recycleCards) {
+    if (recycleCards && !isHoveredRef.current) {
       flushPendingRecycleIndexes();
     }
   }, [cardAngle, cardCount, flushPendingRecycleIndexes]);
@@ -181,6 +183,9 @@ export default function CylinderRow({
     isHoveredRef.current = false;
     hoveredCardIndexRef.current = null;
     hoverMissCountRef.current = 0;
+    const clearHoverFrame = window.requestAnimationFrame(() => {
+      setHoveredCardIndex(null);
+    });
     pointerPositionRef.current = null;
     isWheelInteractingRef.current = false;
 
@@ -200,6 +205,10 @@ export default function CylinderRow({
     }
 
     snapTargetRotationRef.current = null;
+
+    return () => {
+      window.cancelAnimationFrame(clearHoverFrame);
+    };
   }, [isPaused]);
 
   const cancelSnapAnimation = () => {
@@ -247,7 +256,10 @@ export default function CylinderRow({
         commitRotation(targetRotation, false);
         snapFrameRef.current = null;
         snapTargetRotationRef.current = null;
-        flushPendingRecycleIndexes();
+
+        if (!isHoveredRef.current) {
+          flushPendingRecycleIndexes();
+        }
       };
 
       tick(startTime);
@@ -305,6 +317,7 @@ export default function CylinderRow({
   const stopHoverTracking = () => {
     isHoveredRef.current = false;
     hoveredCardIndexRef.current = null;
+    setHoveredCardIndex(null);
     pointerPositionRef.current = null;
     stopHoverSnapTimer();
     cancelSnapAnimation();
@@ -313,31 +326,10 @@ export default function CylinderRow({
   const getHoveredCardIndexFromPointer = (
     pointerPosition: { x: number; y: number },
   ) => {
-    const row = rowRef.current;
-
-    if (!row) {
-      return null;
-    }
-
-    const visibleCards = Array.from(
-      row.querySelectorAll<HTMLElement>(".projects-cylinder-card--visible"),
+    return getHoveredCylinderCardIndex(
+      document.elementFromPoint(pointerPosition.x, pointerPosition.y),
+      rowRef.current,
     );
-    const hoveredCard = visibleCards.find((card) => {
-      const rect = card.getBoundingClientRect();
-
-      return (
-        pointerPosition.x >= rect.left &&
-        pointerPosition.x <= rect.right &&
-        pointerPosition.y >= rect.top &&
-        pointerPosition.y <= rect.bottom
-      );
-    });
-
-    if (!hoveredCard) {
-      return null;
-    }
-
-    return Number(hoveredCard.dataset.projectCardIndex);
   };
 
   const startHoverSnapTimer = () => {
@@ -353,27 +345,28 @@ export default function CylinderRow({
         return;
       }
 
-      if (pointerPosition) {
-        const hoveredCardIndex = getHoveredCardIndexFromPointer(pointerPosition);
+      const nextHoveredCardIndex = getHoveredCardIndexFromPointer(pointerPosition);
 
-        if (hoveredCardIndex !== null) {
-          hoveredCardIndexRef.current = hoveredCardIndex;
-          isHoveredRef.current = true;
-          hoverMissCountRef.current = 0;
-        } else {
-          hoverMissCountRef.current += 1;
-          isHoveredRef.current = false;
-          hoveredCardIndexRef.current = null;
+      if (nextHoveredCardIndex !== null) {
+        const hoveredIndexChanged =
+          hoveredCardIndexRef.current !== nextHoveredCardIndex;
 
-          if (hoverMissCountRef.current >= HOVER_MISS_LIMIT) {
-            stopHoverTracking();
-            return;
-          }
+        hoveredCardIndexRef.current = nextHoveredCardIndex;
+        isHoveredRef.current = true;
+        hoverMissCountRef.current = 0;
+
+        if (hoveredIndexChanged) {
+          setHoveredCardIndex(nextHoveredCardIndex);
+          animateSnapToHoveredCard();
         }
+
+        return;
       }
 
-      if (isHoveredRef.current) {
-        animateSnapToHoveredCard();
+      hoverMissCountRef.current += 1;
+
+      if (hoverMissCountRef.current >= HOVER_MISS_LIMIT) {
+        stopHoverTracking();
       }
     }, HOVER_SNAP_INTERVAL_MS);
   };
@@ -790,6 +783,9 @@ export default function CylinderRow({
                 className={[
                   "projects-cylinder-card",
                   isVisible ? "projects-cylinder-card--visible" : "",
+                  hoveredCardIndex === index
+                    ? "projects-cylinder-card--hovered"
+                    : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
@@ -819,7 +815,13 @@ export default function CylinderRow({
                   };
                   isHoveredRef.current = true;
                   hoverMissCountRef.current = 0;
-                  hoveredCardIndexRef.current = index;
+
+                  if (hoveredCardIndexRef.current !== index) {
+                    hoveredCardIndexRef.current = index;
+                    setHoveredCardIndex(index);
+                    animateSnapToHoveredCard();
+                  }
+
                   startHoverSnapTimer();
                 }}
               >

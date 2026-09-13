@@ -504,7 +504,7 @@ export default function LandingHeroActionButton() {
         <p className="landing-hero-action__section-text">
           기본 30분 3,000원 / 이후 20분당 2,000원
           <br />
-          이용객 주차권 지참 시 50% 할인 및 1시간 무료 이용권 제공
+          이용객 주차권 지참 시 50% 할인
           <br />
           (주차권으로만 정산 가능, 티켓 정산 불가)
           <br />
