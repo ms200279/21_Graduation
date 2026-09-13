@@ -732,7 +732,8 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
     overscroll-behavior-x: contain;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
-    touch-action: pan-x;
+    /* Keep horizontal detail paging while allowing the parent to pan upward. */
+    touch-action: pan-x pan-y;
     scrollbar-width: none;
     -ms-overflow-style: none;
   }

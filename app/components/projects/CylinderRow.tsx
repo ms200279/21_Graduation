@@ -33,8 +33,10 @@ import {
   WHEEL_SNAP_DELAY_MS,
 } from "./projectsCylinderConfig";
 
-const MOBILE_SWIPE_DISTANCE = 48;
-const MOBILE_SWIPE_DOMINANCE = 1.15;
+const MOBILE_SWIPE_DISTANCE = 64;
+const MOBILE_SWIPE_DOMINANCE = 1.25;
+const MOBILE_DRAG_RESPONSE = 0.72;
+const MOBILE_AXIS_LOCK_DISTANCE = 12;
 
 function isMobileViewport() {
   return window.matchMedia("(max-width: 767px)").matches;
@@ -658,7 +660,10 @@ export default function CylinderRow({
     const deltaY = event.clientY - start.y;
 
     if (!swipeAxisRef.current) {
-      if (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) {
+      if (
+        Math.abs(deltaX) < MOBILE_AXIS_LOCK_DISTANCE &&
+        Math.abs(deltaY) < MOBILE_AXIS_LOCK_DISTANCE
+      ) {
         return;
       }
 
@@ -685,7 +690,10 @@ export default function CylinderRow({
     event.preventDefault();
     commitRotation(
       start.rotation -
-        start.rotationStepTowardRight * (deltaX / start.cardWidth) * cardAngle,
+        start.rotationStepTowardRight *
+          (deltaX / start.cardWidth) *
+          cardAngle *
+          MOBILE_DRAG_RESPONSE,
       false,
     );
   };
