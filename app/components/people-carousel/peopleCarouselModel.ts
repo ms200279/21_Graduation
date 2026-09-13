@@ -32,7 +32,11 @@ export function getPeopleCarouselTrackHeightVh(
     return 100 + (itemCount - 1) * MOBILE_SCROLL_VH_PER_CARD;
   }
 
-  return itemCount * SCROLL_VH_PER_CARD;
+  if (itemCount <= 1) {
+    return 100;
+  }
+
+  return 100 + (itemCount - 1) * SCROLL_VH_PER_CARD;
 }
 export const SNAP_DURATION_MS = 420;
 export const MOBILE_SNAP_DURATION_MS = 520;
