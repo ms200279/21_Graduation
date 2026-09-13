@@ -453,8 +453,21 @@ body.landing-fullpage-active {
   height: min(76dvh, 760px);
 }
 
+.landing-media-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.landing-media-item--main {
+  min-height: 0;
+}
+
 .landing-media-player {
   position: relative;
+  flex: 1 1 auto;
   overflow: hidden;
   min-width: 0;
   min-height: 0;
@@ -463,11 +476,31 @@ body.landing-fullpage-active {
   box-shadow: 0 16px 48px rgba(8, 16, 48, 0.12);
 }
 
+.landing-media-player--side {
+  border-radius: clamp(0.75rem, 1.3vw, 1.25rem);
+  box-shadow: 0 10px 28px rgba(8, 16, 48, 0.1);
+}
+
 .landing-media-player__video {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.landing-media-item--side .landing-media-player__video {
+  pointer-events: none;
+}
+
+.landing-media-caption {
+  flex: 0 0 auto;
+  margin: 0.45rem 0 0;
+  padding-left: 0.45rem;
+  color: var(--color-systemNavy);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
 }
 
 .landing-media-showcase__side {
@@ -479,18 +512,22 @@ body.landing-fullpage-active {
 }
 
 .landing-media-slot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border: 1px dashed rgba(8, 16, 48, 0.2);
-  border-radius: clamp(0.75rem, 1.3vw, 1.25rem);
-  background: rgba(8, 16, 48, 0.035);
-  color: rgba(8, 16, 48, 0.42);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.landing-media-slot:focus-visible {
+  outline: 2px solid var(--color-systemNavy);
+  outline-offset: 4px;
 }
 
 @media (max-width: 767px) {
@@ -583,6 +620,7 @@ body.landing-fullpage-active {
     min-height: 0;
   }
 
+  .landing-media-item--main,
   .landing-media-player--main {
     min-height: 0;
   }
@@ -592,8 +630,19 @@ body.landing-fullpage-active {
     grid-template-rows: none;
   }
 
-  .landing-media-slot {
+  .landing-media-slot,
+  .landing-media-item--side .landing-media-player {
+    min-height: 0;
+  }
+
+  .landing-media-item--side .landing-media-player {
     aspect-ratio: 16 / 9;
+    flex: 0 1 auto;
+  }
+
+  .landing-media-caption {
+    margin-top: 0.35rem;
+    font-size: 0.75rem;
   }
 }
 
