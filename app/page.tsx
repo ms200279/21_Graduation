@@ -3,6 +3,7 @@ import LandingHeroActionButton from "./components/LandingHeroActionButton";
 import LandingFooter from "./components/LandingFooter";
 import { LandingCarousel } from "./components/landing-carousel";
 import LandingMediaShowcase from "./components/LandingMediaShowcase";
+import LandingDeployClickBlock from "./components/LandingDeployClickBlock";
 import LandingSplash from "./components/LandingSplash";
 import { LANDING_HERO_VIDEO_SRC } from "./components/landingSplashModel";
 import "./styles/landing-splash.css";
@@ -20,6 +21,8 @@ export default function LandingPage() {
         type="video/webm"
       />
       <LandingSplash />
+      {/* TEMP: delete LandingDeployClickBlock.tsx, this line, and middleware.ts to restore the site. */}
+      <LandingDeployClickBlock />
       <LandingScrollExperience
       hero={
         <div className="landing-hero snap-screen">
