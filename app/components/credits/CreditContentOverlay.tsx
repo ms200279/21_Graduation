@@ -74,6 +74,7 @@ export default function CreditContentOverlay({
                 <div className="credits-content-video">
                   <video
                     src={selectedFragment.videoSrc}
+                    poster={selectedFragment.videoPoster}
                     controls
                     playsInline
                     preload="metadata"

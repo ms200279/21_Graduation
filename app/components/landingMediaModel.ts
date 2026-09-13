@@ -1,6 +1,9 @@
 export const LANDING_MAIN_FILM_SRC = "/images/landing-main-player.webm";
+export const LANDING_MAIN_FILM_POSTER = "/images/maintn.png";
 export const LANDING_MEDIA_FILM_SRC = "/images/media.webm";
+export const LANDING_MEDIA_FILM_POSTER = "/images/mediatn.png";
 export const LANDING_INTERVIEW_FILM_SRC = "/images/interview-player.webm";
+export const LANDING_INTERVIEW_FILM_POSTER = "/images/interviewtn.png";
 
 export type LandingMediaFilmId = "main" | "media" | "interview";
 
@@ -8,6 +11,7 @@ export type LandingMediaFilm = {
   id: LandingMediaFilmId;
   src: string;
   label: string;
+  poster?: string;
 };
 
 export const LANDING_MEDIA_FILMS: readonly LandingMediaFilm[] = [
@@ -15,16 +19,19 @@ export const LANDING_MEDIA_FILMS: readonly LandingMediaFilm[] = [
     id: "main",
     src: LANDING_MAIN_FILM_SRC,
     label: "main",
+    poster: LANDING_MAIN_FILM_POSTER,
   },
   {
     id: "media",
     src: LANDING_MEDIA_FILM_SRC,
     label: "media",
+    poster: LANDING_MEDIA_FILM_POSTER,
   },
   {
     id: "interview",
     src: LANDING_INTERVIEW_FILM_SRC,
     label: "interview",
+    poster: LANDING_INTERVIEW_FILM_POSTER,
   },
 ];
 

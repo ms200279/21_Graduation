@@ -33,6 +33,7 @@ function LandingMediaItem({
       >
         <video
           src={film.src}
+          poster={film.poster}
           controls={featured}
           playsInline
           preload="metadata"

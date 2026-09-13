@@ -90,6 +90,7 @@ function ConceptCarouselSlideContent({
             <video
               ref={videoRef}
               src={slide.videoSrc}
+              poster={slide.videoPoster}
               controls
               playsInline
               preload={isActive ? "metadata" : "none"}

@@ -69,6 +69,7 @@ export type CreditFragmentData = {
   title: string;
   description: string[];
   videoSrc?: string;
+  videoPoster?: string;
   videoLabel?: string;
   organization?: {
     title: string;
@@ -195,6 +196,7 @@ export const creditFragments: CreditFragmentData[] = [
     title: "Archive",
     description: [],
     videoSrc: "/images/interview-player.webm",
+    videoPoster: "/images/interviewtn.png",
     videoLabel: "Graduation exhibition interview",
     scale: 1,
     selectedScale: 1.06,
