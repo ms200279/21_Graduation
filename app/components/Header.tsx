@@ -980,6 +980,7 @@ export default function Header() {
             aria-label={isLandingPage ? "페이지 최상단으로 이동" : "홈으로 이동"}
             onClick={handleOrbClick}
             tabIndex={isDesktopOrbInteractive ? 0 : -1}
+            data-landing-desktop-orb=""
             className={[
               "flex h-[var(--orb-size)] w-[var(--orb-size)] shrink-0 items-center justify-center",
               "landing-header-orb rounded-full liquid-glass-surface",
@@ -1052,6 +1053,7 @@ export default function Header() {
         {isMobile && isLandingPage && !isMobileExpanded && !isTransitionActive ? (
           <button
             type="button"
+            data-landing-mobile-orb=""
             aria-label="Open navigation menu"
             aria-expanded={isMobileExpanded}
             onClick={handleMobileHeaderTap}
