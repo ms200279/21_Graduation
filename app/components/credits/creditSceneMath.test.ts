@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   getOffscreenFragmentPosition,
+  getPerspectiveFitDistance,
   getPolygonBounds,
   getPolygonCentroid,
   getSelectedFragmentPosition,
@@ -43,11 +44,27 @@ describe("creditSceneMath", () => {
       true,
     );
     expect(mobilePosition[0]).toBeCloseTo(0.55);
-    expect(mobilePosition[1]).toBeCloseTo(0.42);
+    expect(mobilePosition[1]).toBeCloseTo(2.59);
     expect(mobilePosition[2]).toBe(0.95);
   });
 
   it("sends centered fragments toward the lower offscreen anchor", () => {
     expect(getOffscreenFragmentPosition(0, 0)).toEqual([0, -7, -0.7]);
+  });
+
+  it("fits a rotated credit panel inside a portrait viewport", () => {
+    const distance = getPerspectiveFitDistance({
+      viewportWidth: 390,
+      viewportHeight: 844,
+      contentWidth: 4.5,
+      contentHeight: 10,
+      verticalFovDeg: 32,
+      fillRatio: 0.76,
+    });
+    const visibleHalfHeight = Math.tan((32 * Math.PI) / 360) * distance;
+    const visibleHalfWidth = visibleHalfHeight * (390 / 844);
+
+    expect(5 / visibleHalfHeight).toBeLessThanOrEqual(0.76);
+    expect(2.25 / visibleHalfWidth).toBeLessThanOrEqual(0.76);
   });
 });

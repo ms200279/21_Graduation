@@ -11,6 +11,7 @@ import CreditContentOverlay from "./CreditContentOverlay";
 import {
   CREDIT_FRAGMENT_POLYGONS,
   CREDIT_GEOMETRY_MAP,
+  PANEL,
   creditFragments,
   getCreditFragmentById,
   type CreditFragmentData,
@@ -19,6 +20,7 @@ import {
 } from "./creditData";
 import {
   getOffscreenFragmentPosition,
+  getPerspectiveFitDistance,
   getPolygonBounds,
   getPolygonCentroid,
   getSelectedFragmentPosition,
@@ -48,8 +50,20 @@ type CreditSceneProps = {
 const MOBILE_MEDIA_QUERY = "(max-width: 767px)";
 const SCENE_TRANSITION_DURATION_MS = 920;
 const ASSEMBLED_POSITION = new THREE.Vector3(0, 0, 0);
+const CAMERA_VERTICAL_FOV_DEG = 32;
+const MOBILE_OVERVIEW_FILL_RATIO = 0.76;
+const MOBILE_OVERVIEW_ROTATION_Z = Math.PI / 2;
+const MOBILE_SELECTED_CAMERA_Z = 17.4;
+const DESKTOP_CAMERA_Z = 11.8;
 const SEAM = 0.085;
 const SIDE_FRAGMENT_SEAM_OFFSET = 0.075;
+const MOBILE_LABEL_LINES: Record<CreditFragmentId, readonly string[]> = {
+  "01": ["sensibility"],
+  "02": ["학부장님", "한마디"],
+  "03": ["졸업 전시", "준비 위원회"],
+  "04": ["웹사이트", "제작후기"],
+  "05": ["Archive"],
+};
 const PANEL_BASE_ROTATION = new THREE.Euler(
   THREE.MathUtils.degToRad(-1.2),
   THREE.MathUtils.degToRad(0.8),
@@ -117,26 +131,45 @@ function createFragmentLabel(
   centroidX: number,
   centroidY: number,
   corner: "top-left" | "top-right" | "bottom-right",
+  {
+    lines = [title],
+    fontSize = 36,
+    labelHeight = 0.25,
+    rotationZ = 0,
+  }: {
+    lines?: readonly string[];
+    fontSize?: number;
+    labelHeight?: number;
+    rotationZ?: number;
+  } = {},
 ) {
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
-  const fontSize = 36;
   const horizontalPadding = 20;
   const verticalPadding = 12;
+  const lineHeight = Math.ceil(fontSize * 1.16);
 
   if (!context) {
     return null;
   }
 
   context.font = `600 ${fontSize}px Pretendard, sans-serif`;
-  const textWidth = Math.ceil(context.measureText(title).width);
+  const textWidth = Math.ceil(
+    Math.max(...lines.map((line) => context.measureText(line).width)),
+  );
   canvas.width = textWidth + horizontalPadding * 2;
-  canvas.height = fontSize + verticalPadding * 2;
+  canvas.height = lineHeight * lines.length + verticalPadding * 2;
   context.font = `600 ${fontSize}px Pretendard, sans-serif`;
   context.textAlign = "left";
   context.textBaseline = "middle";
   context.fillStyle = "rgba(32, 60, 96, 0.92)";
-  context.fillText(title, horizontalPadding, canvas.height / 2);
+  lines.forEach((line, index) => {
+    context.fillText(
+      line,
+      horizontalPadding,
+      verticalPadding + lineHeight * (index + 0.5),
+    );
+  });
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -144,12 +177,12 @@ function createFragmentLabel(
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = false;
 
-  const labelHeight = 0.25;
   const labelWidth = labelHeight * (canvas.width / canvas.height);
+  const isQuarterTurn = Math.abs(Math.sin(rotationZ)) > 0.5;
   const labelPosition = findLabelPosition(
     polygon,
-    labelWidth,
-    labelHeight,
+    isQuarterTurn ? labelHeight : labelWidth,
+    isQuarterTurn ? labelWidth : labelHeight,
     centroidX,
     centroidY,
     corner,
@@ -170,6 +203,7 @@ function createFragmentLabel(
     labelPosition.y - centroidY,
     0.1,
   );
+  mesh.rotation.z = rotationZ;
   mesh.renderOrder = 3;
 
   return { mesh, material, geometry, texture };
@@ -334,6 +368,24 @@ gl_FragColor.rgb = mix(
         ? "top-right"
         : "bottom-right",
   );
+  const mobileLabelLines = MOBILE_LABEL_LINES[data.id];
+  const mobileLabel = createFragmentLabel(
+    data.title,
+    polygon,
+    centroidX,
+    centroidY,
+    data.id === "02"
+      ? "top-left"
+      : data.id === "03"
+        ? "top-right"
+        : "bottom-right",
+    {
+      lines: mobileLabelLines,
+      fontSize: 46,
+      labelHeight: mobileLabelLines.length === 1 ? 0.5 : 0.84,
+      rotationZ: -MOBILE_OVERVIEW_ROTATION_Z,
+    },
+  );
 
   mesh.renderOrder = 2;
   hoverPivot.position.set(centroidX, centroidY, 0);
@@ -343,6 +395,10 @@ gl_FragColor.rgb = mix(
 
   if (label) {
     hoverPivot.add(label.mesh);
+  }
+  if (mobileLabel) {
+    mobileLabel.material.opacity = 0;
+    hoverPivot.add(mobileLabel.mesh);
   }
 
   group.add(hoverPivot);
@@ -356,6 +412,7 @@ gl_FragColor.rgb = mix(
     mesh,
     material,
     label,
+    mobileLabel,
     liquidUniforms,
     baseRotation,
     centroid: new THREE.Vector3(centroidX, centroidY, 0),
@@ -571,6 +628,7 @@ export default function CreditScene({
       ),
     );
     let animationFrame = 0;
+    let mobileOverviewCameraDistance = MOBILE_SELECTED_CAMERA_Z;
 
     const updateEnvironmentFlags = () => {
       isMobileRef.current = mobileQuery.matches;
@@ -583,12 +641,43 @@ export default function CreditScene({
       const width = Math.max(1, rect.width);
       const height = Math.max(1, rect.height);
       camera.aspect = width / height;
-      camera.position.set(0, 0, isMobileRef.current ? 17.4 : 11.8);
+      mobileOverviewCameraDistance = getPerspectiveFitDistance({
+        viewportWidth: width,
+        viewportHeight: height,
+        contentWidth: PANEL.top - PANEL.bottom,
+        contentHeight: PANEL.right - PANEL.left,
+        verticalFovDeg: CAMERA_VERTICAL_FOV_DEG,
+        fillRatio: MOBILE_OVERVIEW_FILL_RATIO,
+      });
+      const isMobileOverview =
+        isMobileRef.current && phaseRef.current === "IDLE";
+      camera.position.set(
+        0,
+        0,
+        isMobileOverview
+          ? mobileOverviewCameraDistance
+          : isMobileRef.current
+            ? MOBILE_SELECTED_CAMERA_Z
+            : DESKTOP_CAMERA_Z,
+      );
       camera.updateProjectionMatrix();
       renderer.transmissionResolutionScale = isMobileRef.current ? 0.5 : 0.75;
       renderer.setSize(width, height, false);
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       renderer.getDrawingBufferSize(liquidResolution);
+    };
+
+    const findFragmentAtPointer = () => {
+      raycaster.setFromCamera(rayPointer, camera);
+
+      const intersects = raycaster.intersectObjects(
+        fragments.map((fragment) => fragment.mesh),
+        false,
+      );
+
+      return intersects[0]?.object.userData.fragmentId as
+        | CreditFragmentId
+        | undefined;
     };
 
     const updateHoverFromPointer = () => {
@@ -598,21 +687,20 @@ export default function CreditScene({
         return;
       }
 
-      raycaster.setFromCamera(rayPointer, camera);
-
-      const intersects = raycaster.intersectObjects(
-        fragments.map((fragment) => fragment.mesh),
-        false,
-      );
-      const hoveredId = intersects[0]?.object.userData.fragmentId as
-        | CreditFragmentId
-        | undefined;
+      const hoveredId = findFragmentAtPointer();
 
       hoveredIdRef.current = hoveredId ?? null;
       renderer.domElement.style.cursor = hoveredId ? "pointer" : "";
     };
 
     const handlePointerMove = (event: PointerEvent) => {
+      if (isMobileRef.current) {
+        pointerTargetRef.current.set(0, 0);
+        hoveredIdRef.current = null;
+        renderer.domElement.style.cursor = "";
+        return;
+      }
+
       const rect = renderer.domElement.getBoundingClientRect();
       const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       const y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
@@ -629,11 +717,22 @@ export default function CreditScene({
       renderer.domElement.style.cursor = "";
     };
 
-    const handleClick = () => {
-      if (phaseRef.current === "IDLE" && hoveredIdRef.current) {
+    const handleClick = (event: MouseEvent) => {
+      if (phaseRef.current !== "IDLE") {
+        return;
+      }
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+      rayPointer.set(x, y);
+      const selectedFragmentId = findFragmentAtPointer();
+
+      if (selectedFragmentId) {
         pointerTargetRef.current.set(0, 0);
         rayPointer.set(10, 10);
-        selectFragmentRef.current(hoveredIdRef.current);
+        hoveredIdRef.current = null;
+        selectFragmentRef.current(selectedFragmentId);
       }
     };
     const handleMobileQueryChange = () => {
@@ -644,8 +743,22 @@ export default function CreditScene({
     updateEnvironmentFlags();
 
     const mountedFragmentId = mountedFragmentIdRef.current;
+    const startsInMobileOverview =
+      isMobileRef.current && mountedFragmentId === null;
+    sceneRoot.rotation.z = startsInMobileOverview
+      ? MOBILE_OVERVIEW_ROTATION_Z
+      : PANEL_BASE_ROTATION.z;
 
     fragments.forEach((fragment) => {
+      if (fragment.label) {
+        fragment.label.material.opacity = startsInMobileOverview ? 0 : 0.82;
+      }
+      if (fragment.mobileLabel) {
+        fragment.mobileLabel.material.opacity = startsInMobileOverview
+          ? 0.96
+          : 0;
+      }
+
       if (mountedFragmentId) {
         if (fragment.data.id === mountedFragmentId) {
           setSelectedTarget(fragment.group.position, fragment, isMobileRef.current);
@@ -655,11 +768,13 @@ export default function CreditScene({
           fragment.group.rotation.set(0.025, -0.025, 0.008);
           fragment.material.opacity = 0.8;
           if (fragment.label) fragment.label.material.opacity = 0.88;
+          if (fragment.mobileLabel) fragment.mobileLabel.material.opacity = 0;
         } else {
           setOffscreenTarget(fragment.group.position, fragment);
           fragment.group.scale.setScalar(fragment.data.scale * 0.68);
           fragment.material.opacity = 0;
           if (fragment.label) fragment.label.material.opacity = 0;
+          if (fragment.mobileLabel) fragment.mobileLabel.material.opacity = 0;
         }
       } else {
         setOffscreenTarget(fragment.group.position, fragment);
@@ -668,7 +783,18 @@ export default function CreditScene({
         );
         fragment.material.opacity = reducedMotionRef.current ? 0.3 : 0.05;
         if (fragment.label) {
-          fragment.label.material.opacity = reducedMotionRef.current ? 0.3 : 0.05;
+          fragment.label.material.opacity = startsInMobileOverview
+            ? 0
+            : reducedMotionRef.current
+              ? 0.3
+              : 0.05;
+        }
+        if (fragment.mobileLabel) {
+          fragment.mobileLabel.material.opacity = startsInMobileOverview
+            ? reducedMotionRef.current
+              ? 0.96
+              : 0.08
+            : 0;
         }
       }
     });
@@ -708,6 +834,7 @@ export default function CreditScene({
       const selectedIdValue = selectedIdRef.current;
       const isSelectedMode =
         phaseRef.current === "SELECTING" || phaseRef.current === "SELECTED";
+      const isMobileOverview = isMobile && !isSelectedMode;
       const transitionDuration = reducedMotion
         ? Math.max(420, SCENE_TRANSITION_DURATION_MS * 0.55)
         : SCENE_TRANSITION_DURATION_MS;
@@ -724,8 +851,10 @@ export default function CreditScene({
       const pointerDamp = 1 - Math.exp(-delta * (reducedMotion ? 5.4 : 4.2));
       const clusterFloatX = Math.cos(elapsed * 0.16) * 0.018 * motionScale;
       const clusterFloatY = Math.sin(elapsed * 0.19) * 0.026 * motionScale;
-      const scenePointerX = isSelectedMode ? 0 : pointerRef.current.x;
-      const scenePointerY = isSelectedMode ? 0 : pointerRef.current.y;
+      const scenePointerX =
+        isSelectedMode || isMobile ? 0 : pointerRef.current.x;
+      const scenePointerY =
+        isSelectedMode || isMobile ? 0 : pointerRef.current.y;
       const clusterTiltZ = isSelectedMode
         ? 0
         : Math.sin(elapsed * 0.14) * 0.012 * motionScale;
@@ -747,7 +876,9 @@ export default function CreditScene({
       );
       sceneRoot.rotation.z = THREE.MathUtils.lerp(
         sceneRoot.rotation.z,
-        PANEL_BASE_ROTATION.z + clusterTiltZ,
+        (isMobileOverview
+          ? MOBILE_OVERVIEW_ROTATION_Z
+          : PANEL_BASE_ROTATION.z) + clusterTiltZ,
         damp,
       );
       camera.position.x = THREE.MathUtils.lerp(
@@ -760,11 +891,21 @@ export default function CreditScene({
         scenePointerY * 0.06 * motionScale,
         damp,
       );
+      camera.position.z = THREE.MathUtils.lerp(
+        camera.position.z,
+        isMobile
+          ? isMobileOverview
+            ? mobileOverviewCameraDistance
+            : MOBILE_SELECTED_CAMERA_Z
+          : DESKTOP_CAMERA_Z,
+        damp,
+      );
       camera.lookAt(0, 0, 0);
 
       fragments.forEach((fragment: FragmentRuntime, index) => {
         const isSelected = selectedIdValue === fragment.data.id;
-        const isHovered = hoveredIdRef.current === fragment.data.id;
+        const isHovered =
+          !isMobile && hoveredIdRef.current === fragment.data.id;
         const basePosition = fragment.basePosition
           .copy(ASSEMBLED_POSITION)
           .add(fragment.seamOffset);
@@ -801,8 +942,8 @@ export default function CreditScene({
           targetPosition.x += clusterFloatX + floatB * 0.008 * motionScale;
           targetPosition.y += clusterFloatY + floatA * 0.01 * motionScale;
           targetPosition.z += floatC * 0.006 * motionScale;
-          targetPosition.x += pointerRef.current.x * 0.028 * depthFactor * motionScale;
-          targetPosition.y += pointerRef.current.y * 0.018 * depthFactor * motionScale;
+          targetPosition.x += scenePointerX * 0.028 * depthFactor * motionScale;
+          targetPosition.y += scenePointerY * 0.018 * depthFactor * motionScale;
           targetPosition.z += isHovered ? 0.075 : 0;
           targetScale = fragment.data.scale * (isHovered ? 1.045 : 1);
           targetRotation.set(
@@ -833,11 +974,11 @@ export default function CreditScene({
           damp,
         );
         const hoverTiltX =
-          isHovered && !isSelectedMode
+          !isMobile && isHovered && !isSelectedMode
             ? -pointerRef.current.y * 0.38 * motionScale
             : 0;
         const hoverTiltY =
-          isHovered && !isSelectedMode
+          !isMobile && isHovered && !isSelectedMode
             ? pointerRef.current.x * 0.46 * motionScale
             : 0;
         fragment.hoverPivot.rotation.x = THREE.MathUtils.lerp(
@@ -858,7 +999,14 @@ export default function CreditScene({
         if (fragment.label) {
           fragment.label.material.opacity = THREE.MathUtils.lerp(
             fragment.label.material.opacity,
-            targetLabelOpacity,
+            isMobileOverview ? 0 : targetLabelOpacity,
+            damp,
+          );
+        }
+        if (fragment.mobileLabel) {
+          fragment.mobileLabel.material.opacity = THREE.MathUtils.lerp(
+            fragment.mobileLabel.material.opacity,
+            isMobileOverview ? 0.96 : 0,
             damp,
           );
         }
@@ -922,6 +1070,9 @@ export default function CreditScene({
         fragment.label?.geometry.dispose();
         fragment.label?.material.dispose();
         fragment.label?.texture.dispose();
+        fragment.mobileLabel?.geometry.dispose();
+        fragment.mobileLabel?.material.dispose();
+        fragment.mobileLabel?.texture.dispose();
       });
       liquidSurfaceTexture.dispose();
       backgroundTexture.dispose();
