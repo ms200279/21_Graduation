@@ -23,9 +23,32 @@ const pretendard = localFont({
   weight: "100 900",
 });
 
+const SITE_URL = "https://2026.tudesign.org";
+const SITE_TITLE = "sensibility";
+const SITE_DESCRIPTION =
+  "2026 한국공학대학교 디자인공학부 온라인 졸업전시";
+const OG_IMAGE_URL = `${SITE_URL}/images/ogimage.png`;
+
 export const metadata: Metadata = {
-  title: "sensibility",
-  description: "TUK 21st graduation online exhibition",
+  metadataBase: new URL(SITE_URL),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    siteName: SITE_TITLE,
+    locale: "ko_KR",
+    type: "website",
+    images: [
+      {
+        url: OG_IMAGE_URL,
+        width: 1200,
+        height: 630,
+        alt: SITE_TITLE,
+      },
+    ],
+  },
 };
 
 export const viewport: Viewport = {
