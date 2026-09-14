@@ -6,5 +6,3 @@ export const SITE_NAV_ITEMS = [
   { label: "Showroom", href: SITE_PATHS.showroom },
   { label: "Credits", href: SITE_PATHS.credits },
 ] as const;
-
-export type SiteNavItem = (typeof SITE_NAV_ITEMS)[number];

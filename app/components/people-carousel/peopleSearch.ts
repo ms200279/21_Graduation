@@ -1,7 +1,7 @@
 import type { PeopleCarouselItem } from "./items";
 import type { PeopleCategoryId } from "./peopleCategories";
 
-export function extractHangulSyllables(value: string) {
+function extractHangulSyllables(value: string) {
   return [...value.normalize("NFC")]
     .filter((char) => {
       const code = char.charCodeAt(0);
