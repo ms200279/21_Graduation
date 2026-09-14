@@ -6,7 +6,6 @@ import LandingMediaShowcase from "./components/LandingMediaShowcase";
 import LandingDeployClickBlock from "./components/LandingDeployClickBlock";
 import LandingSplash from "./components/LandingSplash";
 import { LANDING_HERO_VIDEO_SRC } from "./components/landingSplashModel";
-import "./styles/landing-splash.css";
 
 const HERO_BACKGROUND_SRC = LANDING_HERO_VIDEO_SRC;
 const CONCEPT_BACKGROUND_SRC = "/images/bg2.webm";

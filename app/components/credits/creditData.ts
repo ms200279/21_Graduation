@@ -1,5 +1,5 @@
 export type CreditFragmentId = "01" | "02" | "03" | "04" | "05";
-export type CreditGeometryId =
+type CreditGeometryId =
   | "left"
   | "upperLeft"
   | "upperCenter"
@@ -14,7 +14,7 @@ export const PANEL = {
   bottom: -2.25,
 } as const;
 
-export const CUT_POINTS = {
+const CUT_POINTS = {
   A: [-4.05, 2.25] as const,
   B: [-0.55, 2.25] as const,
   C: [4.12, 2.25] as const,
