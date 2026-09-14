@@ -4,6 +4,10 @@ import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, 
 import { createPortal } from "react-dom";
 import { clamp } from "@/app/utils/numbers";
 import {
+  getNormalizedWheelDeltaY,
+  getPagedSnapDirection,
+} from "@/app/utils/pagedSnapScroll";
+import {
   dispatchLandingScrollIntent,
   dispatchLandingScrollProgress,
   LANDING_FOOTER_VIEWPORT_RATIO,
@@ -63,7 +67,6 @@ function getNearestSnapSection(scrollTop: number, offsets: number[]) {
 const SCROLL_LOCK_MS = 500;
 const SECTION_SCROLL_DURATION_MS = 720;
 const FOOTER_REVEAL_MS = 420;
-const WHEEL_DELTA_THRESHOLD = 50;
 const TOUCH_SWIPE_THRESHOLD = 56;
 const MOBILE_TOUCH_SWIPE_THRESHOLD = 72;
 const SCROLL_END_FALLBACK_MS = 120;
@@ -426,11 +429,12 @@ export default function LandingScrollExperience({
         return;
       }
 
-      if (Math.abs(event.deltaY) < WHEEL_DELTA_THRESHOLD) {
+      const direction = getPagedSnapDirection(getNormalizedWheelDeltaY(event));
+
+      if (direction === 0) {
         return;
       }
 
-      const direction = event.deltaY > 0 ? 1 : -1;
       const currentSection = currentSectionRef.current;
 
       if (hasFooterSnap && currentSection === mediaSectionIndex) {

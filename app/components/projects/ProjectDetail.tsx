@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 
 import { getProjectAuthors } from "@/app/components/people-carousel/items";
 import { SITE_PATHS } from "@/app/utils/routes";
+import { usePagedSnapScroll } from "@/app/utils/usePagedSnapScroll";
 import type {
   ProjectDetailData,
   ProjectStorySection,
@@ -27,16 +28,6 @@ type ProjectDetailProps = {
 const PROJECT_DETAIL_CLOSE_DURATION_MS = 560;
 const PROJECT_DETAIL_REDUCED_MOTION_DURATION_MS = 160;
 const PROJECT_DETAIL_SECTION_COUNT = 7;
-
-function getSectionScrollTop(
-  scrollContainer: HTMLElement,
-  section: HTMLElement,
-) {
-  const containerRect = scrollContainer.getBoundingClientRect();
-  const sectionRect = section.getBoundingClientRect();
-
-  return sectionRect.top - containerRect.top + scrollContainer.scrollTop;
-}
 
 const PROJECT_MEDIA_SIZE = {
   thumbnail: { width: 1080, height: 608 },
@@ -71,7 +62,7 @@ function ProjectMedia({ src, label, variant }: ProjectMediaProps) {
                 ? "(max-width: 767px) 52vw, 484px"
                 : "(max-width: 767px) 100vw, (min-width: 768px) 62vw, 100vw"
             }
-            loading="eager"
+            loading={variant === "thumbnail" ? "eager" : "lazy"}
             priority={variant === "thumbnail"}
             className="project-detail-media__image"
             onError={() => setHasImageError(true)}
@@ -138,7 +129,13 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
   const isClosingRef = useRef(false);
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [activeSectionIndex, setActiveSectionIndex] = useState(0);
+  const { activeIndex, scrollToIndex } = usePagedSnapScroll({
+    containerRef: scrollRef,
+    sectionSelector: ".project-detail-section",
+    nestedScrollSelector: ".project-detail-story__copy",
+    horizontalScrollSelector: ".project-detail-final__grid",
+    enabled: isMounted,
+  });
   const closeProject = useCallback(() => {
     if (isClosingRef.current) {
       return;
@@ -189,81 +186,8 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
   }, [closeProject]);
 
   const scrollToThumbnail = () => {
-    const scrollContainer = scrollRef.current;
-    const reducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    scrollContainer?.scrollTo({
-      top: 0,
-      left: 0,
-      behavior: reducedMotion ? "auto" : "smooth",
-    });
+    scrollToIndex(0);
   };
-
-  const updateActiveSection = useCallback(() => {
-    const scrollContainer = scrollRef.current;
-
-    if (!scrollContainer) {
-      return;
-    }
-
-    const origin = scrollContainer.scrollTop;
-    const sections = Array.from(
-      scrollContainer.querySelectorAll<HTMLElement>(
-        ".project-detail-section",
-      ),
-    );
-    let closestSectionIndex = 0;
-    let closestDistance = Number.POSITIVE_INFINITY;
-
-    sections.forEach((section, index) => {
-      const distance = Math.abs(
-        getSectionScrollTop(scrollContainer, section) - origin,
-      );
-
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closestSectionIndex = index;
-      }
-    });
-
-    setActiveSectionIndex((currentIndex) =>
-      currentIndex === closestSectionIndex ? currentIndex : closestSectionIndex,
-    );
-  }, []);
-
-  const scrollToSection = (sectionIndex: number) => {
-    const scrollContainer = scrollRef.current;
-    const targetSection = scrollContainer?.querySelectorAll<HTMLElement>(
-      ".project-detail-section",
-    )[sectionIndex];
-
-    if (!scrollContainer || !targetSection) {
-      return;
-    }
-
-    const origin = getSectionScrollTop(scrollContainer, targetSection);
-    const reducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    scrollContainer.scrollTo({
-      top: origin,
-      behavior: reducedMotion ? "auto" : "smooth",
-    });
-  };
-
-  useEffect(() => {
-    // Read the already-mounted scroll position before subscribing to later changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    updateActiveSection();
-    window.addEventListener("resize", updateActiveSection);
-
-    return () => {
-      window.removeEventListener("resize", updateActiveSection);
-    };
-  }, [updateActiveSection]);
 
   if (!isMounted) {
     return null;
@@ -316,24 +240,20 @@ export default function ProjectDetail({ project }: ProjectDetailProps) {
               key={index}
               className={[
                 "project-detail-progress__bar",
-                activeSectionIndex === index
+                activeIndex === index
                   ? "project-detail-progress__bar--active"
                   : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
               aria-label={`Go to project section ${index + 1}`}
-              aria-current={activeSectionIndex === index ? "step" : undefined}
-              onClick={() => scrollToSection(index)}
+              aria-current={activeIndex === index ? "step" : undefined}
+              onClick={() => scrollToIndex(index)}
             />
           ))}
         </nav>
 
-        <div
-          ref={scrollRef}
-          className="project-detail-scroll"
-          onScroll={updateActiveSection}
-        >
+        <div ref={scrollRef} className="project-detail-scroll">
           <section
             className="project-detail-section project-detail-thumbnail"
             aria-labelledby="project-detail-heading"

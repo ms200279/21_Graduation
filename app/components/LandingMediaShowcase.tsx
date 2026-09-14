@@ -1,22 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import { getDeferredMediaSrc, useInView } from "@/app/utils/useInView";
 import {
   LANDING_MEDIA_FILM_ORDER,
   getLandingMediaFilm,
   promoteLandingMediaFilm,
+  shouldLoadLandingMediaFilmSrc,
   type LandingMediaFilmId,
 } from "./landingMediaModel";
 
 function LandingMediaItem({
   filmId,
   featured,
+  showcaseInView,
 }: {
   filmId: LandingMediaFilmId;
   featured: boolean;
+  showcaseInView: boolean;
 }) {
   const film = getLandingMediaFilm(filmId);
+  const shouldLoad = shouldLoadLandingMediaFilmSrc(featured, showcaseInView);
+  const mediaSrc = getDeferredMediaSrc(film.src, shouldLoad);
 
   return (
     <div
@@ -32,11 +38,11 @@ function LandingMediaItem({
         ].join(" ")}
       >
         <video
-          src={film.src}
+          src={mediaSrc}
           poster={film.poster}
           controls={featured}
           playsInline
-          preload="metadata"
+          preload={shouldLoad ? "metadata" : "none"}
           aria-label={`${film.label} film`}
           className="landing-media-player__video"
         />
@@ -47,13 +53,22 @@ function LandingMediaItem({
 }
 
 export default function LandingMediaShowcase() {
+  const showcaseRef = useRef<HTMLDivElement>(null);
+  const showcaseInView = useInView(showcaseRef, {
+    rootMargin: "60% 0px",
+    once: true,
+  });
   const [order, setOrder] = useState(LANDING_MEDIA_FILM_ORDER);
   const [featuredId, ...sideIds] = order;
 
   return (
-    <div className="landing-media-showcase">
+    <div ref={showcaseRef} className="landing-media-showcase">
       <div className="landing-media-showcase__layout">
-        <LandingMediaItem filmId={featuredId} featured />
+        <LandingMediaItem
+          filmId={featuredId}
+          featured
+          showcaseInView={showcaseInView}
+        />
         <div
           className="landing-media-showcase__side"
           aria-label="Additional films"
@@ -68,7 +83,11 @@ export default function LandingMediaShowcase() {
               }}
               aria-label={`Move ${getLandingMediaFilm(filmId).label} to the main player`}
             >
-              <LandingMediaItem filmId={filmId} featured={false} />
+              <LandingMediaItem
+                filmId={filmId}
+                featured={false}
+                showcaseInView={showcaseInView}
+              />
             </button>
           ))}
         </div>

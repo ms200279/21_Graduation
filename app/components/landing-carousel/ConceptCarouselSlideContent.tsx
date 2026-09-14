@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { memo, useEffect, useRef } from "react";
+import { getDeferredMediaSrc } from "@/app/utils/useInView";
 import SymbolCarouselIcons from "./SymbolCarouselIcons";
 import type { LandingCarouselSlide } from "./slides";
 
@@ -89,7 +90,7 @@ function ConceptCarouselSlideContent({
           >
             <video
               ref={videoRef}
-              src={slide.videoSrc}
+              src={getDeferredMediaSrc(slide.videoSrc, isActive)}
               poster={slide.videoPoster}
               controls
               playsInline

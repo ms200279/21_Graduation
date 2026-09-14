@@ -43,6 +43,13 @@ export function getLandingMediaFilm(id: LandingMediaFilmId) {
   return LANDING_MEDIA_FILMS.find((film) => film.id === id) ?? LANDING_MEDIA_FILMS[0];
 }
 
+export function shouldLoadLandingMediaFilmSrc(
+  featured: boolean,
+  showcaseInView: boolean,
+) {
+  return featured && showcaseInView;
+}
+
 export function promoteLandingMediaFilm(
   order: readonly LandingMediaFilmId[],
   filmId: LandingMediaFilmId,

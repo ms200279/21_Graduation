@@ -70,7 +70,6 @@ html[data-project-detail-open="true"] .landing-fullpage__footer-dock {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior-y: contain;
-  scroll-behavior: smooth;
   scroll-snap-type: y mandatory;
   scrollbar-width: thin;
   scrollbar-color: rgba(32, 60, 96, 0.28) transparent;
