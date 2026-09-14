@@ -5,7 +5,9 @@ import { LandingCarousel } from "./components/landing-carousel";
 import LandingMediaShowcase from "./components/LandingMediaShowcase";
 import LandingDeployClickBlock from "./components/LandingDeployClickBlock";
 import LandingSplash from "./components/LandingSplash";
+import DeferredAutoplayVideo from "./components/DeferredAutoplayVideo";
 import { LANDING_HERO_VIDEO_SRC } from "./components/landingSplashModel";
+import "./styles/landing.css";
 
 const HERO_BACKGROUND_SRC = LANDING_HERO_VIDEO_SRC;
 const CONCEPT_BACKGROUND_SRC = "/images/bg2.webm";
@@ -13,12 +15,6 @@ const CONCEPT_BACKGROUND_SRC = "/images/bg2.webm";
 export default function LandingPage() {
   return (
     <>
-      <link
-        rel="preload"
-        href={LANDING_HERO_VIDEO_SRC}
-        as="video"
-        type="video/webm"
-      />
       <LandingSplash />
       {/* TEMP: delete LandingDeployClickBlock.tsx, this line, and middleware.ts to restore the site. */}
       <LandingDeployClickBlock />
@@ -67,14 +63,8 @@ export default function LandingPage() {
       concept={
         <div className="landing-concept snap-screen">
           <div className="snap-screen__backdrop">
-            <video
+            <DeferredAutoplayVideo
               src={CONCEPT_BACKGROUND_SRC}
-              autoPlay
-              muted
-              loop
-              playsInline
-              disablePictureInPicture
-              aria-hidden="true"
               className="landing-hero__background pointer-events-none block h-full w-full max-w-none object-cover object-center select-none"
             />
             <div

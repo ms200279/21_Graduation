@@ -9,7 +9,6 @@ import SitePageShell from "./components/SitePageShell";
 import TypoLogoButton from "./components/TypoLogoButton";
 import "./globals.css";
 import "./styles/mobile-shell.css";
-import "./styles/landing.css";
 import "./styles/site-page-shell.css";
 import "./styles/landing-footer.css";
 import "./styles/site-header.css";
