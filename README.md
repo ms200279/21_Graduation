@@ -40,7 +40,7 @@
 - 토요일 `10:00-17:30`, 일요일 `10:00-17:00` 전시 시간 표시
 - Concept, Typography, Symbol, Senses 캐러셀
 - Senses 카드의 카테고리 필름(`/images/categori-player.webm`) 재생/정지
-- Media 섹션의 메인 필름(`/images/landing-main-player.webm`)
+- Media 섹션의 메인/미디어/인터뷰 필름(`/images/landing-main-player.webm`, `/images/media-player.webm`, `/images/interview-player.webm`)
 - 스크롤 진행도와 연동되는 글로벌 Header/Orb 전환
 
 관련 파일:
@@ -278,11 +278,10 @@ npm run dev -- -p 3001
 - People은 `app/data/people.json`의 이름, 전화번호, 학과를 사용합니다.
 - 참여자 사진은 `app/data/people-images.json`을 이름으로 매칭하며, 동명이인은 학번으로 구분합니다.
 - 프로필 파일은 `public/people/{학번}_{이름}.png`에 있습니다. 문기돈, 정해인은 원본 사진이 없습니다.
-- Landing Media의 Film 02/03 슬롯은 비어 있습니다.
 - Supabase, 인증, 업로드, 관리자 기능은 구현되지 않았습니다.
 - `LICENSE` 파일은 없습니다.
 
-원본 대용량 영상(`main.webm`, `interview.webm`, `categori.webm`)은 재생용 `*-player.webm`으로 압축해 사용합니다.
+원본 대용량 영상(`main.webm`, `interview.webm`, `categori.webm`, `media.webm`)은 재생용 `*-player.webm`으로 압축해 사용합니다.
 
 ## 배포
 

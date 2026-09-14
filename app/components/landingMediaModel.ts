@@ -1,6 +1,6 @@
 export const LANDING_MAIN_FILM_SRC = "/images/landing-main-player.webm";
 export const LANDING_MAIN_FILM_POSTER = "/images/maintn.png";
-export const LANDING_MEDIA_FILM_SRC = "/images/media.webm";
+export const LANDING_MEDIA_FILM_SRC = "/images/media-player.webm";
 export const LANDING_MEDIA_FILM_POSTER = "/images/mediatn.png";
 export const LANDING_INTERVIEW_FILM_SRC = "/images/interview-player.webm";
 export const LANDING_INTERVIEW_FILM_POSTER = "/images/interviewtn.png";
